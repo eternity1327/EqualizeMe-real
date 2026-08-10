@@ -8,27 +8,46 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById("themeToggle");
-    if (!btn) return;
-
-    updateIcon();
-
-    btn.addEventListener("click", () => {
-      const isDark = html.getAttribute("data-theme") === "dark";
-      if (isDark) {
-        html.removeAttribute("data-theme");
-        localStorage.setItem("theme", "light");
-      } else {
-        html.setAttribute("data-theme", "dark");
-        localStorage.setItem("theme", "dark");
-      }
+    if (btn) {
       updateIcon();
-    });
+      btn.addEventListener("click", () => {
+        const isDark = html.getAttribute("data-theme") === "dark";
+        if (isDark) {
+          html.removeAttribute("data-theme");
+          localStorage.setItem("theme", "light");
+        } else {
+          html.setAttribute("data-theme", "dark");
+          localStorage.setItem("theme", "dark");
+        }
+        updateIcon();
+      });
+    }
 
     function updateIcon() {
-      btn.textContent = html.getAttribute("data-theme") === "dark" ? "☀️" : "🌙";
+      if (btn) btn.textContent = html.getAttribute("data-theme") === "dark" ? "☀️" : "🌙";
     }
   });
 })();
+
+// ===== Profile dropdown =====
+document.addEventListener("DOMContentLoaded", () => {
+  const avatarBtn = document.getElementById("profileAvatarBtn");
+  const dropdown = document.getElementById("profileDropdown");
+  if (!avatarBtn || !dropdown) return;
+
+  avatarBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = dropdown.classList.toggle("open");
+    avatarBtn.setAttribute("aria-expanded", isOpen);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!dropdown.contains(e.target) && !avatarBtn.contains(e.target)) {
+      dropdown.classList.remove("open");
+      avatarBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+});
 
 const DSP_SERVICE_URL = "http://192.168.1.9:5001";
 
@@ -105,7 +124,6 @@ async function loadRecommendations() {
 async function loadProfile() {
   const nameEl = document.getElementById("profile-name");
   const soundEl = document.getElementById("profile-sound");
-  const genreEl = document.getElementById("profile-genre");
   if (!nameEl) return;
 
   try {
@@ -129,7 +147,9 @@ async function loadProfile() {
         `Presence ${profile.presenceGain > 0 ? "+" : ""}${profile.presenceGain}dB`;
     }
 
-    if (genreEl) genreEl.textContent = "Not tracked";
+    if (typeof setProfilePicture === "function") {
+      setProfilePicture(profile.profilePicture || null);
+    }
   } catch (err) {
     console.error(err);
   }

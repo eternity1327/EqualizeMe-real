@@ -11,6 +11,11 @@ if (!isset($_SESSION["user_id"])) {
 
 try {
     $pdo = get_pdo();
+
+    $pictureStmt = $pdo->prepare("SELECT profile_picture FROM users WHERE id = ?");
+    $pictureStmt->execute([$_SESSION["user_id"]]);
+    $profilePicture = $pictureStmt->fetchColumn();
+
     $stmt = $pdo->prepare(
         "SELECT bass_gain, treble_gain, presence_gain, confidence_score, updated_at " .
         "FROM auditory_profiles WHERE user_id = ?"
@@ -20,7 +25,10 @@ try {
 
     if (!$profile) {
         http_response_code(404);
-        echo json_encode(["error" => "No auditory profile found for this user"]);
+        echo json_encode([
+            "error" => "No auditory profile found for this user",
+            "profilePicture" => $profilePicture ?: null,
+        ]);
         exit;
     }
 
@@ -30,6 +38,7 @@ try {
         "presenceGain" => (float)$profile["presence_gain"],
         "confidenceScore" => $profile["confidence_score"] !== null ? (float)$profile["confidence_score"] : null,
         "updatedAt" => $profile["updated_at"],
+        "profilePicture" => $profilePicture ?: null,
     ]);
 } catch (PDOException $e) {
     http_response_code(500);

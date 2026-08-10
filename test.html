@@ -77,11 +77,53 @@
 
   /* --- The console panel --- */
   .panel {
+    position: relative;
     background: linear-gradient(180deg, var(--panel) 0%, var(--ink) 100%);
     border-radius: 20px;
     padding: 40px 48px 48px;
     box-shadow: 0 20px 50px -20px rgba(20, 24, 40, 0.5);
     color: white;
+    overflow: hidden;
+  }
+
+  /* --- Loading overlay, shown until the test signals it's ready --- */
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--ink) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    z-index: 10;
+    transition: opacity 0.4s ease;
+  }
+
+  .loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .loading-spinner {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 3px solid var(--line);
+    border-top-color: var(--amber);
+    animation: spin 0.9s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    text-transform: uppercase;
   }
 
   /* LCD-style readout */
@@ -138,10 +180,29 @@
     border-radius: 14px;
     padding: 26px 22px;
     text-align: center;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
   }
 
   .option.playing { border-color: var(--amber); }
+
+  /* Once played, the whole card becomes the "I prefer this" button */
+  .option.selectable {
+    cursor: pointer;
+  }
+
+  .option.selectable:hover {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px var(--green);
+  }
+
+  .option.selectable:active {
+    transform: scale(0.98);
+  }
+
+  .option.chosen {
+    border-color: var(--green);
+    box-shadow: 0 0 0 2px var(--green);
+  }
 
   .option .label {
     font-family: 'Space Grotesk', sans-serif;
@@ -213,17 +274,6 @@
     color: white;
   }
 
-  .prefer-btn {
-    background: transparent;
-    border: 1.5px solid var(--green);
-    color: var(--green);
-  }
-
-  .prefer-btn:not(:disabled):hover {
-    background: var(--green);
-    color: var(--ink);
-  }
-
   button:disabled {
     opacity: 0.35;
     cursor: not-allowed;
@@ -232,6 +282,23 @@
   button:focus-visible {
     outline: 2px solid var(--amber);
     outline-offset: 2px;
+  }
+
+  /* Hint text shown inside the card once it's playable/selectable, replacing the old separate button */
+  .prefer-hint {
+    margin-top: 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  .option.selectable .prefer-hint {
+    color: var(--green);
+  }
+
+  .option.chosen .prefer-hint {
+    color: var(--green);
   }
 
   #status {
@@ -258,7 +325,8 @@
   }
 
   #done-screen .prefer-btn {
-    border-color: var(--blue);
+    background: transparent;
+    border: 1.5px solid var(--blue);
     color: var(--blue);
   }
 
@@ -294,6 +362,11 @@
     <div class="container">
       <div class="panel">
 
+        <div class="loading-overlay" id="loadingOverlay">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">Preparing your test…</div>
+        </div>
+
         <div id="test-screen">
           <div class="readout" id="progress">
             <span class="dot"></span>
@@ -314,8 +387,7 @@
               </div>
               <button class="play-btn" id="play-a" onclick="playSide('A')">▶
                 Play A</button>
-              <button class="prefer-btn" id="prefer-a" onclick="chooseSide('A')"
-                disabled>I prefer this</button>
+              <div class="prefer-hint" id="hint-a">Play to unlock</div>
             </div>
             <div class="option" id="option-b">
               <div class="label">B</div>
@@ -327,8 +399,7 @@
               </div>
               <button class="play-btn" id="play-b" onclick="playSide('B')">▶
                 Play B</button>
-              <button class="prefer-btn" id="prefer-b" onclick="chooseSide('B')"
-                disabled>I prefer this</button>
+              <div class="prefer-hint" id="hint-b">Play to unlock</div>
             </div>
           </div>
 
@@ -352,5 +423,70 @@
 
     <script src="js/script.js"></script>
     <script src="js/adaptiveTest.js"></script>
+    <script>
+      // ===== Loading overlay: hides once the test signals it's ready =====
+      (function () {
+        const overlay = document.getElementById('loadingOverlay');
+        const progress = document.getElementById('progress');
+        if (!overlay || !progress) return;
+
+        const hideOverlay = () => overlay.classList.add('hidden');
+
+        // Hide as soon as the readout text changes away from the initial
+        // "Starting test..." message (adaptiveTest.js updates this once
+        // the first round is ready to play).
+        const observer = new MutationObserver(() => {
+          if (!progress.textContent.includes('Starting test')) {
+            hideOverlay();
+            observer.disconnect();
+          }
+        });
+        observer.observe(progress, { childList: true, subtree: true, characterData: true });
+
+        // Safety net: never block the UI for more than 6 seconds even if
+        // the readout text doesn't change as expected.
+        setTimeout(hideOverlay, 6000);
+      })();
+
+      // ===== "I prefer this" merged into the option card =====
+      // Wraps the existing chooseSide(...) calls (defined in adaptiveTest.js)
+      // so the whole card becomes clickable once it has been played.
+      (function () {
+        const cards = [
+          { el: document.getElementById('option-a'), playBtn: document.getElementById('play-a'), hint: document.getElementById('hint-a'), side: 'A' },
+          { el: document.getElementById('option-b'), playBtn: document.getElementById('play-b'), hint: document.getElementById('hint-b'), side: 'B' }
+        ];
+
+        cards.forEach(card => {
+          if (!card.el || !card.playBtn) return;
+
+          // Watch the play button's disabled state as a proxy for
+          // "this side has now been played" — adaptiveTest.js already
+          // manages that state elsewhere via the prefer buttons; we
+          // mirror it here without needing to touch that file.
+          const unlock = () => {
+            card.el.classList.add('selectable');
+            if (card.hint) card.hint.textContent = 'Tap to choose this one';
+            card.el.addEventListener('click', onCardClick);
+          };
+
+          const onCardClick = (e) => {
+            if (e.target.closest('.play-btn')) return; // let Play still work
+            if (typeof chooseSide === 'function') {
+              chooseSide(card.side);
+              cards.forEach(c => c.el.classList.remove('chosen'));
+              card.el.classList.add('chosen');
+            }
+          };
+
+          // Unlock shortly after Play is pressed (audio for these short
+          // samples finishes quickly; adjust the delay if your samples
+          // are longer).
+          card.playBtn.addEventListener('click', () => {
+            setTimeout(unlock, 600);
+          });
+        });
+      })();
+    </script>
   </body>
 </html>

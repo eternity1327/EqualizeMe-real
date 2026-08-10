@@ -12,22 +12,37 @@
         <nav class="navbar">
 
             <div class="logo">
-                <img src="images/logo.png" alt="EqualizeME logo" class="logo-light">
-                <img src="images/logo-dark.png" alt="EqualizeME logo" class="logo-dark">
+                <img src="images/logo.png" alt="EqualizeME logo"
+                    class="logo-light">
+                <img src="images/logo-dark.png" alt="EqualizeME logo"
+                    class="logo-dark">
             </div>
 
             <ul class="nav-links">
-                <li><a href="index.html">Home</a></li>
                 <li><a href="test.html">Sound Test</a></li>
                 <li><a href="recommendations.html">Recommendations</a></li>
-                <li><a href="profile.html">Profile</a></li>
                 <li><a href="settings.html">Settings</a></li>
-                <li><a href="login.php" id="nav-login">Login</a></li>
-                <li><a href="register.php" id="nav-register">Register</a></li>
-                <li><a href="logout.php" id="nav-logout" style="display:none;">Logout</a></li>
             </ul>
 
-            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+            <div class="nav-right">
+                <div class="profile-menu">
+                    <button class="profile-avatar" id="profileAvatarBtn"
+                        aria-haspopup="true" aria-expanded="false">
+                        👤
+                    </button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="profile.html" id="nav-profile">Profile</a>
+                        <a href="login.php" id="nav-login">Login</a>
+                        <a href="register.php" id="nav-register">Register</a>
+                        <a href="logout.php" id="nav-logout"
+                            class="dropdown-logout"
+                            style="display:none;">Logout</a>
+                    </div>
+                </div>
+            </div>
+
+            <button id="themeToggle" class="theme-toggle"
+                aria-label="Toggle dark mode">🌙</button>
 
         </nav>
 
