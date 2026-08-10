@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+
+        <title>Settings</title>
+
+        <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
+        <link rel="stylesheet" href="css/style.css">
+
+    </head>
+
+    <body>
+
+        <nav class="navbar">
+
+            <div class="logo">
+                <img src="images/logo.png" alt="EqualizeME logo">
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="test.html">Sound Test</a></li>
+                <li><a href="recommendations.html">Recommendations</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                <li><a href="settings.html">Settings</a></li>
+                <li><a href="login.php" id="nav-login">Login</a></li>
+                <li><a href="register.php" id="nav-register">Register</a></li>
+                <li><a href="logout.php" id="nav-logout" style="display:none;">Logout</a></li>
+            </ul>
+
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+
+        </nav>
+
+        <section class="section">
+
+            <h1 class="section-title">
+                Settings
+            </h1>
+
+            <div class="settings-box">
+
+                <div class="setting">
+
+                    <p>Notifications</p>
+
+                    <input type="checkbox" class="setting-checkbox"
+                        data-key="notifications"
+                        onchange="saveSetting('notifications', this.checked)">
+
+                </div>
+
+                <div class="setting">
+
+                    <p>Dark Mode</p>
+
+                    <input type="checkbox" class="setting-checkbox"
+                        data-key="darkMode"
+                        onchange="saveSetting('darkMode', this.checked)">
+
+                </div>
+
+                <div class="setting">
+
+                    <p>Auto Play</p>
+
+                    <input type="checkbox" class="setting-checkbox"
+                        data-key="autoPlay"
+                        onchange="saveSetting('autoPlay', this.checked)">
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <script src="js/script.js"></script>
+
+    </body>
+</html>

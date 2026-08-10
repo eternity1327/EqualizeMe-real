@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>EqualizeME</title>
+        <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
+        <link rel="stylesheet" href="css/style.css">
+    </head>
+
+    <body>
+
+        <nav class="navbar">
+
+            <div class="logo">
+                <img src="images/logo.png" alt="EqualizeME logo" class="logo-light">
+                <img src="images/logo-dark.png" alt="EqualizeME logo" class="logo-dark">
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="test.html">Sound Test</a></li>
+                <li><a href="recommendations.html">Recommendations</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                <li><a href="settings.html">Settings</a></li>
+                <li><a href="login.php" id="nav-login">Login</a></li>
+                <li><a href="register.php" id="nav-register">Register</a></li>
+                <li><a href="logout.php" id="nav-logout" style="display:none;">Logout</a></li>
+            </ul>
+
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+
+        </nav>
+
+        <section class="hero">
+
+            <div class="hero-text">
+
+                <h1>
+                    Find Your Perfect Sound.
+                </h1>
+
+                <p>
+                    EqualizeME helps you discover your ideal IEM based on your
+                    personal listening preference.
+                </p>
+
+                <a class="btn" href="test.html">
+                    Start Test
+                </a>
+
+            </div>
+
+            <div class="hero-card">
+
+                <h2>
+                    🎧 EqualizeME
+                </h2>
+
+                <p>
+                    Bass. Mids. Treble. <br>
+                    Find your sound signature.
+                </p>
+
+            </div>
+
+        </section>
+
+        <section class="section">
+
+            <h2 class="section-title">
+                Features
+            </h2>
+
+            <div class="card-container">
+
+                <div class="card">
+                    <h3>Sound Test</h3>
+                    <p>Analyze your preferred audio style.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Profile</h3>
+                    <p>Make your personal sound profile.</p>
+                </div>
+
+                <div class="card">
+                    <h3>Recommendations</h3>
+                    <p>Find IEMs that match you.</p>
+                </div>
+
+            </div>
+
+        </section>
+
+        <footer>
+            © 2026 EqualizeME
+        </footer>
+
+        <script src="js/script.js"></script>
+
+    </body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <title>Recommendations</title>
+
+    <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
+    <link rel="stylesheet" href="css/style.css">
+
+  </head>
+
+  <body>
+
+    <nav class="navbar">
+
+      <div class="logo">
+        <img src="images/logo.png" alt="EqualizeME logo">
+      </div>
+
+      <ul class="nav-links">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="test.html">Sound Test</a></li>
+        <li><a href="recommendations.html">Recommendations</a></li>
+        <li><a href="profile.html">Profile</a></li>
+        <li><a href="settings.html">Settings</a></li>
+        <li><a href="login.php" id="nav-login">Login</a></li>
+        <li><a href="register.php" id="nav-register">Register</a></li>
+        <li><a href="logout.php" id="nav-logout" style="display:none;">Logout</a></li>
+      </ul>
+
+      <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+
+    </nav>
+
+    <section class="section">
+
+      <h1 class="section-title">
+        Recommended IEMs
+      </h1>
+
+      <div class="iem-grid" id="iem-grid">
+        <p>Loading recommendations...</p>
+      </div>
+
+    </section>
+
+    <script src="js/script.js"></script>
+    <script>
+  loadRecommendations();
+</script>
+
+  </body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Sound Test — EqualizeME</title>
+    <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap"
+      rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+  :root {
+    --ink: #161a23;
+    --panel: #1c2333;
+    --panel-2: #232b40;
+    --paper: #eef1f5;
+    --line: #2e3752;
+    --amber: #f2a93b;
+    --amber-dim: #7a5b22;
+    --blue: #5b7cfa;
+    --green: #34c98f;
+    --muted: #8891ab;
+    --navbar-bg: white;
+    --navbar-border: #dde1e8;
+  }
+
+  [data-theme="dark"] {
+    --ink: #e5e7eb;
+    --paper: #0f172a;
+    --navbar-bg: #1e293b;
+    --navbar-border: #334155;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--paper);
+    margin: 0;
+    color: var(--ink);
+  }
+
+  .navbar {
+    background: var(--navbar-bg);
+    padding: 20px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--navbar-border);
+  }
+
+  .navbar .brand {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .navbar .brand span { color: var(--blue); }
+
+  .navbar a {
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  .navbar a:hover { color: var(--blue); }
+
+  .container {
+    max-width: 760px;
+    margin: 56px auto;
+    padding: 0 24px;
+  }
+
+  /* --- The console panel --- */
+  .panel {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--ink) 100%);
+    border-radius: 20px;
+    padding: 40px 48px 48px;
+    box-shadow: 0 20px 50px -20px rgba(20, 24, 40, 0.5);
+    color: white;
+  }
+
+  /* LCD-style readout */
+  .readout {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #0f1320;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    color: var(--amber);
+    text-transform: uppercase;
+  }
+
+  .readout .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0.25; } }
+
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 18px 0 6px;
+  }
+
+  .subtext {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin: 0 0 32px;
+  }
+
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .option {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 26px 22px;
+    text-align: center;
+    transition: border-color 0.2s ease;
+  }
+
+  .option.playing { border-color: var(--amber); }
+
+  .option .label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+
+  .option .tag {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  /* Level meter — the signature element, animates while playing */
+  .meter {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    height: 28px;
+    margin-bottom: 18px;
+  }
+
+  .meter .bar {
+    width: 5px;
+    height: 20%;
+    background: var(--line);
+    border-radius: 2px;
+    transition: background 0.2s ease;
+  }
+
+  .option.playing .meter .bar {
+    background: var(--amber);
+    animation: levels 0.9s ease-in-out infinite;
+  }
+
+  .option.playing .meter .bar:nth-child(1) { animation-delay: 0s; }
+  .option.playing .meter .bar:nth-child(2) { animation-delay: 0.1s; }
+  .option.playing .meter .bar:nth-child(3) { animation-delay: 0.2s; }
+  .option.playing .meter .bar:nth-child(4) { animation-delay: 0.05s; }
+  .option.playing .meter .bar:nth-child(5) { animation-delay: 0.15s; }
+
+  @keyframes levels {
+    0%, 100% { height: 20%; }
+    50% { height: 90%; }
+  }
+
+  button {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 600;
+    padding: 11px 16px;
+    margin: 4px 0;
+    border-radius: 9px;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    transition: transform 0.08s ease, opacity 0.15s ease;
+  }
+
+  button:active:not(:disabled) { transform: scale(0.98); }
+
+  .play-btn {
+    background: var(--blue);
+    color: white;
+  }
+
+  .prefer-btn {
+    background: transparent;
+    border: 1.5px solid var(--green);
+    color: var(--green);
+  }
+
+  .prefer-btn:not(:disabled):hover {
+    background: var(--green);
+    color: var(--ink);
+  }
+
+  button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  #status {
+    color: var(--muted);
+    font-size: 0.88rem;
+    text-align: center;
+    min-height: 20px;
+  }
+
+  #done-screen { display: none; }
+
+  #done-screen .profile-line {
+    text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+    background: #0f1320;
+    border: 1px solid var(--line);
+    color: var(--amber);
+    padding: 18px 20px;
+    border-radius: 10px;
+    margin: 20px 0 28px;
+    line-height: 1.7;
+    white-space: pre-line;
+  }
+
+  #done-screen .prefer-btn {
+    border-color: var(--blue);
+    color: var(--blue);
+  }
+
+  #done-screen .prefer-btn:hover {
+    background: var(--blue);
+    color: white;
+  }
+
+  @media (max-width: 560px) {
+    .pair { grid-template-columns: 1fr; }
+    .panel { padding: 32px 24px 36px; }
+  }
+</style>
+  </head>
+  <body>
+
+    <div class="navbar">
+      <div class="brand"><img src="images/logo.png" alt="EqualizeME logo"
+          style="height:28px;width:auto;display:block;"></div>
+      <div>
+        <a href="index.html">Home</a>
+        <a href="recommendations.html" style="margin-left:20px;">Results</a>
+        <a href="login.php" id="nav-login" style="margin-left:20px;">Login</a>
+        <a href="register.php" id="nav-register"
+          style="margin-left:20px;">Register</a>
+        <a href="logout.php" id="nav-logout"
+          style="margin-left:20px; display:none;">Logout</a>
+        <button id="themeToggle" class="theme-toggle"
+          aria-label="Toggle dark mode" style="margin-left:20px;">🌙</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="panel">
+
+        <div id="test-screen">
+          <div class="readout" id="progress">
+            <span class="dot"></span>
+            <span>Starting test...</span>
+          </div>
+          <h1>Which do you prefer?</h1>
+          <p class="subtext">Play both, listen closely, then pick the one that
+            sounds better to you.</p>
+
+          <div class="pair">
+            <div class="option" id="option-a">
+              <div class="label">A</div>
+              <div class="tag">Sample A</div>
+              <div class="meter">
+                <div class="bar"></div><div class="bar"></div><div
+                  class="bar"></div><div class="bar"></div><div
+                  class="bar"></div>
+              </div>
+              <button class="play-btn" id="play-a" onclick="playSide('A')">▶
+                Play A</button>
+              <button class="prefer-btn" id="prefer-a" onclick="chooseSide('A')"
+                disabled>I prefer this</button>
+            </div>
+            <div class="option" id="option-b">
+              <div class="label">B</div>
+              <div class="tag">Sample B</div>
+              <div class="meter">
+                <div class="bar"></div><div class="bar"></div><div
+                  class="bar"></div><div class="bar"></div><div
+                  class="bar"></div>
+              </div>
+              <button class="play-btn" id="play-b" onclick="playSide('B')">▶
+                Play B</button>
+              <button class="prefer-btn" id="prefer-b" onclick="chooseSide('B')"
+                disabled>I prefer this</button>
+            </div>
+          </div>
+
+          <div id="status">Loading...</div>
+        </div>
+
+        <div id="done-screen">
+          <div class="readout"><span class="dot"></span><span>Test
+              complete</span></div>
+          <h1>Here's your profile</h1>
+          <p class="subtext">This is the EQ curve we learned from your
+            answers.</p>
+          <div class="profile-line" id="profile-output"></div>
+          <button class="prefer-btn"
+            onclick="window.location.href='recommendations.html'">See
+            Recommendations</button>
+        </div>
+
+      </div>
+    </div>
+
+    <script src="js/script.js"></script>
+    <script src="js/adaptiveTest.js"></script>
+  </body>
+</html>
