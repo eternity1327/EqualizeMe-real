@@ -21,21 +21,26 @@ import websocket  # pip install websocket-client
 CAMILLA_EXE = os.path.join(os.path.dirname(__file__), "camilladsp.exe")
 CAMILLA_WS_PORT = 1234
 
-# Placeholder sample — replace this file (same name/path) once the real
-# listening-test audio is ready, no code changes needed.
+# Fallback sample, used only if a session somehow has no sample assigned.
 TEST_SAMPLE_PATH = os.path.join(os.path.dirname(__file__), "data", "audio", "test-sample.wav")
+
+# Folder holding sample1.wav .. sample10.wav — one is picked per test session
+# (see adaptive_test.py) so the same song plays consistently within a
+# person's test but varies session to session.
+SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "data", "audio", "samples")
 
 _process = None
 _ws = None
 _ready = False
 
 
-def _build_config(bassGain=0, trebleGain=0, presenceGain=0):
+def _build_config(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
+    capture_path = os.path.join(SAMPLES_DIR, sample) if sample else TEST_SAMPLE_PATH
     return {
         "devices": {
             "samplerate": 48000,
             "chunksize": 1024,
-            "capture": {"type": "WavFile", "filename": TEST_SAMPLE_PATH},
+            "capture": {"type": "WavFile", "filename": capture_path},
             "playback": {"type": "Wasapi", "channels": 2, "exclusive": False},
         },
         "filters": {
@@ -95,9 +100,9 @@ def _push_config(params):
         return False
 
 
-def apply_filters(bassGain=0, trebleGain=0, presenceGain=0):
-    """Plays the test sample through arbitrary filter values."""
-    params = {"bassGain": bassGain, "trebleGain": trebleGain, "presenceGain": presenceGain}
+def apply_filters(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
+    """Plays the given sample (or the fallback test sample) through arbitrary filter values."""
+    params = {"bassGain": bassGain, "trebleGain": trebleGain, "presenceGain": presenceGain, "sample": sample}
     ok = _push_config(params)
     return {"ok": ok, "params": params}
 

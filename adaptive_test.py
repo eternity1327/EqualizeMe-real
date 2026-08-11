@@ -16,21 +16,58 @@ to their test audio at once, even though their progress tracking
 is now isolated.
 """
 
+import random
+
 STEP_ROUNDS = 4
 PARAMS = ["bassGain", "trebleGain", "presenceGain"]
 RANGE_LOW = -6
 RANGE_HIGH = 6
+NUM_SAMPLES = 10  # sample1.wav .. sample10.wav in data/audio/samples/
+
+# Friendly display names for the 10 trimmed clips, in the order they were
+# copied in from the source recordings — keeps sample1.wav from being a
+# meaningless label in the UI.
+SAMPLE_LABELS = {
+    "sample1.wav": "Show — Chorus",
+    "sample2.wav": "Show — Intro",
+    "sample3.wav": "Everlasting Summer — Ref",
+    "sample4.wav": "Everlasting Summer — Chorus",
+    "sample5.wav": "Summertime Lime — Ambient",
+    "sample6.wav": "Summertime Lime — Intro",
+    "sample7.wav": "I Think They Call This Love — Chorus",
+    "sample8.wav": "I Think They Call This Love — Bridge",
+    "sample9.wav": "Original Me — Chorus",
+    "sample10.wav": "Original Me — Solo",
+}
 
 _sessions = {}  # user_id -> session dict
 
 
-def start_session(user_id):
+def list_samples():
+    """All selectable tracks, in order, for populating a picker UI."""
+    return [
+        {"file": f"sample{i}.wav", "label": SAMPLE_LABELS.get(f"sample{i}.wav", f"sample{i}.wav")}
+        for i in range(1, NUM_SAMPLES + 1)
+    ]
+
+
+def start_session(user_id, sample=None):
+    # Use the requested track if it's one of the real sample files;
+    # otherwise fall back to a random pick (e.g. if the picker UI is
+    # skipped, or an invalid value sneaks through).
+    valid_samples = {f"sample{i}.wav" for i in range(1, NUM_SAMPLES + 1)}
+    if sample not in valid_samples:
+        sample = f"sample{random.randint(1, NUM_SAMPLES)}.wav"
+
     _sessions[user_id] = {
         "paramIndex": 0,
         "round": 0,
         "bounds": {"low": RANGE_LOW, "high": RANGE_HIGH},
         "finalized": {"bassGain": 0, "trebleGain": 0, "presenceGain": 0},
         "history": [],
+        # Fixed for the whole session so A/B stays the same song for a fair
+        # comparison within one person's test.
+        "sample": sample,
     }
     return get_current_pair(user_id)
 
@@ -64,6 +101,8 @@ def get_current_pair(user_id):
         "totalParams": len(PARAMS),
         "A": a,
         "B": b,
+        "sample": session["sample"],
+        "sampleLabel": SAMPLE_LABELS.get(session["sample"], session["sample"]),
     }
 
 
@@ -106,8 +145,11 @@ def record_answer(user_id, preferred):
 
 
 def get_current_side_params(user_id, side):
-    """Returns the A or B parameter set for whatever pair is currently active."""
+    """Returns the A or B parameter set for whatever pair is currently active,
+    plus this session's fixed sample file so camilla_dsp knows what to play."""
     pair = get_current_pair(user_id)
     if pair is None:
         return None
-    return pair["A"] if side == "A" else pair["B"]
+    params = dict(pair["A"] if side == "A" else pair["B"])
+    params["sample"] = _sessions[user_id]["sample"]
+    return params

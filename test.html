@@ -15,6 +15,7 @@
     --ink: #161a23;
     --panel: #1c2333;
     --panel-2: #232b40;
+    --panel-deep: #262e45;
     --paper: #eef1f5;
     --line: #2e3752;
     --amber: #f2a93b;
@@ -78,7 +79,7 @@
   /* --- The console panel --- */
   .panel {
     position: relative;
-    background: linear-gradient(180deg, var(--panel) 0%, var(--ink) 100%);
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-deep) 100%);
     border-radius: 20px;
     padding: 40px 48px 48px;
     box-shadow: 0 20px 50px -20px rgba(20, 24, 40, 0.5);
@@ -90,7 +91,7 @@
   .loading-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, var(--panel) 0%, var(--ink) 100%);
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-deep) 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -309,6 +310,24 @@
   }
 
   #done-screen { display: none; }
+  #test-screen { display: none; }
+
+  .track-select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: #0f1320;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    margin: 8px 0 22px;
+  }
+
+  .track-select:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
 
   #done-screen .profile-line {
     text-align: left;
@@ -344,13 +363,12 @@
   <body>
 
     <div class="navbar">
-      <div class="brand"><img src="images/logo.png" alt="EqualizeME logo"
-          style="height:28px;width:auto;display:block;"></div>
+      <a class="brand" href="index.html"><img src="images/logo.png" alt="EqualizeME logo"
+          style="height:28px;width:auto;display:block;"></a>
       <div>
-        <a href="index.html">Home</a>
-        <a href="recommendations.html" style="margin-left:20px;">Results</a>
+        <a href="recommendations.html">Results</a>
         <a href="login.php" id="nav-login" style="margin-left:20px;">Login</a>
-        <a href="register.php" id="nav-register"
+        <a href="login.php?tab=register" id="nav-register"
           style="margin-left:20px;">Register</a>
         <a href="logout.php" id="nav-logout"
           style="margin-left:20px; display:none;">Logout</a>
@@ -362,9 +380,23 @@
     <div class="container">
       <div class="panel">
 
-        <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-overlay hidden" id="loadingOverlay">
           <div class="loading-spinner"></div>
           <div class="loading-text">Preparing your test…</div>
+        </div>
+
+        <div id="track-picker">
+          <div class="readout"><span class="dot"></span><span>Step 1 of 2</span></div>
+          <h1>Choose a track</h1>
+          <p class="subtext">Pick a song to use for this listening test — you'll
+            hear it twice per round, under different EQ settings, so you can
+            compare.</p>
+
+          <select id="sample-select" class="track-select">
+            <option>Loading tracks…</option>
+          </select>
+
+          <button class="play-btn" id="start-test-btn" onclick="beginTest()">Start Test</button>
         </div>
 
         <div id="test-screen">
@@ -375,6 +407,7 @@
           <h1>Which do you prefer?</h1>
           <p class="subtext">Play both, listen closely, then pick the one that
             sounds better to you.</p>
+          <p class="subtext" id="track-name" style="margin-top:-24px;"></p>
 
           <div class="pair">
             <div class="option" id="option-a">
@@ -460,24 +493,25 @@
         cards.forEach(card => {
           if (!card.el || !card.playBtn) return;
 
-          // Watch the play button's disabled state as a proxy for
-          // "this side has now been played" — adaptiveTest.js already
-          // manages that state elsewhere via the prefer buttons; we
-          // mirror it here without needing to touch that file.
           const unlock = () => {
             card.el.classList.add('selectable');
             if (card.hint) card.hint.textContent = 'Tap to choose this one';
-            card.el.addEventListener('click', onCardClick);
           };
 
           const onCardClick = (e) => {
             if (e.target.closest('.play-btn')) return; // let Play still work
+            if (!card.el.classList.contains('selectable')) return; // not unlocked yet
             if (typeof chooseSide === 'function') {
               chooseSide(card.side);
               cards.forEach(c => c.el.classList.remove('chosen'));
               card.el.classList.add('chosen');
             }
           };
+
+          // Attached once — gated on the 'selectable' class at click time,
+          // instead of re-adding a fresh listener on every unlock (which
+          // would fire chooseSide() multiple times per click by round 2+).
+          card.el.addEventListener('click', onCardClick);
 
           // Unlock shortly after Play is pressed (audio for these short
           // samples finishes quickly; adjust the delay if your samples

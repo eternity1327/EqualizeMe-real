@@ -115,7 +115,7 @@ def get_recommendations(user_id):
     cur.execute(
         """
         SELECT i.id, i.name, i.brand, i.sound_signature, i.bass_gain,
-               i.treble_gain, i.presence_gain, i.price,
+               i.treble_gain, i.presence_gain, i.price, i.image_url,
                r.name AS retailer_name, r.product_url
         FROM iems i
         LEFT JOIN retailers r ON i.retailer_id = r.retailer_id
@@ -142,6 +142,7 @@ def get_recommendations(user_id):
             "brand": iem["brand"],
             "sound_signature": iem["sound_signature"],
             "price": float(iem["price"]) if iem["price"] is not None else None,
+            "image_url": iem.get("image_url"),
             "retailer_name": iem["retailer_name"],
             "product_url": iem["product_url"],
             "match_score": match_score,
@@ -153,6 +154,12 @@ def get_recommendations(user_id):
     return jsonify({"user_id": user_id, "recommendations": top_results})
 
 
+@app.route("/api/dsp/adaptive/samples", methods=["GET"])
+def dsp_adaptive_samples():
+    """Lists the selectable tracks for the sample picker on test.html."""
+    return jsonify({"samples": adaptive_test.list_samples()})
+
+
 @app.route("/api/dsp/adaptive/start", methods=["POST"])
 def dsp_adaptive_start():
     """Starts CamillaDSP (if not running) and begins a new staircase session for this user."""
@@ -162,7 +169,7 @@ def dsp_adaptive_start():
         return jsonify({"error": "user_id is required"}), 400
 
     camilla_dsp.start()
-    pair = adaptive_test.start_session(user_id)
+    pair = adaptive_test.start_session(user_id, sample=data.get("sample"))
     return jsonify(pair)
 
 

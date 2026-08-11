@@ -49,7 +49,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-const DSP_SERVICE_URL = "http://192.168.1.9:5001";
+// Same machine as ai_service.py, so localhost is more robust than a LAN IP
+// (which breaks any time DHCP hands out a different address).
+const DSP_SERVICE_URL = "http://127.0.0.1:5001";
 
 // Used on test.html - sends the chosen preference to the backend
 async function choose(sound) {
@@ -107,6 +109,9 @@ async function loadRecommendations() {
 
     grid.innerHTML = data.recommendations.map(item => `
       <div class="iem-card">
+        <img class="iem-card-img" src="${item.image_url || 'images/iem-placeholder.svg'}"
+          alt="${item.brand} ${item.name}"
+          onerror="this.onerror=null; this.src='images/iem-placeholder.svg';">
         <h3>${item.brand} ${item.name}</h3>
         <p>${item.sound_signature ?? ""}</p>
         <p>Match: ${item.match_score}%</p>
@@ -171,6 +176,8 @@ async function loadSettings() {
   } catch (err) {
     console.error(err);
   }
+
+  updateNotifStatus();
 }
 
 async function saveSetting(key, checked) {
@@ -182,6 +189,31 @@ async function saveSetting(key, checked) {
     });
   } catch (err) {
     console.error(err);
+  }
+}
+
+// Notifications checkbox needs to request browser permission before the
+// setting can actually do anything. Permission must be requested from a
+// direct user gesture (this onchange handler), so it's asked for here
+// first, synchronously, before saveSetting's async fetch runs.
+function toggleNotifications(checked) {
+  if (checked && "Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().then(updateNotifStatus);
+  }
+  saveSetting("notifications", checked);
+  updateNotifStatus();
+}
+
+function updateNotifStatus() {
+  const statusEl = document.getElementById("notif-status");
+  if (!statusEl) return;
+
+  if (!("Notification" in window)) {
+    statusEl.textContent = "Your browser doesn't support notifications.";
+  } else if (Notification.permission === "denied") {
+    statusEl.textContent = "Notifications are blocked in your browser settings — enable them there to use this.";
+  } else {
+    statusEl.textContent = "";
   }
 }
 
