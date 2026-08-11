@@ -1,6 +1,7 @@
 <?php
-require __DIR__ . "/session.php";
-require __DIR__ . "/db.php";
+require_once __DIR__ . "/session.php";
+require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/csrf.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -9,6 +10,9 @@ if (!isset($_SESSION["user_id"])) {
     echo json_encode(["error" => "Not logged in"]);
     exit;
 }
+
+// Multipart upload — the token rides along as a normal form field.
+csrf_verify_or_fail();
 
 if (!isset($_FILES["photo"]) || $_FILES["photo"]["error"] !== UPLOAD_ERR_OK) {
     http_response_code(400);

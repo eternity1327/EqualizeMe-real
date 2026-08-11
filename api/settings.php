@@ -1,6 +1,7 @@
 <?php
-require __DIR__ . "/session.php";
-require __DIR__ . "/db.php";
+require_once __DIR__ . "/session.php";
+require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/csrf.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -31,6 +32,7 @@ try {
             "autoPlay" => (bool)$row["auto_play"],
         ]);
     } elseif ($_SERVER["REQUEST_METHOD"] === "PUT") {
+        csrf_verify_or_fail();
         $data = json_decode(file_get_contents("php://input"), true);
         $columnMap = ["notifications" => "notifications", "darkMode" => "dark_mode", "autoPlay" => "auto_play"];
 

@@ -1,3 +1,10 @@
 .venv/
 __pycache__/
 *.pyc
+
+# Local secrets — SMTP credentials etc. Never commit this file.
+api/config.local.php
+
+# Password reset emails written to disk when SMTP isn't configured.
+# These contain working reset links, so they must not be committed.
+logs/

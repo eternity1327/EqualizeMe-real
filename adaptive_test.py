@@ -30,6 +30,11 @@ Bass gets the extra round because it's first; with only 10 questions
 across 3 parameters the split can't be even, so treble and presence
 converge on a slightly coarser final value than bass does.
 
+If the listener took the written pre-quiz first (see pre_quiz.py), its
+estimate is passed in as `seed` and each band starts its search in a
+window around that estimate rather than the full range — so the same
+number of questions lands on a more precise final value.
+
 Sessions are keyed by user_id, so two different users' test progress
 won't collide. NOTE: this does NOT make audio playback itself
 multi-user — camilladsp.exe still only outputs to one machine's
@@ -41,6 +46,12 @@ is now isolated.
 RANGE_LOW = -6
 RANGE_HIGH = 6
 NUM_SAMPLES = 10  # sample1.wav .. sample10.wav in data/audio/samples/
+
+# How far either side of the pre-quiz's estimate the search starts.
+# Smaller = trusts the quiz more and converges tighter, but a wrong
+# estimate becomes harder to escape, since the true preference could sit
+# outside the window entirely. +/-3 keeps half the original range in play.
+SEED_WINDOW = 3
 
 # (parameter, how many questions/rounds it gets). Must sum to NUM_SAMPLES,
 # since every question consumes exactly one clip.
@@ -85,14 +96,40 @@ def list_samples():
     ]
 
 
-def start_session(user_id):
+def _bounds_for(param, seed):
+    """Starting search range for a parameter.
+
+    With no pre-quiz seed this is the full -6..+6. With one, it's a
+    window centred on the quiz's estimate — clamped so the window never
+    runs past the usable range (an estimate of +6 gives 0..+6, not
+    +3..+9).
+    """
+    if not seed or param not in seed:
+        return {"low": RANGE_LOW, "high": RANGE_HIGH}
+
+    estimate = max(RANGE_LOW, min(RANGE_HIGH, seed[param]))
+    return {
+        "low": max(RANGE_LOW, estimate - SEED_WINDOW),
+        "high": min(RANGE_HIGH, estimate + SEED_WINDOW),
+    }
+
+
+def start_session(user_id, seed=None):
+    """Begins a test. `seed` is the optional pre-quiz estimate, e.g.
+    {"bassGain": 2, "trebleGain": -1, "presenceGain": 0}; when given,
+    each band starts its search narrowed around that value."""
+    first_param = PARAM_ROUNDS[0][0]
+
     _sessions[user_id] = {
         "questionIndex": 0,  # 0-based; also picks which clip to play
         "paramIndex": 0,
         "round": 0,
-        "bounds": {"low": RANGE_LOW, "high": RANGE_HIGH},
+        "bounds": _bounds_for(first_param, seed),
         "finalized": {"bassGain": 0, "trebleGain": 0, "presenceGain": 0},
         "history": [],
+        # Kept for the whole session so each band can be re-seeded as the
+        # test moves on to it.
+        "seed": seed,
     }
     return get_current_pair(user_id)
 
@@ -179,7 +216,9 @@ def record_answer(user_id, preferred):
         session["finalized"][param] = round(final_value, 1)
         session["paramIndex"] += 1
         session["round"] = 0
-        session["bounds"] = {"low": RANGE_LOW, "high": RANGE_HIGH}
+        if session["paramIndex"] < len(PARAM_ROUNDS):
+            next_param = PARAM_ROUNDS[session["paramIndex"]][0]
+            session["bounds"] = _bounds_for(next_param, session.get("seed"))
 
     if session["paramIndex"] >= len(PARAM_ROUNDS) or session["questionIndex"] >= TOTAL_QUESTIONS:
         return {"done": True, "profile": session["finalized"], "history": session["history"]}

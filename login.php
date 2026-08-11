@@ -1,6 +1,11 @@
 <?php
-require __DIR__ . "/api/session.php";
+require_once __DIR__ . "/api/session.php";
+require_once __DIR__ . "/api/csrf.php";
 start_secure_session();
+
+// Generated here and embedded in the page below, so the login/signup
+// forms don't need a separate round-trip to fetch it.
+$csrfToken = csrf_token();
 
 // Only allow redirecting to known pages in this project — never to an
 // arbitrary URL, to avoid this being abused as an open redirect.
@@ -68,6 +73,7 @@ $initialTab = ($_GET["tab"] ?? "") === "register" ? "register" : "login";
       <input id="login-password" type="password" autocomplete="current-password" required>
 
       <button class="auth-submit" type="submit" id="login-submit">Log In</button>
+      <p class="auth-hint"><a href="forgot-password.php">Forgot your password?</a></p>
       <p class="auth-hint">New here? <a href="#" onclick="switchTab('register'); return false;">Create an account</a></p>
     </form>
 
@@ -96,6 +102,10 @@ $initialTab = ($_GET["tab"] ?? "") === "register" ? "register" : "login";
 // computed server-side above from ?redirect= or the page they came from.
 const REDIRECT_TARGET = <?php echo json_encode($redirectTarget); ?>;
 
+// Session-bound token proving these requests came from this page, not
+// from another site posting to our API on your behalf.
+const CSRF_TOKEN = <?php echo json_encode($csrfToken); ?>;
+
 function switchTab(which) {
   document.getElementById('tab-login').classList.toggle('active', which === 'login');
   document.getElementById('tab-register').classList.toggle('active', which === 'register');
@@ -123,7 +133,7 @@ async function handleLogin(event) {
     const res = await fetch('api/auth/login.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, csrf_token: CSRF_TOKEN }),
     });
     const data = await res.json();
 
@@ -157,7 +167,7 @@ async function handleRegister(event) {
     const res = await fetch('api/auth/register.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, csrf_token: CSRF_TOKEN }),
     });
     const data = await res.json();
 

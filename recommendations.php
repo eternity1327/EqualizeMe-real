@@ -2,7 +2,7 @@
 // NOTE: recommendations.html + js/script.js's loadRecommendations() is the
 // version linked from the nav now. This standalone page is left working
 // but isn't currently linked from anywhere in the UI.
-require __DIR__ . "/api/session.php";
+require_once __DIR__ . "/api/session.php";
 start_secure_session();
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php?redirect=recommendations.html");

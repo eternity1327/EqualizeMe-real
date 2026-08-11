@@ -6,8 +6,50 @@
  * a home network / simple public link, not a substitute for a real rate
  * limiter if this project ever needs to handle serious abuse traffic.
  */
+/**
+ * The visitor's real IP address.
+ *
+ * Behind a tunnel or reverse proxy, REMOTE_ADDR is the proxy itself
+ * (127.0.0.1 for cloudflared), so every visitor would otherwise share a
+ * single rate-limit bucket — one person's failed logins would lock out
+ * the whole group.
+ *
+ * The forwarded-IP headers are only trusted when the request genuinely
+ * arrived from the local proxy. Trusting them unconditionally would let
+ * anyone bypass rate limiting entirely just by sending a made-up
+ * CF-Connecting-IP header with each attempt.
+ */
+function client_ip() {
+    $remote = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+    $localProxies = ['127.0.0.1', '::1'];
+    if (!in_array($remote, $localProxies, true)) {
+        return $remote;
+    }
+
+    // Cloudflare's header is a single IP and is the more reliable of the two.
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        $candidate = trim($_SERVER['HTTP_CF_CONNECTING_IP']);
+        if (filter_var($candidate, FILTER_VALIDATE_IP)) {
+            return $candidate;
+        }
+    }
+
+    // X-Forwarded-For is a comma-separated chain; the original client is first.
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        foreach (explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']) as $part) {
+            $candidate = trim($part);
+            if (filter_var($candidate, FILTER_VALIDATE_IP)) {
+                return $candidate;
+            }
+        }
+    }
+
+    return $remote;
+}
+
 function rate_limit_check($bucket, $maxAttempts = 8, $windowSeconds = 300) {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $ip = client_ip();
     $data = _rate_limit_read($bucket);
     $now = time();
 
@@ -19,7 +61,7 @@ function rate_limit_check($bucket, $maxAttempts = 8, $windowSeconds = 300) {
 }
 
 function rate_limit_record($bucket) {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $ip = client_ip();
     $data = _rate_limit_read($bucket);
     $now = time();
 

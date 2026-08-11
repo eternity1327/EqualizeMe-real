@@ -1,7 +1,9 @@
 <?php
-require __DIR__ . "/../session.php";
-require __DIR__ . "/../db.php";
-require __DIR__ . "/../rate_limit.php";
+require_once __DIR__ . "/../session.php";
+require_once __DIR__ . "/../db.php";
+require_once __DIR__ . "/../rate_limit.php";
+require_once __DIR__ . "/../password_policy.php";
+require_once __DIR__ . "/../csrf.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -13,6 +15,8 @@ if (!rate_limit_check("register", 5, 600)) {
 rate_limit_record("register");
 
 $body = json_decode(file_get_contents("php://input"), true);
+csrf_verify_or_fail($body["csrf_token"] ?? null);
+
 $name = trim($body["name"] ?? "");
 $email = trim($body["email"] ?? "");
 $password = $body["password"] ?? "";
@@ -27,9 +31,10 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo json_encode(["error" => "That email address doesn't look valid"]);
     exit;
 }
-if (strlen($password) < 8) {
+$passwordProblems = password_problems($password, $email, $name);
+if ($passwordProblems) {
     http_response_code(400);
-    echo json_encode(["error" => "Password must be at least 8 characters"]);
+    echo json_encode(["error" => password_error_message($passwordProblems)]);
     exit;
 }
 

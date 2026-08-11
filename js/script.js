@@ -58,8 +58,39 @@ document.addEventListener("DOMContentLoaded", () => {
 // assumes). Quick tunnel URLs change every time cloudflared restarts — update
 // this line with the new URL each time, or switch back to the dynamic version
 // for local/LAN-only testing.
-const DSP_SERVICE_URL = "https://federation-uploaded-titled-anchor.trycloudflare.com";
+const DSP_SERVICE_URL = "https://football-banana-packed-malpractice.trycloudflare.com";
 // const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
+
+// ---------------------------------------------------------------------------
+// CSRF token
+//
+// The PHP endpoints that change data require a token tied to your session.
+// Fetched once and reused — it doesn't change for the life of the session.
+// Only needed for the PHP API; the Flask service on :5001 is a separate
+// origin and relies on its ALLOWED_ORIGIN setting instead.
+// ---------------------------------------------------------------------------
+let _csrfToken = null;
+
+async function getCsrfToken() {
+  if (_csrfToken) return _csrfToken;
+
+  try {
+    const res = await fetch("api/csrf-token.php");
+    if (!res.ok) return null;
+    const data = await res.json();
+    _csrfToken = data.token;
+    return _csrfToken;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Clears the cached token so the next request fetches a fresh one — used
+// after a 403, which usually means the session (and its token) was
+// replaced while the page stayed open.
+function invalidateCsrfToken() {
+  _csrfToken = null;
+}
 
 // Used on test.html - sends the chosen preference to the backend
 async function choose(sound) {
@@ -190,11 +221,31 @@ async function loadSettings() {
 
 async function saveSetting(key, checked) {
   try {
-    await fetch("api/settings.php", {
+    const token = await getCsrfToken();
+
+    const res = await fetch("api/settings.php", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": token || ""
+      },
       body: JSON.stringify({ [key]: checked })
     });
+
+    // A rejected token usually means the session was replaced while this
+    // page sat open — get a fresh one and retry once before giving up.
+    if (res.status === 403) {
+      invalidateCsrfToken();
+      const retryToken = await getCsrfToken();
+      await fetch("api/settings.php", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": retryToken || ""
+        },
+        body: JSON.stringify({ [key]: checked })
+      });
+    }
   } catch (err) {
     console.error(err);
   }

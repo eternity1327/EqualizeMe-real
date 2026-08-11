@@ -149,6 +149,9 @@
 
           const formData = new FormData();
           formData.append('photo', file);
+          // Multipart request, so the CSRF token travels as a form field
+          // rather than a header (getCsrfToken lives in js/script.js).
+          formData.append('csrf_token', (await getCsrfToken()) || '');
 
           try {
             const res = await fetch('api/upload-picture.php', {

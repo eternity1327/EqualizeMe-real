@@ -105,6 +105,56 @@
         margin: 0 0 32px;
       }
 
+      /* ---- Written pre-quiz ---- */
+      .quiz-q {
+        margin-bottom: 26px;
+      }
+
+      .quiz-q .quiz-prompt {
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--text);
+        margin-bottom: 12px;
+      }
+
+      .quiz-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .quiz-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--pill-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 0.92rem;
+        color: var(--text);
+        cursor: pointer;
+        transition: border-color 0.15s ease;
+      }
+
+      .quiz-option:hover { border-color: var(--accent); }
+
+      .quiz-option input { accent-color: var(--accent); margin: 0; }
+
+      .quiz-option.picked {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+
+      #quiz-screen { display: none; }
+
+      #quiz-error {
+        color: var(--danger);
+        font-size: 0.88rem;
+        min-height: 20px;
+        margin-bottom: 8px;
+      }
+
       .pair {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -306,17 +356,35 @@
         </div>
 
         <div id="track-picker">
-          <div class="readout"><span class="dot"></span><span>Before you
-              start</span></div>
-          <h1>10 questions, 10 clips</h1>
-          <p class="subtext">You'll hear two clips from each of 5 songs — 10
-            in total. For every clip you get two versions, A and B, which are
-            the same audio with different EQ applied. Just pick whichever one
-            sounds better to you.</p>
-          <p class="subtext">Use headphones or IEMs if you can, and try to keep
-            your volume consistent throughout.</p>
+          <div class="readout"><span class="dot"></span><span>Step 1 of
+              2</span></div>
+          <h1>A few quick questions</h1>
+          <p class="subtext">First, six short questions about what you like —
+            no audio yet. Your answers give the listening test a head start,
+            so it lands on a more accurate result.</p>
+          <p class="subtext">Then comes the listening part: two clips from each
+            of 5 songs, 10 in total. For every clip you'll hear two versions,
+            A and B — the same audio with different EQ — and pick whichever
+            sounds better.</p>
+          <p class="subtext">Use headphones or IEMs if you can, and keep your
+            volume consistent throughout.</p>
 
-          <button class="play-btn" id="start-test-btn" onclick="beginTest()">Start Test</button>
+          <button class="play-btn" id="start-test-btn" onclick="beginQuiz()">Get
+            Started</button>
+        </div>
+
+        <div id="quiz-screen">
+          <div class="readout"><span class="dot"></span><span>Step 1 of 2 —
+              preferences</span></div>
+          <h1>What do you like?</h1>
+          <p class="subtext">Answer honestly rather than technically — there
+            are no wrong answers here.</p>
+
+          <div id="quiz-questions"></div>
+
+          <div id="quiz-error"></div>
+          <button class="play-btn" id="quiz-submit-btn" onclick="submitQuiz()">Continue
+            to Listening Test</button>
         </div>
 
         <div id="test-screen">

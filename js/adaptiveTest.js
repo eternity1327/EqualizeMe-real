@@ -41,9 +41,8 @@ async function getAutoPlaySetting() {
   }
 }
 
-// Runs on page load: just checks the user is logged in. The test itself
-// waits for them to press "Start Test" (see beginTest()) — there's no track
-// to choose any more, since the test walks through all 10 clips in order.
+// Runs on page load: just checks the user is logged in. Nothing starts
+// until they press "Get Started" (see beginQuiz()).
 async function initPicker() {
   currentUserId = await getCurrentUserId();
   if (!currentUserId) return;
@@ -52,22 +51,109 @@ async function initPicker() {
   if (startBtn) startBtn.disabled = false;
 }
 
-// Called when the user presses "Start Test" on the intro screen.
-async function beginTest() {
+// ---------------------------------------------------------------------------
+// Step 1: the written pre-quiz. Its answers become a starting estimate that
+// narrows the listening test's search range (scored server-side in
+// pre_quiz.py — the impact values are deliberately not sent to the browser,
+// so nobody can reverse-engineer which answer "adds bass").
+// ---------------------------------------------------------------------------
+
+async function beginQuiz() {
+  document.getElementById('track-picker').style.display = 'none';
+  document.getElementById('quiz-screen').style.display = 'block';
+
+  const container = document.getElementById('quiz-questions');
+
+  try {
+    const res = await fetch(`${DSP_SERVICE_URL}/api/quiz/questions`);
+    const data = await res.json();
+
+    if (!res.ok || !data.questions || !data.questions.length) {
+      throw new Error('no questions returned');
+    }
+
+    container.innerHTML = data.questions.map(q => `
+      <div class="quiz-q" data-question-id="${q.id}">
+        <div class="quiz-prompt">${q.question}</div>
+        <div class="quiz-options">
+          ${q.options.map(o => `
+            <label class="quiz-option">
+              <input type="radio" name="q-${q.id}" value="${o.value}">
+              <span>${o.label}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    // Highlight the chosen option's row, not just the radio dot.
+    container.querySelectorAll('.quiz-q').forEach(group => {
+      group.addEventListener('change', () => {
+        group.querySelectorAll('.quiz-option').forEach(opt => {
+          opt.classList.toggle('picked', opt.querySelector('input').checked);
+        });
+      });
+    });
+  } catch (err) {
+    // Quiz is an enhancement, not a gate — if it can't load, let them
+    // straight into the listening test rather than dead-ending here.
+    container.innerHTML =
+      '<p class="subtext">Could not load the questions — skipping ahead to the listening test.</p>';
+    document.getElementById('quiz-submit-btn').textContent = 'Continue';
+  }
+}
+
+// Reads the selected answers and hands them to the listening test.
+async function submitQuiz() {
+  const answers = {};
+  let unanswered = 0;
+
+  document.querySelectorAll('#quiz-questions .quiz-q').forEach(group => {
+    const id = group.dataset.questionId;
+    const picked = group.querySelector('input:checked');
+    if (picked) {
+      answers[id] = picked.value;
+    } else {
+      unanswered++;
+    }
+  });
+
+  const errorEl = document.getElementById('quiz-error');
+  if (unanswered > 0) {
+    errorEl.textContent =
+      `Please answer all questions — ${unanswered} still ${unanswered === 1 ? 'needs' : 'need'} an answer.`;
+    return;
+  }
+  errorEl.textContent = '';
+
+  document.getElementById('quiz-screen').style.display = 'none';
+  await beginTest(answers);
+}
+
+// ---------------------------------------------------------------------------
+// Step 2: the A/B listening test.
+// ---------------------------------------------------------------------------
+
+async function beginTest(quizAnswers) {
   document.getElementById('track-picker').style.display = 'none';
   document.getElementById('test-screen').style.display = 'block';
   document.getElementById('loadingOverlay').classList.remove('hidden');
 
   autoPlayEnabled = await getAutoPlaySetting();
-  await startTest();
+  await startTest(quizAnswers);
 }
 
-async function startTest() {
+async function startTest(quizAnswers) {
   try {
+    const payload = { user_id: currentUserId };
+    if (quizAnswers && Object.keys(quizAnswers).length) {
+      payload.quiz = quizAnswers;
+    }
+
     const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: currentUserId }),
+      body: JSON.stringify(payload),
     });
     const pair = await res.json();
 

@@ -1,7 +1,8 @@
 <?php
-require __DIR__ . "/../session.php";
-require __DIR__ . "/../db.php";
-require __DIR__ . "/../rate_limit.php";
+require_once __DIR__ . "/../session.php";
+require_once __DIR__ . "/../db.php";
+require_once __DIR__ . "/../rate_limit.php";
+require_once __DIR__ . "/../csrf.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -12,6 +13,8 @@ if (!rate_limit_check("login")) {
 }
 
 $body = json_decode(file_get_contents("php://input"), true);
+csrf_verify_or_fail($body["csrf_token"] ?? null);
+
 $email = trim($body["email"] ?? "");
 $password = $body["password"] ?? "";
 

@@ -2,8 +2,8 @@
 // NOTE: this page is currently unlinked from the nav — login.php now hosts
 // a combined Log In / Sign Up UI at login.php?tab=register instead. Left
 // here (and kept working) in case anything still links to it directly.
-require __DIR__ . "/api/session.php";
-require __DIR__ . "/api/db.php";
+require_once __DIR__ . "/api/session.php";
+require_once __DIR__ . "/api/db.php";
 start_secure_session();
 
 $error = "";

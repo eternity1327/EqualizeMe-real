@@ -21,6 +21,7 @@ import mysql.connector
 import os
 import camilla_dsp
 import adaptive_test
+import pre_quiz
 
 app = Flask(__name__)
 
@@ -173,9 +174,15 @@ def get_recommendations(user_id):
 # picker + staircase test via js/adaptiveTest.js.
 # ---------------------------------------------------------------------------
 
+@app.route("/api/quiz/questions", methods=["GET"])
+def quiz_questions():
+    """The written pre-quiz shown before the listening test starts."""
+    return jsonify({"questions": pre_quiz.list_questions()})
+
+
 @app.route("/api/dsp/adaptive/samples", methods=["GET"])
 def dsp_adaptive_samples():
-    """Lists the selectable tracks for the sample picker on test.html."""
+    """Lists the 10 clips in the order the test plays them."""
     return jsonify({"samples": adaptive_test.list_samples()})
 
 
@@ -188,9 +195,18 @@ def dsp_adaptive_start():
         return jsonify({"error": "user_id is required"}), 400
 
     camilla_dsp.start()
+
+    # Pre-quiz answers, if the user took it, become a starting estimate so
+    # each EQ band's search begins narrowed instead of at the full range.
+    # Skipping the quiz is fine — seed stays None and the test runs as
+    # before, just with less to go on.
+    seed = pre_quiz.score_answers(data.get("quiz")) if data.get("quiz") else None
+
     # No sample argument — the test walks through all 10 clips in fixed
     # order, one per question, rather than using a single chosen track.
-    pair = adaptive_test.start_session(user_id)
+    pair = adaptive_test.start_session(user_id, seed=seed)
+    if seed:
+        pair["seed"] = seed
     return jsonify(pair)
 
 

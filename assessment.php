@@ -4,7 +4,7 @@
 // staircase test (adaptive_test.py) is the one linked from the nav now —
 // this page is left working in case it's still wanted, but isn't
 // currently linked from anywhere in the UI.
-require __DIR__ . "/api/session.php";
+require_once __DIR__ . "/api/session.php";
 start_secure_session();
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php?redirect=assessment.php");
