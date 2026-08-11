@@ -105,23 +105,6 @@
         margin: 0 0 32px;
       }
 
-      .track-select {
-        width: 100%;
-        padding: 12px 14px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: var(--pill-bg);
-        color: var(--text);
-        font-family: inherit;
-        font-size: 0.95rem;
-        margin: 8px 0 22px;
-      }
-
-      .track-select:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
-      }
-
       .pair {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -323,15 +306,15 @@
         </div>
 
         <div id="track-picker">
-          <div class="readout"><span class="dot"></span><span>Step 1 of 2</span></div>
-          <h1>Choose a track</h1>
-          <p class="subtext">Pick a song to use for this listening test — you'll
-            hear it twice per round, under different EQ settings, so you can
-            compare.</p>
-
-          <select id="sample-select" class="track-select">
-            <option>Loading tracks…</option>
-          </select>
+          <div class="readout"><span class="dot"></span><span>Before you
+              start</span></div>
+          <h1>10 questions, 10 clips</h1>
+          <p class="subtext">You'll hear two clips from each of 5 songs — 10
+            in total. For every clip you get two versions, A and B, which are
+            the same audio with different EQ applied. Just pick whichever one
+            sounds better to you.</p>
+          <p class="subtext">Use headphones or IEMs if you can, and try to keep
+            your volume consistent throughout.</p>
 
           <button class="play-btn" id="start-test-btn" onclick="beginTest()">Start Test</button>
         </div>

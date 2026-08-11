@@ -188,7 +188,9 @@ def dsp_adaptive_start():
         return jsonify({"error": "user_id is required"}), 400
 
     camilla_dsp.start()
-    pair = adaptive_test.start_session(user_id, sample=data.get("sample"))
+    # No sample argument — the test walks through all 10 clips in fixed
+    # order, one per question, rather than using a single chosen track.
+    pair = adaptive_test.start_session(user_id)
     return jsonify(pair)
 
 

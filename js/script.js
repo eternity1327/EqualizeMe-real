@@ -52,7 +52,14 @@ document.addEventListener("DOMContentLoaded", () => {
 // Resolves to whatever host/domain the page itself was loaded from — works
 // whether you're on localhost, the LAN IP, or a public tunnel domain,
 // without ever needing to hardcode (and re-hardcode) an address here.
-const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
+// Hardcoded to the Cloudflare quick tunnel's API URL for public/internet access,
+// since the app and API tunnels are on two different hostnames (not just
+// different ports on the same host, which is what the dynamic version below
+// assumes). Quick tunnel URLs change every time cloudflared restarts — update
+// this line with the new URL each time, or switch back to the dynamic version
+// for local/LAN-only testing.
+const DSP_SERVICE_URL = "https://federation-uploaded-titled-anchor.trycloudflare.com";
+// const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
 
 // Used on test.html - sends the chosen preference to the backend
 async function choose(sound) {

@@ -41,49 +41,33 @@ async function getAutoPlaySetting() {
   }
 }
 
-// Runs on page load: checks the user is logged in and fills the track
-// picker's dropdown. Does NOT start the test — that waits for the user to
-// pick a track and press "Start Test" (see beginTest()).
+// Runs on page load: just checks the user is logged in. The test itself
+// waits for them to press "Start Test" (see beginTest()) — there's no track
+// to choose any more, since the test walks through all 10 clips in order.
 async function initPicker() {
   currentUserId = await getCurrentUserId();
   if (!currentUserId) return;
 
-  const select = document.getElementById('sample-select');
-  try {
-    const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/samples`);
-    const data = await res.json();
-
-    if (!res.ok || !data.samples || !data.samples.length) {
-      throw new Error('no samples returned');
-    }
-
-    select.innerHTML = data.samples
-      .map(s => `<option value="${s.file}">${s.label}</option>`)
-      .join('');
-  } catch (err) {
-    select.innerHTML = '<option value="">Could not load tracks — is ai_service.py running?</option>';
-  }
+  const startBtn = document.getElementById('start-test-btn');
+  if (startBtn) startBtn.disabled = false;
 }
 
-// Called when the user presses "Start Test" on the track picker.
+// Called when the user presses "Start Test" on the intro screen.
 async function beginTest() {
-  const select = document.getElementById('sample-select');
-  const chosenSample = select.value;
-
   document.getElementById('track-picker').style.display = 'none';
   document.getElementById('test-screen').style.display = 'block';
   document.getElementById('loadingOverlay').classList.remove('hidden');
 
   autoPlayEnabled = await getAutoPlaySetting();
-  await startTest(chosenSample);
+  await startTest();
 }
 
-async function startTest(sampleFile) {
+async function startTest() {
   try {
     const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: currentUserId, sample: sampleFile }),
+      body: JSON.stringify({ user_id: currentUserId }),
     });
     const pair = await res.json();
 
@@ -128,8 +112,8 @@ function renderPair(pair) {
   if (trackNameEl) trackNameEl.textContent = pair.sampleLabel ? `🎵 Track: ${pair.sampleLabel}` : '';
 
   document.getElementById('progress').innerHTML =
-    `<span class="dot"></span><span>Tuning ${paramLabels[pair.param]} — Round ${pair.round} of ${pair.totalRoundsForParam} ` +
-    `(Parameter ${pair.paramNumber} of ${pair.totalParams})</span>`;
+    `<span class="dot"></span><span>Question ${pair.question} of ${pair.totalQuestions} — ` +
+    `tuning ${paramLabels[pair.param]} (round ${pair.round} of ${pair.totalRoundsForParam})</span>`;
 
   if (autoPlayEnabled) {
     document.getElementById('status').textContent = 'Auto-playing A, then B...';

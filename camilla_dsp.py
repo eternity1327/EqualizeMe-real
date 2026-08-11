@@ -24,9 +24,10 @@ CAMILLA_WS_PORT = 1234
 # Fallback sample, used only if a session somehow has no sample assigned.
 TEST_SAMPLE_PATH = os.path.join(os.path.dirname(__file__), "data", "audio", "test-sample.wav")
 
-# Folder holding sample1.wav .. sample10.wav — one is picked per test session
-# (see adaptive_test.py) so the same song plays consistently within a
-# person's test but varies session to session.
+# Folder holding sample1.wav .. sample10.wav. The test walks through all ten,
+# one per question (see adaptive_test.py), so the capture filename changes
+# between questions — apply_filters() rebuilds and re-pushes the whole config
+# each time, which is what makes the clip switch actually take effect.
 SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "data", "audio", "samples")
 
 _process = None
