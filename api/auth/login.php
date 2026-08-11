@@ -1,7 +1,15 @@
 <?php
-session_start();
-header("Content-Type: application/json");
+require __DIR__ . "/../session.php";
 require __DIR__ . "/../db.php";
+require __DIR__ . "/../rate_limit.php";
+start_secure_session();
+header("Content-Type: application/json");
+
+if (!rate_limit_check("login")) {
+    http_response_code(429);
+    echo json_encode(["error" => "Too many login attempts. Please wait a few minutes and try again."]);
+    exit;
+}
 
 $body = json_decode(file_get_contents("php://input"), true);
 $email = trim($body["email"] ?? "");
@@ -20,11 +28,15 @@ try {
     $user = $stmt->fetch();
 
     if (!$user || !password_verify($password, $user["password_hash"])) {
+        rate_limit_record("login");
         http_response_code(401);
         echo json_encode(["error" => "Incorrect email or password"]);
         exit;
     }
 
+    // Regenerate the session ID on privilege change (session fixation defense) —
+    // an attacker who fixed a visitor's session ID before login can't reuse it after.
+    session_regenerate_id(true);
     $_SESSION["user_id"] = $user["id"];
     echo json_encode(["id" => (int)$user["id"], "name" => $user["name"], "email" => $user["email"]]);
 } catch (PDOException $e) {

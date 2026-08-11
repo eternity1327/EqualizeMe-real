@@ -1,7 +1,16 @@
 <?php
-session_start();
-header("Content-Type: application/json");
+require __DIR__ . "/../session.php";
 require __DIR__ . "/../db.php";
+require __DIR__ . "/../rate_limit.php";
+start_secure_session();
+header("Content-Type: application/json");
+
+if (!rate_limit_check("register", 5, 600)) {
+    http_response_code(429);
+    echo json_encode(["error" => "Too many signup attempts. Please wait a few minutes and try again."]);
+    exit;
+}
+rate_limit_record("register");
 
 $body = json_decode(file_get_contents("php://input"), true);
 $name = trim($body["name"] ?? "");
@@ -46,6 +55,9 @@ try {
     )->execute([$userId]);
     $pdo->prepare("INSERT INTO settings (user_id) VALUES (?)")->execute([$userId]);
 
+    // Same session-fixation defense as login — this is effectively a
+    // fresh login too, since registering signs the user in immediately.
+    session_regenerate_id(true);
     $_SESSION["user_id"] = $userId;
 
     http_response_code(201);

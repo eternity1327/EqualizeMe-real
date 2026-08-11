@@ -1,7 +1,8 @@
 <?php
-session_start();
-header("Content-Type: application/json");
+require __DIR__ . "/../session.php";
 require __DIR__ . "/../db.php";
+start_secure_session();
+header("Content-Type: application/json");
 
 if (!isset($_SESSION["user_id"])) {
     http_response_code(401);

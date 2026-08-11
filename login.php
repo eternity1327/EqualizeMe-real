@@ -1,10 +1,13 @@
 <?php
-session_start();
+require __DIR__ . "/api/session.php";
+start_secure_session();
 
 // Only allow redirecting to known pages in this project — never to an
 // arbitrary URL, to avoid this being abused as an open redirect.
+// index.html is the fallback default rather than assessment.php, which is
+// legacy/unlinked from the nav now that test.html is the real sound test.
 $allowedRedirects = [
-    "assessment.php", "index.html", "test.html",
+    "index.html", "test.html", "assessment.php",
     "recommendations.html", "profile.html", "settings.html"
 ];
 $redirectTarget = $_REQUEST["redirect"] ?? "";
@@ -14,14 +17,14 @@ if ($redirectTarget === "") {
     // the plain "Login" nav link (it doesn't set one) or gets bounced here
     // by a page that requires auth. Fall back to whatever page they were
     // actually on, via the Referer header, instead of always dumping them
-    // on assessment.php.
+    // on a hardcoded page.
     $referer = $_SERVER["HTTP_REFERER"] ?? "";
     $refPath = $referer !== "" ? parse_url($referer, PHP_URL_PATH) : false;
     $redirectTarget = ($refPath !== false && $refPath !== null) ? basename($refPath) : "";
 }
 
 if (!in_array($redirectTarget, $allowedRedirects, true)) {
-    $redirectTarget = "assessment.php";
+    $redirectTarget = "index.html";
 }
 
 // Lets a link jump straight to the Sign Up tab, e.g. login.php?tab=register

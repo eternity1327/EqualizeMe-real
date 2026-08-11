@@ -1,5 +1,10 @@
 <?php
-session_start();
+// NOTE: this page is currently unlinked from the nav — login.php now hosts
+// a combined Log In / Sign Up UI at login.php?tab=register instead. Left
+// here (and kept working) in case anything still links to it directly.
+require __DIR__ . "/api/session.php";
+require __DIR__ . "/api/db.php";
+start_secure_session();
 
 $error = "";
 $success = "";
@@ -14,16 +19,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif (strlen($password) < 8) {
         $error = "Password must be at least 8 characters.";
     } else {
-        $host = "127.0.0.1";
-        $db   = "equalizeme";
-        $user = "root";
-        $pass = ""; // XAMPP default: no password
-
         try {
-            $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            ]);
+            $pdo = get_pdo();
 
             // Check if email already exists
             $check = $pdo->prepare("SELECT id FROM users WHERE email = ?");

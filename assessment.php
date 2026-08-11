@@ -1,8 +1,13 @@
 <?php
-session_start();
-// Assumes $_SESSION['user_id'] is set after login
+// NOTE: this is the older question-branching assessment flow
+// (start-assessment / next-question in ai_service.py). test.html's A/B
+// staircase test (adaptive_test.py) is the one linked from the nav now —
+// this page is left working in case it's still wanted, but isn't
+// currently linked from anywhere in the UI.
+require __DIR__ . "/api/session.php";
+start_secure_session();
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: login.php?redirect=assessment.php");
     exit;
 }
 $userId = $_SESSION['user_id'];
@@ -24,7 +29,9 @@ $userId = $_SESSION['user_id'];
 </main>
 
 <script>
-const AI_SERVICE_URL = "http://127.0.0.1:5001"; // adjust for production
+// Same host the page was loaded from, so this keeps working over the LAN
+// or a public tunnel domain, not just on the machine running ai_service.py.
+const AI_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
 const userId = <?php echo json_encode($userId); ?>;
 
 let assessmentId = null;

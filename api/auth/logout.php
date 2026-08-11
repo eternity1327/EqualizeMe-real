@@ -1,5 +1,6 @@
 <?php
-session_start();
+require __DIR__ . "/../session.php";
+start_secure_session();
 header("Content-Type: application/json");
 
 $_SESSION = [];

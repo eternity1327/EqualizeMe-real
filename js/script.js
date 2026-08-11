@@ -49,9 +49,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Same machine as ai_service.py, so localhost is more robust than a LAN IP
-// (which breaks any time DHCP hands out a different address).
-const DSP_SERVICE_URL = "http://127.0.0.1:5001";
+// Resolves to whatever host/domain the page itself was loaded from — works
+// whether you're on localhost, the LAN IP, or a public tunnel domain,
+// without ever needing to hardcode (and re-hardcode) an address here.
+const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
 
 // Used on test.html - sends the chosen preference to the backend
 async function choose(sound) {

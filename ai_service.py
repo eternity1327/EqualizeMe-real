@@ -2,6 +2,17 @@
 EqualizeME AI Service (Flask)
 Handles the adaptive listening assessment flow.
 Run with: python ai_service.py  (defaults to http://127.0.0.1:5001)
+
+Environment variables:
+  FLASK_DEBUG    "1" to enable the Werkzeug debugger/reloader (dev only —
+                 NEVER set this if the service is reachable from outside
+                 your own machine; the interactive debugger allows remote
+                 code execution). Defaults to off.
+  ALLOWED_ORIGIN Origin allowed to call this API (e.g. your tunnel's
+                 https://yourname.trycloudflare.com). Defaults to "*"
+                 for local/LAN use — set this once you have a real
+                 public domain, so random sites can't call your API
+                 using a logged-in visitor's session.
 """
 
 from flask import Flask, request, jsonify
@@ -12,7 +23,10 @@ import camilla_dsp
 import adaptive_test
 
 app = Flask(__name__)
-CORS(app)  # allows requests from the PHP app on a different origin/port
+
+DEBUG_MODE = os.environ.get("FLASK_DEBUG", "0") == "1"
+ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
+CORS(app, origins=ALLOWED_ORIGIN)  # allows requests from the PHP app on a different origin/port
 
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "127.0.0.1"),
@@ -154,6 +168,11 @@ def get_recommendations(user_id):
     return jsonify({"user_id": user_id, "recommendations": top_results})
 
 
+# ---------------------------------------------------------------------------
+# Adaptive A/B listening test (current flow) — powers test.html's track
+# picker + staircase test via js/adaptiveTest.js.
+# ---------------------------------------------------------------------------
+
 @app.route("/api/dsp/adaptive/samples", methods=["GET"])
 def dsp_adaptive_samples():
     """Lists the selectable tracks for the sample picker on test.html."""
@@ -238,6 +257,12 @@ def _save_dsp_profile(user_id, profile):
     cur.close()
     conn.close()
 
+
+# ---------------------------------------------------------------------------
+# Legacy branching assessment flow — question-by-question quiz used by
+# assessment.php, which is no longer linked from the site nav (superseded
+# by the adaptive test above). Left working, not extended further.
+# ---------------------------------------------------------------------------
 
 @app.route("/start-assessment", methods=["POST"])
 def start_assessment():
@@ -344,4 +369,7 @@ def next_question():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    if DEBUG_MODE:
+        print("WARNING: FLASK_DEBUG=1 — the interactive debugger is ON. "
+              "Only run this if the service is NOT reachable from outside your own machine.")
+    app.run(host="0.0.0.0", port=5001, debug=DEBUG_MODE)
