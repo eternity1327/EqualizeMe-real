@@ -20,6 +20,147 @@ const paramLabels = {
   presenceGain: 'Presence (3kHz)',
 };
 
+// The pair currently on screen. Kept because the A/B gain values arrive
+// with the pair from the server, and browser playback needs them at the
+// moment Play is pressed.
+let currentPair = null;
+
+// ---------------------------------------------------------------------------
+// Browser audio
+//
+// Previously every Play press asked the server to run the clip through
+// CamillaDSP, which outputs to the sound card of whichever machine runs
+// ai_service.py. That works for one person sitting at that machine and
+// nobody else: remote listeners heard silence while their clicks fought
+// over the host's single audio device — and the test still recorded their
+// answers, producing confident-looking data about audio they never heard.
+//
+// Applying the EQ here instead means each listener hears it on their own
+// headphones. That's also the methodologically correct arrangement: a
+// listening-preference test should measure the listener's preference, not
+// the characteristics of one particular pair of speakers in one room.
+//
+// The filters below mirror camilla_dsp.py's biquads exactly, so the audio
+// is the same processing the server would have applied.
+// ---------------------------------------------------------------------------
+const EQ_FILTERS = [
+  { type: 'lowshelf', frequency: 100, Q: 0.7, gainKey: 'bassGain' },
+  { type: 'peaking', frequency: 3000, Q: 1.4, gainKey: 'presenceGain' },
+  { type: 'highshelf', frequency: 8000, Q: 0.7, gainKey: 'trebleGain' },
+];
+
+const SAMPLES_BASE_URL = 'data/audio/samples/';
+
+let audioCtx = null;
+let activeSource = null;
+const bufferCache = new Map();   // filename -> decoded AudioBuffer
+
+function browserAudioSupported() {
+  return typeof (window.AudioContext || window.webkitAudioContext) !== 'undefined';
+}
+
+// Browsers refuse to start audio until the user has interacted with the
+// page, so the context is created lazily from inside the Play handler and
+// resumed if the browser suspended it.
+async function getAudioContext() {
+  if (!audioCtx) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new Ctor();
+  }
+  if (audioCtx.state === 'suspended') {
+    await audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+// The server refers to clips by their .wav filename, but the browser is
+// served the .mp3 alongside it.
+//
+// Two reasons. The source WAVs are 24-bit WAVE_FORMAT_EXTENSIBLE, which
+// decodeAudioData refuses — browsers handle 16-bit and 32-bit float PCM,
+// not 24-bit — so playing them here fails outright. And they're 2.8 MB
+// each, 28 MB for the set, which every listener would download; the MP3s
+// total 3.1 MB.
+//
+// The WAVs stay on disk untouched because CamillaDSP reads them for the
+// server-side fallback, and it can't read MP3.
+function browserSampleName(filename) {
+  return filename.replace(/\.wav$/i, '.mp3');
+}
+
+// Clips are played at least twice (side A, then side B), so decoded
+// buffers are cached. Without this the same file would be downloaded and
+// decoded again for each side.
+async function loadSample(filename) {
+  const webName = browserSampleName(filename);
+
+  if (bufferCache.has(webName)) {
+    return bufferCache.get(webName);
+  }
+
+  const ctx = await getAudioContext();
+  const res = await fetch(SAMPLES_BASE_URL + encodeURIComponent(webName));
+  if (!res.ok) {
+    throw new Error(`Could not fetch ${webName} (${res.status})`);
+  }
+
+  const encoded = await res.arrayBuffer();
+  const buffer = await ctx.decodeAudioData(encoded);
+  bufferCache.set(webName, buffer);
+  return buffer;
+}
+
+function stopActiveSource() {
+  if (activeSource) {
+    try {
+      activeSource.stop();
+    } catch (err) {
+      // Already finished — stopping twice is not an error worth surfacing.
+    }
+    activeSource = null;
+  }
+}
+
+/**
+ * Plays one clip through the three EQ filters and resolves when it ends.
+ * Rejects if the browser can't do it, so the caller can fall back to the
+ * server route.
+ */
+async function playThroughBrowser(filename, gains) {
+  const ctx = await getAudioContext();
+  const buffer = await loadSample(filename);
+
+  // Only one clip should ever be audible; starting B while A still plays
+  // would make the comparison meaningless.
+  stopActiveSource();
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+
+  // Chain the filters in series, matching the server's pipeline order.
+  let node = source;
+  for (const spec of EQ_FILTERS) {
+    const filter = ctx.createBiquadFilter();
+    filter.type = spec.type;
+    filter.frequency.value = spec.frequency;
+    filter.Q.value = spec.Q;
+    filter.gain.value = Number(gains?.[spec.gainKey] ?? 0);
+    node.connect(filter);
+    node = filter;
+  }
+  node.connect(ctx.destination);
+
+  activeSource = source;
+
+  return new Promise(resolve => {
+    source.onended = () => {
+      if (activeSource === source) activeSource = null;
+      resolve();
+    };
+    source.start();
+  });
+}
+
 async function getCurrentUserId() {
   const res = await fetch('api/auth/me.php');
   if (!res.ok) {
@@ -178,6 +319,8 @@ async function startTest(quizAnswers) {
 function renderPair(pair) {
   hasPlayedA = false;
   hasPlayedB = false;
+  currentPair = pair;
+  stopActiveSource();
 
   // Reset both cards back to their pre-play state for the new round — the
   // previous round leaves them 'selectable'/'chosen' with an unlocked hint,
@@ -218,28 +361,59 @@ async function playSide(side) {
   otherCard.classList.remove('playing');
   optionCard.classList.add('playing');
 
-  try {
-    const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/play`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ side, user_id: currentUserId }),
-    });
-    const data = await res.json();
+  const gains = currentPair ? currentPair[side] : null;
+  const sample = currentPair ? currentPair.sample : null;
+  let playedInBrowser = false;
 
-    if (!res.ok) {
-      document.getElementById('status').textContent = data.error || 'Something went wrong.';
-    } else {
+  // Preferred path: play locally, so the listener hears it on their own
+  // headphones rather than the server's speakers.
+  if (browserAudioSupported() && gains && sample) {
+    try {
+      document.getElementById('status').textContent =
+        bufferCache.has(browserSampleName(sample)) ? 'Playing...' : 'Loading audio...';
+
+      await playThroughBrowser(sample, gains);
+      playedInBrowser = true;
+
       if (side === 'A') hasPlayedA = true;
       if (side === 'B') hasPlayedB = true;
+      document.getElementById('status').textContent =
+        'Play both, then pick which you prefer.';
+    } catch (err) {
+      // Fall through to the server route below — a missing clip, a codec
+      // the browser won't decode, or a blocked audio context all land here.
+      console.error('Browser playback failed, falling back to server:', err);
     }
-  } catch (err) {
-    document.getElementById('status').textContent = 'Could not reach the DSP service. Is it running?';
   }
 
-  // Wait out the actual clip length before handing control back — this is
-  // what lets Auto Play safely start B only once A has really finished,
-  // instead of cutting it off mid-playback.
-  await new Promise(resolve => setTimeout(resolve, SAMPLE_PLAYBACK_MS));
+  // Fallback: ask the server to play through CamillaDSP. Only reachable
+  // when the browser can't do it, and only audible to someone sitting at
+  // the machine running ai_service.py.
+  if (!playedInBrowser) {
+    try {
+      const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/play`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ side, user_id: currentUserId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        document.getElementById('status').textContent = data.error || 'Something went wrong.';
+      } else {
+        if (side === 'A') hasPlayedA = true;
+        if (side === 'B') hasPlayedB = true;
+      }
+    } catch (err) {
+      document.getElementById('status').textContent =
+        'Could not play the audio. Is ai_service.py running?';
+    }
+
+    // Server playback gives no completion signal, so fall back to waiting
+    // out the known clip length. Browser playback doesn't need this — it
+    // resolves when the buffer actually finishes.
+    await new Promise(resolve => setTimeout(resolve, SAMPLE_PLAYBACK_MS));
+  }
 
   optionCard.classList.remove('playing');
   btn.textContent = original;

@@ -476,13 +476,26 @@ body {
 }
 
 
+/* Two per row rather than three. Each card now carries a comparison
+   chart with a legend and axis labels, which needs real width to stay
+   readable — at three across the plot was too cramped to read. Drops to
+   one per row on narrow screens for the same reason. */
 .iem-grid {
 
     display: grid;
 
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
 
     gap: 30px;
+
+}
+
+
+@media (max-width: 900px) {
+
+    .iem-grid {
+        grid-template-columns: 1fr;
+    }
 
 }
 
@@ -547,7 +560,68 @@ body {
 .iem-curve-chart {
 
     width: 100% !important;
-    height: 150px !important;
+    height: 260px !important;
+
+}
+
+
+/* Per-band agreement bars, between the price and the chart. */
+.band-match {
+
+    margin: 16px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+
+}
+
+
+.band-row {
+
+    display: grid;
+    grid-template-columns: 68px 1fr 42px;
+    align-items: center;
+    gap: 10px;
+
+}
+
+
+.band-name {
+
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: left;
+
+}
+
+
+.band-bar {
+
+    display: block;
+    height: 7px;
+    border-radius: 4px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+
+}
+
+
+.band-fill {
+
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+
+}
+
+
+.band-pct {
+
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: right;
 
 }
 

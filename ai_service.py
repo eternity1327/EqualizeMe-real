@@ -104,6 +104,15 @@ def _generate_profile(cur, conn, assessment_id):
     }
 
 
+# How many of the best-matching IEMs to consider before sorting by price,
+# and how many finally reach the page. A wider pool surfaces cheaper
+# options but dilutes match quality; 15 into 5 keeps everything shown
+# comfortably above the "genuinely suits you" line while still giving the
+# price sort something to work with.
+CANDIDATE_POOL_SIZE = 15
+RESULTS_SHOWN = 5
+
+
 def _median(values):
     """Median without pulling in numpy for one calculation."""
     if not values:
@@ -214,6 +223,15 @@ def get_recommendations(user_id):
         # x10 those bottomed out at 0 and lost all ranking information.
         match_score = max(0, round(100 - (distance * 5), 1))
 
+        # Per-band agreement, so the UI can show WHERE an IEM fits or
+        # misses rather than only an overall figure. Same 5x scale as the
+        # total, applied to that band's gap alone.
+        centred = {band: round(float(iem[band]) - baseline[band], 2) for band in bands}
+        band_match = {
+            band: max(0, round(100 - abs(float(profile[band]) - centred[band]) * 5, 1))
+            for band in bands
+        }
+
         results.append({
             "iem_id": iem["id"],
             "name": iem["name"],
@@ -222,16 +240,45 @@ def get_recommendations(user_id):
             "price": float(iem["price"]) if iem["price"] is not None else None,
             "image_url": iem.get("image_url"),
             "retailer_name": iem["retailer_name"],
+            # Centred gains and per-band scores let the frontend draw the
+            # listener's preference against this IEM's measurement.
+            "gains": centred,
+            "band_match": band_match,
             # Retailer link when there's a retailer row, otherwise the
             # direct shop_link stored by the importer.
             "product_url": iem["product_url"] or iem.get("shop_link"),
             "match_score": match_score,
         })
 
+    # Ordering: quality first, then affordability.
+    #
+    # Sorting the whole catalogue by price would put a cheap IEM that
+    # doesn't suit the listener above an excellent one, which defeats the
+    # point of running a listening test. Sorting purely by match went the
+    # other way — the best fits skew expensive, so the page opened with
+    # $1000+ IEMs and read as "you can't afford our advice".
+    #
+    # So: narrow to the best-matching candidates, then show the cheapest
+    # of those. Everything displayed is still a genuinely good fit; the
+    # affordable ones just come first.
     results.sort(key=lambda r: r["match_score"], reverse=True)
-    top_results = results[:5]
+    candidates = results[:CANDIDATE_POOL_SIZE]
 
-    return jsonify({"user_id": user_id, "recommendations": top_results})
+    # Unknown prices sort last — an IEM with no price shouldn't lead the
+    # list when the whole point is showing what's affordable.
+    candidates.sort(
+        key=lambda r: (r["price"] is None, r["price"] if r["price"] is not None else 0)
+    )
+    top_results = candidates[:RESULTS_SHOWN]
+
+    return jsonify({
+        "user_id": user_id,
+        # The listener's own preference, echoed back so the frontend can
+        # plot it against each IEM's measured curve instead of only
+        # showing a number.
+        "profile": {band: float(profile[band]) for band in bands},
+        "recommendations": top_results,
+    })
 
 
 @app.route("/api/iems/<int:iem_id>/curve", methods=["GET"])

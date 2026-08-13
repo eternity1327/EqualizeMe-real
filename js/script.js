@@ -147,6 +147,37 @@ function formatPrice(price) {
 // the exact item exists. Labelled "Search on Shopee" rather than "Buy"
 // so nobody expects a checkout page.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Per-band agreement
+//
+// The headline match score is one number covering three bands, which hides
+// the interesting part: an IEM can nail your bass and miss your treble
+// completely, and end up with the same overall score as one that's mediocre
+// everywhere. Showing each band separately says WHERE it fits.
+// ---------------------------------------------------------------------------
+function buildBandMatch(bandMatch) {
+  if (!bandMatch) return "";
+
+  const labels = {
+    bass_gain: "Bass",
+    presence_gain: "Presence",
+    treble_gain: "Treble",
+  };
+
+  const rows = Object.keys(labels).map(band => {
+    const pct = bandMatch[band];
+    if (pct === undefined) return "";
+    return `
+      <div class="band-row">
+        <span class="band-name">${labels[band]}</span>
+        <span class="band-bar"><span class="band-fill" style="width:${pct}%"></span></span>
+        <span class="band-pct">${Math.round(pct)}%</span>
+      </div>`;
+  }).join("");
+
+  return `<div class="band-match">${rows}</div>`;
+}
+
 function buildBuyLinks(item) {
   const links = [];
 
@@ -226,10 +257,11 @@ async function loadRecommendations() {
           onerror="this.onerror=null; this.src='images/iem-placeholder.svg';">
         <h3>${item.brand} ${item.name}</h3>
         <p>${item.sound_signature ?? ""}</p>
-        <p>Match: ${item.match_score}%</p>
+        <p class="iem-match">Match: ${item.match_score}%</p>
         <p class="price">${formatPrice(item.price)}</p>
+        ${buildBandMatch(item.band_match)}
         <div class="iem-curve-wrap" hidden>
-          <canvas class="iem-curve-chart" height="150"></canvas>
+          <canvas class="iem-curve-chart"></canvas>
           <p class="iem-description"></p>
         </div>
         ${buildBuyLinks(item)}
@@ -242,7 +274,7 @@ async function loadRecommendations() {
     // break the cards themselves.
     data.recommendations.forEach(item => {
       const card = grid.querySelector(`.iem-card[data-iem-id="${item.iem_id}"]`);
-      if (card) renderIemCurve(item.iem_id, card);
+      if (card) renderIemCurve(item.iem_id, card, data.profile);
     });
   } catch (err) {
     grid.innerHTML = "<p>Could not load recommendations.</p>";
@@ -250,14 +282,84 @@ async function loadRecommendations() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Turning the listener's three preference numbers into a curve
+//
+// The profile is three figures — bass, presence and treble gain — while an
+// IEM measurement is several hundred points. To draw them on the same axes
+// the three numbers have to become a curve.
+//
+// They're expanded through the exact filters the listening test applied:
+// a 100 Hz low shelf, a 3 kHz peak and an 8 kHz high shelf, matching the
+// biquads in camilla_dsp.py. So the line drawn is literally the EQ the
+// listener chose during the test, not an artist's impression of it.
+//
+// Web Audio's BiquadFilterNode.getFrequencyResponse() does the maths,
+// which keeps this honest: the same filter definitions the browser and
+// CamillaDSP both implement, rather than a hand-rolled approximation.
+// ---------------------------------------------------------------------------
+const PREFERENCE_FILTERS = [
+  { type: "lowshelf", frequency: 100, Q: 0.7, band: "bass_gain" },
+  { type: "peaking", frequency: 3000, Q: 1.4, band: "presence_gain" },
+  { type: "highshelf", frequency: 8000, Q: 0.7, band: "treble_gain" },
+];
+
+function buildPreferenceCurve(profile, frequencies) {
+  if (!profile || typeof OfflineAudioContext === "undefined") return null;
+
+  try {
+    const ctx = new OfflineAudioContext(1, 1, 44100);
+    const freqArray = new Float32Array(frequencies);
+    const totalDb = new Float32Array(frequencies.length);
+
+    for (const spec of PREFERENCE_FILTERS) {
+      const gain = Number(profile[spec.band] ?? 0);
+      if (!gain) continue;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = spec.type;
+      filter.frequency.value = spec.frequency;
+      filter.Q.value = spec.Q;
+      filter.gain.value = gain;
+
+      const mag = new Float32Array(frequencies.length);
+      const phase = new Float32Array(frequencies.length);
+      filter.getFrequencyResponse(freqArray, mag, phase);
+
+      // Filters chain in series, so their dB contributions add.
+      for (let i = 0; i < mag.length; i++) {
+        totalDb[i] += 20 * Math.log10(mag[i]);
+      }
+    }
+
+    return Array.from(totalDb);
+  } catch (err) {
+    console.error("Could not build preference curve:", err);
+    return null;
+  }
+}
+
+// The measured curve's absolute SPL depends on how loud the rig was driven,
+// so it means nothing on its own. Subtracting the 500-2000 Hz average turns
+// it into a shape — deviation from its own midrange — which is directly
+// comparable to the preference curve, since that's also dB relative to flat.
+// This is the same normalisation measurement_parser.py uses for the gains.
+function normaliseToMidband(curve) {
+  const mid = curve.filter(([f]) => f >= 500 && f <= 2000).map(([, spl]) => spl);
+  if (!mid.length) return curve.map(([f, spl]) => [f, spl]);
+
+  const ref = mid.reduce((a, b) => a + b, 0) / mid.length;
+  return curve.map(([f, spl]) => [f, spl - ref]);
+}
+
 // Fetches one IEM's measured frequency response and renders it into its
-// card as a chart plus the plain-language description generated by
-// interpreter.py on the backend.
+// card, overlaid with the listener's own preference curve, plus the
+// plain-language description generated by interpreter.py on the backend.
 //
 // An IEM with no imported measurement returns 404 — expected, not an
 // error — so the curve section just stays hidden and the card renders
 // normally without it.
-async function renderIemCurve(iemId, cardEl) {
+async function renderIemCurve(iemId, cardEl, profile) {
   const wrap = cardEl.querySelector(".iem-curve-wrap");
   if (!wrap) return;
 
@@ -278,32 +380,61 @@ async function renderIemCurve(iemId, cardEl) {
       return;
     }
 
+    const shaped = normaliseToMidband(curve);
+    const freqs = shaped.map(([f]) => f);
+    const preference = buildPreferenceCurve(profile, freqs);
+
+    const styles = getComputedStyle(document.documentElement);
+    const iemColour = styles.getPropertyValue("--accent").trim() || "#e8a33d";
+    const prefColour = styles.getPropertyValue("--accent-2").trim() || "#5b8def";
+
+    const datasets = [{
+      label: "This IEM",
+      data: shaped.map(([, db]) => db),
+      borderColor: iemColour,
+      borderWidth: 2,
+      pointRadius: 0,
+tension: 0.1,
+    }];
+
+    if (preference) {
+      datasets.push({
+        label: "Your preference",
+        data: preference,
+        borderColor: prefColour,
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        tension: 0.1,
+      });
+    }
+
     const ctx = cardEl.querySelector(".iem-curve-chart").getContext("2d");
     new Chart(ctx, {
       type: "line",
-      data: {
-        labels: curve.map(([freq]) => freq),
-        datasets: [{
-          data: curve.map(([, spl]) => spl),
-          borderColor: getComputedStyle(document.documentElement)
-            .getPropertyValue("--accent").trim() || "#e8a33d",
-          borderWidth: 1.5,
-          pointRadius: 0,
-        }],
-      },
+      data: { labels: freqs, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
+        interaction: { mode: "index", intersect: false },
         scales: {
           x: {
             type: "logarithmic",
-            title: { display: true, text: "Hz" },
-            ticks: { maxTicksLimit: 6 },
+            title: { display: true, text: "Frequency (Hz)" },
+            ticks: { maxTicksLimit: 7 },
           },
-          y: { title: { display: true, text: "dB SPL" } },
+          y: {
+            title: { display: true, text: "dB (relative to midrange)" },
+          },
         },
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: {
+            display: true,
+            position: "bottom",
+            labels: { boxWidth: 24, font: { size: 11 } },
+          },
+        },
       },
     });
 
