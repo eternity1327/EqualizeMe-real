@@ -523,6 +523,93 @@ body {
 }
 
 
+/* Measured frequency-response chart + the plain-language description
+   generated from it. Hidden until a curve actually loads, so IEMs
+   without an imported measurement show no empty gap. */
+.iem-curve-wrap {
+
+    margin: 18px 0;
+    padding: 14px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+
+}
+
+
+.iem-curve-wrap[hidden] {
+
+    display: none;
+
+}
+
+
+.iem-curve-chart {
+
+    width: 100% !important;
+    height: 150px !important;
+
+}
+
+
+.iem-description {
+
+    margin: 10px 0 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+
+}
+
+
+/* The original USD figure, shown quieter than the peso conversion it
+   sits beside — it's reference information, not the headline. */
+.price-usd {
+
+    font-size: 0.82em;
+    font-weight: normal;
+    color: var(--text-muted);
+
+}
+
+
+/* Buy / search links. Every card gets at least the Shopee search, so
+   this row is always present and shouldn't look like an afterthought. */
+.iem-links {
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 14px;
+
+}
+
+
+.iem-links a {
+
+    display: inline-block;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    color: var(--accent-2);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+
+}
+
+
+.iem-links a:hover {
+
+    border-color: var(--accent);
+    background: var(--pill-bg-hover);
+
+}
+
+
 .iem-card .price {
 
     margin-top: 10px;

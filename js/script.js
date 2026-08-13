@@ -49,17 +49,19 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Resolves to whatever host/domain the page itself was loaded from — works
-// whether you're on localhost, the LAN IP, or a public tunnel domain,
-// without ever needing to hardcode (and re-hardcode) an address here.
-// Hardcoded to the Cloudflare quick tunnel's API URL for public/internet access,
-// since the app and API tunnels are on two different hostnames (not just
-// different ports on the same host, which is what the dynamic version below
-// assumes). Quick tunnel URLs change every time cloudflared restarts — update
-// this line with the new URL each time, or switch back to the dynamic version
-// for local/LAN-only testing.
-const DSP_SERVICE_URL = "https://football-banana-packed-malpractice.trycloudflare.com";
-// const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
+// Resolves to whatever host/domain the page itself was loaded from, so this
+// works on localhost and over the LAN with no edits — the normal case while
+// developing.
+//
+// EXCEPTION: Cloudflare quick tunnels put the app and the API on two
+// different random hostnames, so this same-host assumption breaks there.
+// When running tunnels, comment this line out and hardcode the API tunnel's
+// URL instead (and update it again on every cloudflared restart, since quick
+// tunnel URLs change each time):
+//
+//   const DSP_SERVICE_URL = "https://your-api-tunnel.trycloudflare.com";
+//
+const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
 
 // ---------------------------------------------------------------------------
 // CSRF token
@@ -90,6 +92,77 @@ async function getCsrfToken() {
 // replaced while the page stayed open.
 function invalidateCsrfToken() {
   _csrfToken = null;
+}
+
+// ---------------------------------------------------------------------------
+// Prices
+//
+// The `price` column stores USD, because that's what the squig.link
+// catalogue quotes. Our users are in the Philippines, so pesos are shown
+// as the headline figure with the original dollar amount kept alongside.
+//
+// Showing both matters: the peso number is a CONVERSION, not a real local
+// price. Philippine retail for imported IEMs includes shipping, duties and
+// reseller margin, so the actual Shopee/Lazada price is usually higher
+// than this. Displaying only pesos would present a converted figure as if
+// it were what you'd pay.
+//
+// The rate below is fixed at build time rather than fetched live — a
+// student project shouldn't depend on a currency API being up, and a
+// stale-but-labelled rate is easier to defend than a silently changing
+// one. Update it (and the date) if it drifts enough to matter.
+// ---------------------------------------------------------------------------
+const USD_TO_PHP = 61.2;          // mid-market rate, checked 2026-08-13
+const USD_TO_PHP_ASOF = "Aug 2026";
+
+function formatPrice(price) {
+  if (price === null || price === undefined) return "N/A";
+
+  const usd = Number(price);
+  const php = usd * USD_TO_PHP;
+
+  const phpText = "₱" + php.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  const usdText = "$" + usd.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return `${phpText} <span class="price-usd" title="Converted at ${USD_TO_PHP} PHP/USD, ${USD_TO_PHP_ASOF}. Local retail is usually higher.">(${usdText})</span>`;
+}
+
+// ---------------------------------------------------------------------------
+// Buy links
+//
+// Not every catalogue entry has a shop link — plenty of IEMs, especially
+// boutique ones, have no `shopLink` field at all, which left those cards
+// with nothing to click. A Shopee search is offered for every IEM so
+// there's always somewhere to go, and it's the store people here actually
+// use.
+//
+// This is a SEARCH url, not a verified product page: it's built from the
+// brand and model, so it lands on Shopee's results rather than guaranteeing
+// the exact item exists. Labelled "Search on Shopee" rather than "Buy"
+// so nobody expects a checkout page.
+// ---------------------------------------------------------------------------
+function buildBuyLinks(item) {
+  const links = [];
+
+  if (item.product_url) {
+    const label = item.retailer_name ? `Buy at ${item.retailer_name}` : "Buy from shop";
+    links.push(
+      `<a href="${item.product_url}" target="_blank" rel="noopener noreferrer">${label}</a>`
+    );
+  }
+
+  const query = encodeURIComponent(`${item.brand} ${item.name}`.trim());
+  links.push(
+    `<a href="https://shopee.ph/search?keyword=${query}" target="_blank" rel="noopener noreferrer">Search on Shopee</a>`
+  );
+
+  return `<div class="iem-links">${links.join("")}</div>`;
 }
 
 // Used on test.html - sends the chosen preference to the backend
@@ -147,20 +220,97 @@ async function loadRecommendations() {
     }
 
     grid.innerHTML = data.recommendations.map(item => `
-      <div class="iem-card">
+      <div class="iem-card" data-iem-id="${item.iem_id}">
         <img class="iem-card-img" src="${item.image_url || 'images/iem-placeholder.svg'}"
           alt="${item.brand} ${item.name}"
           onerror="this.onerror=null; this.src='images/iem-placeholder.svg';">
         <h3>${item.brand} ${item.name}</h3>
         <p>${item.sound_signature ?? ""}</p>
         <p>Match: ${item.match_score}%</p>
-        <p class="price">${item.price !== null ? "₱" + item.price.toLocaleString() : "N/A"}</p>
-        ${item.product_url ? `<a href="${item.product_url}" target="_blank">Buy at ${item.retailer_name ?? "retailer"}</a>` : ""}
+        <p class="price">${formatPrice(item.price)}</p>
+        <div class="iem-curve-wrap" hidden>
+          <canvas class="iem-curve-chart" height="150"></canvas>
+          <p class="iem-description"></p>
+        </div>
+        ${buildBuyLinks(item)}
       </div>
     `).join("");
+
+    // Charts are loaded after the cards are on the page, one request per
+    // IEM. Done separately from the main render so a missing measurement
+    // (the common case until REW files are imported) can't hold up or
+    // break the cards themselves.
+    data.recommendations.forEach(item => {
+      const card = grid.querySelector(`.iem-card[data-iem-id="${item.iem_id}"]`);
+      if (card) renderIemCurve(item.iem_id, card);
+    });
   } catch (err) {
     grid.innerHTML = "<p>Could not load recommendations.</p>";
     console.error(err);
+  }
+}
+
+// Fetches one IEM's measured frequency response and renders it into its
+// card as a chart plus the plain-language description generated by
+// interpreter.py on the backend.
+//
+// An IEM with no imported measurement returns 404 — expected, not an
+// error — so the curve section just stays hidden and the card renders
+// normally without it.
+async function renderIemCurve(iemId, cardEl) {
+  const wrap = cardEl.querySelector(".iem-curve-wrap");
+  if (!wrap) return;
+
+  try {
+    const res = await fetch(`${DSP_SERVICE_URL}/api/iems/${iemId}/curve`);
+    if (!res.ok) return;
+
+    const { curve, description } = await res.json();
+    if (!curve || !curve.length) return;
+
+    cardEl.querySelector(".iem-description").textContent = description || "";
+
+    // Chart.js is loaded from a CDN in recommendations.html. If it's
+    // blocked or offline, still show the written description rather than
+    // failing outright — the sentence is the more important half.
+    if (typeof Chart === "undefined") {
+      wrap.hidden = false;
+      return;
+    }
+
+    const ctx = cardEl.querySelector(".iem-curve-chart").getContext("2d");
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: curve.map(([freq]) => freq),
+        datasets: [{
+          data: curve.map(([, spl]) => spl),
+          borderColor: getComputedStyle(document.documentElement)
+            .getPropertyValue("--accent").trim() || "#e8a33d",
+          borderWidth: 1.5,
+          pointRadius: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            type: "logarithmic",
+            title: { display: true, text: "Hz" },
+            ticks: { maxTicksLimit: 6 },
+          },
+          y: { title: { display: true, text: "dB SPL" } },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+
+    wrap.hidden = false;
+  } catch (err) {
+    // Network failure or malformed data — leave the card without a chart.
+    console.error(`Could not load curve for IEM ${iemId}:`, err);
   }
 }
 

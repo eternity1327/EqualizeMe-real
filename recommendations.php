@@ -51,7 +51,7 @@ async function loadRecommendations() {
             <li>
                 <strong>${iem.brand} ${iem.name}</strong> — ${iem.sound_signature ?? "N/A"}<br>
                 Match score: ${iem.match_score}%<br>
-                Price: ${iem.price !== null ? "₱" + iem.price : "N/A"}<br>
+                Price: ${iem.price !== null ? "$" + Number(iem.price).toFixed(2) : "N/A"}<br>
                 ${iem.product_url ? `<a href="${iem.product_url}" target="_blank">Buy at ${iem.retailer_name ?? "retailer"}</a>` : "No retailer link available"}
             </li>
             <br>

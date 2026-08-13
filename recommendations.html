@@ -58,6 +58,10 @@
 
     </section>
 
+    <!-- Chart.js draws the frequency-response curve on each IEM card.
+         Loaded before script.js so renderIemCurve() can see it; if the
+         CDN is unreachable the cards still render, just without charts. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <script src="js/script.js"></script>
     <script>
   loadRecommendations();

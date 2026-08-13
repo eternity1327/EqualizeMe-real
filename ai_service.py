@@ -18,6 +18,7 @@ Environment variables:
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import mysql.connector
+import json
 import os
 import camilla_dsp
 import adaptive_test
@@ -103,6 +104,33 @@ def _generate_profile(cur, conn, assessment_id):
     }
 
 
+def _median(values):
+    """Median without pulling in numpy for one calculation."""
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def _catalog_baseline(iems, bands):
+    """
+    The 'average IEM' for each band, used to centre measured gains before
+    comparing them to a listener's preference.
+
+    Median rather than mean: the catalogue contains genuine outliers
+    (measurements ranging past -13 dB and +13 dB) and a couple of extreme
+    entries would drag a mean far enough to skew everyone's results.
+
+    Recomputed per request. That's a handful of arithmetic over ~130 rows,
+    and it means the baseline stays correct as IEMs are added without any
+    cache to invalidate.
+    """
+    return {band: _median([float(iem[band]) for iem in iems]) for band in bands}
+
+
 @app.route("/recommendations/<int:user_id>", methods=["GET"])
 def get_recommendations(user_id):
     """
@@ -126,11 +154,16 @@ def get_recommendations(user_id):
         conn.close()
         return jsonify({"error": "No auditory profile found for this user"}), 404
 
-    # Pull every IEM with its retailer info
+    # Pull every IEM with its retailer info.
+    #
+    # shop_link is the direct URL used by IEMs imported via import_to_db.py,
+    # which don't get a retailer_id — without selecting it here, those rows
+    # would show no buy link at all despite having a perfectly good URL.
     cur.execute(
         """
         SELECT i.id, i.name, i.brand, i.sound_signature, i.bass_gain,
                i.treble_gain, i.presence_gain, i.price, i.image_url,
+               i.shop_link,
                r.name AS retailer_name, r.product_url
         FROM iems i
         LEFT JOIN retailers r ON i.retailer_id = r.retailer_id
@@ -140,16 +173,46 @@ def get_recommendations(user_id):
     cur.close()
     conn.close()
 
+    # An imported measurement that didn't cover a whole band leaves that
+    # gain NULL. Scoring it would raise on float(None) and take the entire
+    # endpoint down, so those rows are dropped here — they simply can't be
+    # matched until a full measurement is imported.
+    bands = ("bass_gain", "treble_gain", "presence_gain")
+    scorable = [iem for iem in all_iems if not any(iem[b] is None for b in bands)]
+
+    baseline = _catalog_baseline(scorable, bands)
+
     results = []
-    for iem in all_iems:
-        distance = (
-            abs(float(profile["bass_gain"]) - float(iem["bass_gain"]))
-            + abs(float(profile["treble_gain"]) - float(iem["treble_gain"]))
-            + abs(float(profile["presence_gain"]) - float(iem["presence_gain"]))
+    for iem in scorable:
+        # Centre the IEM's measured gains on the catalogue before comparing.
+        #
+        # The two sides of this comparison are not the same quantity. The
+        # listening test's numbers are EQ settings: how many dB of boost the
+        # listener preferred relative to flat, so they sit around 0. The
+        # IEM's numbers come from a measured curve relative to its own
+        # mid-band, which carries the ear-canal resonance every in-ear
+        # measurement has — across this catalogue the median bass gain is
+        # about +5 dB and presence about +4.4 dB, on every IEM, regardless
+        # of tuning.
+        #
+        # Comparing them raw meant even a listener who preferred perfectly
+        # neutral EQ scored a distance of ~10 against everything, capping
+        # match scores near zero and effectively ranking IEMs by how
+        # unusual their measurement was rather than how well they fit.
+        #
+        # Subtracting the catalogue median puts both sides on the same
+        # footing: 0 now means "average IEM" on the measurement side, which
+        # is what "no EQ change needed" means on the listener side.
+        distance = sum(
+            abs(float(profile[band]) - (float(iem[band]) - baseline[band]))
+            for band in bands
         )
-        # Convert distance to a 0-100 score; scale factor of 10 keeps
-        # realistic gain differences (a few dB) from bottoming out at 0.
-        match_score = max(0, round(100 - (distance * 10), 1))
+
+        # Convert distance to a 0-100 score. The scale factor of 5 (rather
+        # than the original 10) suits the post-centring spread: differences
+        # of a few dB per band are normal even between good matches, and at
+        # x10 those bottomed out at 0 and lost all ranking information.
+        match_score = max(0, round(100 - (distance * 5), 1))
 
         results.append({
             "iem_id": iem["id"],
@@ -159,7 +222,9 @@ def get_recommendations(user_id):
             "price": float(iem["price"]) if iem["price"] is not None else None,
             "image_url": iem.get("image_url"),
             "retailer_name": iem["retailer_name"],
-            "product_url": iem["product_url"],
+            # Retailer link when there's a retailer row, otherwise the
+            # direct shop_link stored by the importer.
+            "product_url": iem["product_url"] or iem.get("shop_link"),
             "match_score": match_score,
         })
 
@@ -167,6 +232,48 @@ def get_recommendations(user_id):
     top_results = results[:5]
 
     return jsonify({"user_id": user_id, "recommendations": top_results})
+
+
+@app.route("/api/iems/<int:iem_id>/curve", methods=["GET"])
+def get_iem_curve(iem_id):
+    """
+    The measured frequency-response curve for one IEM, plus the
+    plain-language description generated from it by interpreter.py.
+
+    Populated by import_to_db.py from REW measurement files — an IEM
+    that hasn't had a measurement imported yet has no curve, which is
+    a normal state rather than an error condition. recommendations.html
+    fetches this per card and quietly skips the chart when it 404s.
+    """
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute(
+        "SELECT fr_curve_json, description FROM iems WHERE id = %s",
+        (iem_id,),
+    )
+    row = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if row is None:
+        return jsonify({"error": "IEM not found"}), 404
+
+    if not row["fr_curve_json"]:
+        return jsonify({"error": "No measurement curve stored for this IEM"}), 404
+
+    # Stored as a JSON string by import_to_db.py; decoded here so the
+    # frontend gets a real array rather than a string it has to parse again.
+    try:
+        curve = json.loads(row["fr_curve_json"])
+    except (TypeError, ValueError):
+        return jsonify({"error": "Stored curve data is not valid JSON"}), 500
+
+    return jsonify({
+        "curve": curve,
+        "description": row["description"],
+    })
 
 
 # ---------------------------------------------------------------------------
