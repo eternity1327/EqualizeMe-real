@@ -1,79 +1,25 @@
 <?php
-// NOTE: this page is currently unlinked from the nav — login.php now hosts
-// a combined Log In / Sign Up UI at login.php?tab=register instead. Left
-// here (and kept working) in case anything still links to it directly.
+/**
+ * Legacy registration page — now a redirect only.
+ *
+ * This page used to create accounts itself, with its own copy of the
+ * signup logic. That made it a second, unprotected way into the system:
+ * it had no CSRF token, no rate limiting, no password policy beyond a
+ * length check, and it echoed raw PDO exception messages straight to the
+ * browser, which leaks table and column names to anyone who can trigger
+ * an error.
+ *
+ * Meanwhile api/auth/register.php — the path the real UI uses — had all
+ * of those protections. A forgotten parallel route like this is exactly
+ * what an attacker looks for, since hardening usually lands on the path
+ * everyone remembers and not the one nobody links to.
+ *
+ * Rather than maintain the same logic twice, the page now forwards to the
+ * combined login/signup UI. Any old bookmark or link still works, and
+ * there is only one registration code path to keep secure.
+ */
 require_once __DIR__ . "/api/session.php";
-require_once __DIR__ . "/api/db.php";
 start_secure_session();
 
-$error = "";
-$success = "";
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $name = trim($_POST["name"] ?? "");
-    $email = trim($_POST["email"] ?? "");
-    $password = $_POST["password"] ?? "";
-
-    if ($name === "" || $email === "" || $password === "") {
-        $error = "Please fill in all fields.";
-    } elseif (strlen($password) < 8) {
-        $error = "Password must be at least 8 characters.";
-    } else {
-        try {
-            $pdo = get_pdo();
-
-            // Check if email already exists
-            $check = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-            $check->execute([$email]);
-            if ($check->fetch()) {
-                $error = "An account with that email already exists.";
-            } else {
-                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-                $stmt = $pdo->prepare(
-                    "INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, NOW())"
-                );
-                $stmt->execute([$name, $email, $hashedPassword]);
-
-                $success = "Account created! You can now log in.";
-            }
-        } catch (PDOException $e) {
-            $error = "Database error: " . $e->getMessage();
-        }
-    }
-}
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>EqualizeME — Register</title>
-</head>
-<body>
-
-<h1>Create Account</h1>
-
-<?php if ($error): ?>
-    <p style="color:red;"><?php echo htmlspecialchars($error); ?></p>
-<?php endif; ?>
-
-<?php if ($success): ?>
-    <p style="color:green;"><?php echo htmlspecialchars($success); ?></p>
-    <p><a href="login.php">Go to Login</a></p>
-<?php else: ?>
-<form method="POST" action="register.php">
-    <label>Name:</label><br>
-    <input type="text" name="name" required><br><br>
-
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br><br>
-
-    <label>Password (min 8 chars):</label><br>
-    <input type="password" name="password" required><br><br>
-
-    <button type="submit">Register</button>
-</form>
-<?php endif; ?>
-
-</body>
-</html>
+header("Location: login.php?tab=register", true, 301);
+exit;

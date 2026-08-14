@@ -11,6 +11,18 @@
 
 const PASSWORD_MIN_LENGTH = 8;
 
+// bcrypt — which password_hash() uses by default — only reads the first
+// 72 BYTES of a password and silently ignores the rest. A longer
+// passphrase would appear to be accepted while everything past byte 72
+// counted for nothing, and the user would never know their password was
+// weaker than they typed.
+//
+// Bytes, not characters: accented letters and emoji take several bytes
+// each, so a 40-character password can exceed the limit.
+//
+// Rejecting explicitly is better than truncating quietly.
+const PASSWORD_MAX_BYTES = 72;
+
 // Passwords that technically satisfy the character rules but are among
 // the first things any attacker tries. Compared case-insensitively.
 const PASSWORD_BLOCKLIST = [
@@ -35,6 +47,14 @@ function password_problems($password, $email = '', $name = '') {
 
     if (strlen($password) < PASSWORD_MIN_LENGTH) {
         $problems[] = "be at least " . PASSWORD_MIN_LENGTH . " characters long";
+    }
+
+    // strlen() counts bytes, which is exactly what bcrypt's limit is
+    // measured in — mb_strlen() would undercount multi-byte characters
+    // and let an over-long password through.
+    if (strlen($password) > PASSWORD_MAX_BYTES) {
+        $problems[] = "be no longer than " . PASSWORD_MAX_BYTES
+            . " characters (longer passwords aren't fully used by the encryption)";
     }
 
     if (!preg_match('/[a-z]/', $password) || !preg_match('/[A-Z]/', $password)) {

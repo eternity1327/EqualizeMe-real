@@ -48,29 +48,65 @@ function client_ip() {
     return $remote;
 }
 
-function rate_limit_check($bucket, $maxAttempts = 8, $windowSeconds = 300) {
-    $ip = client_ip();
+/**
+ * A stable, non-reversible key for throttling something other than an IP.
+ *
+ * Used to limit attempts per ACCOUNT. Rate limiting by IP alone stops one
+ * machine hammering the login form, but does nothing against an attacker
+ * spread across many addresses all targeting the same account — each IP
+ * stays under its own limit while the account is ground down. Counting
+ * failures per account closes that.
+ *
+ * Hashed rather than stored raw so the throttle file doesn't become a
+ * plaintext list of everyone's email addresses sitting in the temp
+ * directory.
+ */
+function rate_limit_key($value) {
+    return substr(hash('sha256', strtolower(trim($value))), 0, 32);
+}
+
+/**
+ * $key defaults to the caller's IP. Pass rate_limit_key($email) to
+ * throttle by account instead.
+ */
+function rate_limit_check($bucket, $maxAttempts = 8, $windowSeconds = 300, $key = null) {
+    $key = $key ?? client_ip();
     $data = _rate_limit_read($bucket);
     $now = time();
 
-    $recent = array_filter($data[$ip] ?? [], function ($t) use ($now, $windowSeconds) {
+    $recent = array_filter($data[$key] ?? [], function ($t) use ($now, $windowSeconds) {
         return $t > $now - $windowSeconds;
     });
 
     return count($recent) < $maxAttempts;
 }
 
-function rate_limit_record($bucket) {
-    $ip = client_ip();
+function rate_limit_record($bucket, $key = null) {
+    $key = $key ?? client_ip();
     $data = _rate_limit_read($bucket);
     $now = time();
 
-    $data[$ip] = array_filter($data[$ip] ?? [], function ($t) use ($now) {
+    $data[$key] = array_filter($data[$key] ?? [], function ($t) use ($now) {
         return $t > $now - 3600; // don't let the file grow forever
     });
-    $data[$ip][] = $now;
+    $data[$key][] = $now;
 
     file_put_contents(_rate_limit_path($bucket), json_encode($data), LOCK_EX);
+}
+
+/**
+ * Clears a key's recorded attempts. Called after a successful login so a
+ * few mistyped passwords don't leave someone throttled once they've
+ * proven they own the account.
+ */
+function rate_limit_clear($bucket, $key = null) {
+    $key = $key ?? client_ip();
+    $data = _rate_limit_read($bucket);
+
+    if (isset($data[$key])) {
+        unset($data[$key]);
+        file_put_contents(_rate_limit_path($bucket), json_encode($data), LOCK_EX);
+    }
 }
 
 function _rate_limit_path($bucket) {

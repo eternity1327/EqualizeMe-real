@@ -45,4 +45,18 @@ return [
 
     // How long a password reset link stays valid, in minutes.
     'reset_token_lifetime_minutes' => 60,
+
+    // ---------------------------------------------------------------
+    // Redirect plain HTTP requests to HTTPS.
+    //
+    // Leave false for local development — XAMPP serves plain HTTP on
+    // localhost and there's no certificate to redirect to. (localhost is
+    // exempt even when this is on, but keeping it off locally avoids
+    // surprises.)
+    //
+    // Turn it on once the site is served over TLS. Behind Cloudflare this
+    // is belt-and-braces, since Cloudflare already forces HTTPS at its
+    // edge; it matters on hosting that doesn't.
+    // ---------------------------------------------------------------
+    'force_https' => false,
 ];

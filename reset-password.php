@@ -54,10 +54,11 @@ $token = $_GET["token"] ?? "";
 
       <form class="auth-form active" id="reset-form" onsubmit="return handleReset(event)">
         <label for="new-password">New password</label>
-        <input id="new-password" type="password" autocomplete="new-password" minlength="8" required>
+        <!-- maxlength matches bcrypt's 72-byte limit; see api/password_policy.php -->
+        <input id="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required>
 
         <label for="confirm-password">Confirm new password</label>
-        <input id="confirm-password" type="password" autocomplete="new-password" minlength="8" required>
+        <input id="confirm-password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required>
 
         <button class="auth-submit" type="submit" id="reset-submit">Update Password</button>
         <p class="auth-hint"><a href="login.php">Back to log in</a></p>

@@ -27,6 +27,8 @@ function app_config() {
         ],
         'base_url' => '',
         'reset_token_lifetime_minutes' => 60,
+        // Off by default so a fresh clone works on plain-HTTP localhost.
+        'force_https' => false,
     ];
 
     $localPath = __DIR__ . '/config.local.php';

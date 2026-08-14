@@ -85,7 +85,8 @@ $initialTab = ($_GET["tab"] ?? "") === "register" ? "register" : "login";
       <input id="reg-email" type="email" autocomplete="email" required>
 
       <label for="reg-password">Password</label>
-      <input id="reg-password" type="password" autocomplete="new-password" minlength="8" required>
+      <!-- maxlength matches bcrypt's 72-byte limit; see api/password_policy.php -->
+      <input id="reg-password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required>
 
       <button class="auth-submit" type="submit" id="register-submit">Create Account</button>
       <p class="auth-hint">Already have an account? <a href="#" onclick="switchTab('login'); return false;">Log in</a></p>
