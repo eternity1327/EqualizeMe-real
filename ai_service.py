@@ -17,8 +17,10 @@ Environment variables:
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from contextlib import contextmanager
 import mysql.connector
 import json
+import logging
 import os
 import camilla_dsp
 import adaptive_test
@@ -38,8 +40,77 @@ DB_CONFIG = {
 }
 
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+log = logging.getLogger("equalizeme")
+
+
+# ---------------------------------------------------------------------------
+# Error handling
+#
+# Every caller of this API is JavaScript doing `await res.json()`. Flask's
+# default 500 is an HTML page, so an unexpected exception made the frontend
+# fail a second time on the JSON parse, and the browser reported a parse
+# error rather than the actual fault. These handlers guarantee the response
+# is always JSON, so the real problem reaches the console.
+#
+# The message sent to the browser stays generic on purpose — exception text
+# can carry table names, queries and file paths. The full traceback goes to
+# the server log where it's useful and not exposed.
+# ---------------------------------------------------------------------------
+
+@app.errorhandler(mysql.connector.Error)
+def handle_db_error(err):
+    log.exception("Database error")
+    return jsonify({
+        "error": "The database is unavailable right now. Is MySQL running?"
+    }), 503
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(err):
+    # Flask routes its own HTTP errors (404 etc.) through here too; those
+    # already carry a sensible code and shouldn't be relabelled as crashes.
+    code = getattr(err, "code", None)
+    if isinstance(code, int):
+        return jsonify({"error": getattr(err, "description", "Request failed")}), code
+
+    log.exception("Unhandled error")
+    return jsonify({"error": "Something went wrong on the server."}), 500
+
+
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
+
+
+@contextmanager
+def db_cursor(dictionary=False):
+    """
+    A database cursor that always cleans up after itself.
+
+    Every query block here used to open a connection and close it on the
+    last line of the happy path. Any exception in between — a malformed
+    row, a missing column, a bug in the scoring loop — skipped the close
+    and leaked the connection for good. MySQL allows 151 by default, so a
+    recurring error would slowly exhaust the pool until the service
+    stopped answering at all and needed a restart. That failure is
+    especially nasty because it looks like "the server randomly broke"
+    rather than pointing at the error that caused it.
+
+    Wrapping acquisition and release in try/finally means the connection
+    comes back regardless of how the block exits.
+    """
+    conn = get_db()
+    cur = conn.cursor(dictionary=dictionary)
+    try:
+        yield conn, cur
+    finally:
+        try:
+            cur.close()
+        finally:
+            conn.close()
 
 
 def _generate_profile(cur, conn, assessment_id):
@@ -147,40 +218,35 @@ def get_recommendations(user_id):
     every IEM using absolute difference across bass/treble/presence,
     and returns the top 5 closest matches with retailer links.
     """
-    conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    with db_cursor(dictionary=True) as (conn, cur):
+        # Get the most recent profile for this user
+        cur.execute(
+            "SELECT bass_gain, treble_gain, presence_gain FROM auditory_profiles "
+            "WHERE user_id = %s ORDER BY updated_at DESC LIMIT 1",
+            (user_id,),
+        )
+        profile = cur.fetchone()
 
-    # Get the most recent profile for this user
-    cur.execute(
-        "SELECT bass_gain, treble_gain, presence_gain FROM auditory_profiles "
-        "WHERE user_id = %s ORDER BY updated_at DESC LIMIT 1",
-        (user_id,),
-    )
-    profile = cur.fetchone()
+        if not profile:
+            return jsonify({"error": "No auditory profile found for this user"}), 404
 
-    if not profile:
-        cur.close()
-        conn.close()
-        return jsonify({"error": "No auditory profile found for this user"}), 404
-
-    # Pull every IEM with its retailer info.
-    #
-    # shop_link is the direct URL used by IEMs imported via import_to_db.py,
-    # which don't get a retailer_id — without selecting it here, those rows
-    # would show no buy link at all despite having a perfectly good URL.
-    cur.execute(
-        """
-        SELECT i.id, i.name, i.brand, i.sound_signature, i.bass_gain,
-               i.treble_gain, i.presence_gain, i.price, i.image_url,
-               i.shop_link,
-               r.name AS retailer_name, r.product_url
-        FROM iems i
-        LEFT JOIN retailers r ON i.retailer_id = r.retailer_id
-        """
-    )
-    all_iems = cur.fetchall()
-    cur.close()
-    conn.close()
+        # Pull every IEM with its retailer info.
+        #
+        # shop_link is the direct URL used by IEMs imported via
+        # import_to_db.py, which don't get a retailer_id — without selecting
+        # it here, those rows would show no buy link at all despite having a
+        # perfectly good URL.
+        cur.execute(
+            """
+            SELECT i.id, i.name, i.brand, i.sound_signature, i.bass_gain,
+                   i.treble_gain, i.presence_gain, i.price, i.image_url,
+                   i.shop_link,
+                   r.name AS retailer_name, r.product_url
+            FROM iems i
+            LEFT JOIN retailers r ON i.retailer_id = r.retailer_id
+            """
+        )
+        all_iems = cur.fetchall()
 
     # An imported measurement that didn't cover a whole band leaves that
     # gain NULL. Scoring it would raise on float(None) and take the entire
@@ -292,17 +358,12 @@ def get_iem_curve(iem_id):
     a normal state rather than an error condition. recommendations.html
     fetches this per card and quietly skips the chart when it 404s.
     """
-    conn = get_db()
-    cur = conn.cursor(dictionary=True)
-
-    cur.execute(
-        "SELECT fr_curve_json, description FROM iems WHERE id = %s",
-        (iem_id,),
-    )
-    row = cur.fetchone()
-
-    cur.close()
-    conn.close()
+    with db_cursor(dictionary=True) as (conn, cur):
+        cur.execute(
+            "SELECT fr_curve_json, description FROM iems WHERE id = %s",
+            (iem_id,),
+        )
+        row = cur.fetchone()
 
     if row is None:
         return jsonify({"error": "IEM not found"}), 404
@@ -409,26 +470,26 @@ def dsp_adaptive_answer():
 
 def _save_dsp_profile(user_id, profile):
     """Writes the finalized bassGain/trebleGain/presenceGain into auditory_profiles.
-    user_id is UNIQUE on this table (one profile per user), so this upserts
-    instead of always inserting."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT INTO auditory_profiles (user_id, bass_gain, treble_gain, presence_gain, confidence_score)
-        VALUES (%s, %s, %s, %s, %s)
-        ON DUPLICATE KEY UPDATE
-            bass_gain = VALUES(bass_gain),
-            treble_gain = VALUES(treble_gain),
-            presence_gain = VALUES(presence_gain),
-            confidence_score = VALUES(confidence_score)
-        """,
-        (user_id, profile["bassGain"], profile["trebleGain"], profile["presenceGain"], 100.0),
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
 
+    Relies on user_id being UNIQUE on that table so the upsert replaces the
+    previous profile instead of stacking a new row on every retake. If that
+    constraint is missing the ON DUPLICATE KEY clause never fires and each
+    retake silently adds a row — see sql/schema_cleanup.sql.
+    """
+    with db_cursor() as (conn, cur):
+        cur.execute(
+            """
+            INSERT INTO auditory_profiles (user_id, bass_gain, treble_gain, presence_gain, confidence_score)
+            VALUES (%s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                bass_gain = VALUES(bass_gain),
+                treble_gain = VALUES(treble_gain),
+                presence_gain = VALUES(presence_gain),
+                confidence_score = VALUES(confidence_score)
+            """,
+            (user_id, profile["bassGain"], profile["trebleGain"], profile["presenceGain"], 100.0),
+        )
+        conn.commit()
 
 # ---------------------------------------------------------------------------
 # Legacy branching assessment flow — question-by-question quiz used by
@@ -444,24 +505,19 @@ def start_assessment():
     if not user_id:
         return jsonify({"error": "user_id is required"}), 400
 
-    conn = get_db()
-    cur = conn.cursor(dictionary=True)
+    with db_cursor(dictionary=True) as (conn, cur):
+        cur.execute(
+            "INSERT INTO assessments (user_id, status) VALUES (%s, 'in_progress')",
+            (user_id,),
+        )
+        assessment_id = cur.lastrowid
+        conn.commit()
 
-    cur.execute(
-        "INSERT INTO assessments (user_id, status) VALUES (%s, 'in_progress')",
-        (user_id,),
-    )
-    assessment_id = cur.lastrowid
-    conn.commit()
-
-    cur.execute(
-        "SELECT question_id, audio_stimulus_ref, question_type "
-        "FROM questions WHERE is_starting_question = TRUE LIMIT 1"
-    )
-    question = cur.fetchone()
-
-    cur.close()
-    conn.close()
+        cur.execute(
+            "SELECT question_id, audio_stimulus_ref, question_type "
+            "FROM questions WHERE is_starting_question = TRUE LIMIT 1"
+        )
+        question = cur.fetchone()
 
     if not question:
         return jsonify({"error": "No starting question configured"}), 500
@@ -488,51 +544,47 @@ def next_question():
     if not all([assessment_id, question_id, answer_value]):
         return jsonify({"error": "assessment_id, question_id, and answer_value are required"}), 400
 
-    conn = get_db()
-    cur = conn.cursor(dictionary=True)
-
-    # Log the response
-    cur.execute(
-        "INSERT INTO responses (assessment_id, question_id, answer_value, sequence_order) "
-        "VALUES (%s, %s, %s, %s)",
-        (assessment_id, question_id, answer_value, sequence_order),
-    )
-    conn.commit()
-
-    # Look up the branching rule
-    cur.execute(
-        "SELECT next_question_id FROM question_rules "
-        "WHERE from_question_id = %s AND condition_answer_value = %s "
-        "ORDER BY priority ASC LIMIT 1",
-        (question_id, answer_value),
-    )
-    rule = cur.fetchone()
-
-    if not rule:
-        # No further question -> assessment complete
+    with db_cursor(dictionary=True) as (conn, cur):
+        # Log the response
         cur.execute(
-            "UPDATE assessments SET status = 'completed', completed_at = NOW() "
-            "WHERE assessment_id = %s",
-            (assessment_id,),
+            "INSERT INTO responses (assessment_id, question_id, answer_value, sequence_order) "
+            "VALUES (%s, %s, %s, %s)",
+            (assessment_id, question_id, answer_value, sequence_order),
         )
         conn.commit()
 
-        profile = _generate_profile(cur, conn, assessment_id)
+        # Look up the branching rule
+        cur.execute(
+            "SELECT next_question_id FROM question_rules "
+            "WHERE from_question_id = %s AND condition_answer_value = %s "
+            "ORDER BY priority ASC LIMIT 1",
+            (question_id, answer_value),
+        )
+        rule = cur.fetchone()
 
-        cur.close()
-        conn.close()
-        return jsonify({"complete": True, "assessment_id": assessment_id, "profile": profile})
+        if not rule:
+            # No further question -> assessment complete
+            cur.execute(
+                "UPDATE assessments SET status = 'completed', completed_at = NOW() "
+                "WHERE assessment_id = %s",
+                (assessment_id,),
+            )
+            conn.commit()
 
-    # Fetch the next question's details
-    cur.execute(
-        "SELECT question_id, audio_stimulus_ref, question_type "
-        "FROM questions WHERE question_id = %s",
-        (rule["next_question_id"],),
-    )
-    next_q = cur.fetchone()
+            profile = _generate_profile(cur, conn, assessment_id)
+            return jsonify({
+                "complete": True,
+                "assessment_id": assessment_id,
+                "profile": profile,
+            })
 
-    cur.close()
-    conn.close()
+        # Fetch the next question's details
+        cur.execute(
+            "SELECT question_id, audio_stimulus_ref, question_type "
+            "FROM questions WHERE question_id = %s",
+            (rule["next_question_id"],),
+        )
+        next_q = cur.fetchone()
 
     return jsonify({
         "complete": False,

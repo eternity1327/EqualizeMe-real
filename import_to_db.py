@@ -215,9 +215,35 @@ def build_rows(catalog_path, measurements_dir):
     return matched, unmatched
 
 
+# Columns refreshed when a row already exists. brand and name identify the
+# row, so they're excluded — everything else is re-derived from the
+# measurement and should reflect the latest import.
+UPDATE_KEYS = [k for k in INSERT_KEYS if k not in ("brand", "model")]
+
+
+def _upsert_clause():
+    """
+    The ON DUPLICATE KEY UPDATE tail that makes importing idempotent.
+
+    Without it a second import inserted a whole second copy of every IEM,
+    because nothing in the statement told MySQL these rows were the same
+    ones. Re-running after adding measurements or recalibrating the
+    description thresholds is a normal thing to want to do, and it
+    shouldn't silently double the catalogue.
+
+    Requires a UNIQUE key on (brand, name) — see sql/schema_cleanup.sql.
+    Without that constraint MySQL has no way to detect the collision and
+    this clause simply never fires.
+    """
+    cols = IEMS_TABLE_COLUMNS
+    assignments = ", ".join(f"{cols[k]} = VALUES({cols[k]})" for k in UPDATE_KEYS)
+    return f" ON DUPLICATE KEY UPDATE {assignments}"
+
+
 def render_sql(rows):
     cols = IEMS_TABLE_COLUMNS
     col_list = ", ".join(cols[k] for k in INSERT_KEYS)
+    upsert = _upsert_clause()
     statements = []
     for r in rows:
         def sql_val(v):
@@ -229,7 +255,7 @@ def render_sql(rows):
 
         values = ", ".join(sql_val(r[k]) for k in INSERT_KEYS)
         statements.append(
-            f"INSERT INTO {IEMS_TABLE} ({col_list}) VALUES ({values});"
+            f"INSERT INTO {IEMS_TABLE} ({col_list}) VALUES ({values}){upsert};"
         )
     return statements
 
@@ -240,13 +266,24 @@ def run_import(rows):
     cols = IEMS_TABLE_COLUMNS
     col_list = ", ".join(cols[k] for k in INSERT_KEYS)
     placeholders = ", ".join(["%s"] * len(INSERT_KEYS))
-    sql = f"INSERT INTO {IEMS_TABLE} ({col_list}) VALUES ({placeholders})"
+    sql = (f"INSERT INTO {IEMS_TABLE} ({col_list}) VALUES ({placeholders})"
+           + _upsert_clause())
+
+    inserted = updated = 0
     try:
         with conn.cursor() as cur:
             for r in rows:
-                cur.execute(sql, tuple(r[k] for k in INSERT_KEYS))
+                affected = cur.execute(sql, tuple(r[k] for k in INSERT_KEYS))
+                # MySQL reports 1 row affected for an insert and 2 for an
+                # update performed by ON DUPLICATE KEY (0 if the values were
+                # already identical).
+                if affected == 1:
+                    inserted += 1
+                else:
+                    updated += 1
         conn.commit()
-        print(f"Inserted {len(rows)} IEMs into {IEMS_TABLE}.")
+        print(f"{inserted} new IEMs inserted, {updated} existing rows updated "
+              f"in {IEMS_TABLE}.")
     finally:
         conn.close()
 
