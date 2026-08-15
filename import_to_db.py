@@ -240,20 +240,66 @@ def _upsert_clause():
     return f" ON DUPLICATE KEY UPDATE {assignments}"
 
 
+def _sql_literal(value):
+    """
+    Render a value as a SQL literal for the PREVIEW output.
+
+    Only the preview needs this — the --live path sends values as real
+    query parameters and never builds SQL from them. But the preview is
+    printed so it can be read and, quite reasonably, pasted into
+    phpMyAdmin, so the SQL it produces has to be correct.
+
+    The previous version escaped by doubling apostrophes and nothing else,
+    which breaks on backslashes. MySQL treats a backslash as an escape
+    character by default, so:
+
+        Foo\\' ; DROP TABLE iems;--
+
+    became  'Foo\\'' ; DROP TABLE iems;--'  — the \\' is read as an escaped
+    apostrophe, the next ' closes the string early, and the rest is
+    executable SQL. A value ending in a backslash escaped the closing
+    quote instead, breaking the statement.
+
+    This data comes from a third-party catalogue rather than from users,
+    so it isn't an active attack path — but it is untrusted input being
+    rendered into SQL a person may run, and a brand name containing a
+    backslash would corrupt the import without anyone acting maliciously.
+
+    pymysql's escaper handles backslashes, control characters and quotes
+    correctly; the fallback covers the same cases if it isn't installed
+    (the preview shouldn't require a database driver to run).
+    """
+    if value is None:
+        return "NULL"
+
+    if isinstance(value, (int, float)):
+        return repr(value)
+
+    text = str(value)
+
+    try:
+        from pymysql.converters import escape_string
+        return "'" + escape_string(text) + "'"
+    except ImportError:
+        escaped = (
+            text.replace("\\", "\\\\")   # backslashes first, or the rest double-escape
+                .replace("'", "\\'")
+                .replace('"', '\\"')
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\x1a", "\\Z")
+                .replace("\0", "\\0")
+        )
+        return "'" + escaped + "'"
+
+
 def render_sql(rows):
     cols = IEMS_TABLE_COLUMNS
     col_list = ", ".join(cols[k] for k in INSERT_KEYS)
     upsert = _upsert_clause()
     statements = []
     for r in rows:
-        def sql_val(v):
-            if v is None:
-                return "NULL"
-            if isinstance(v, str):
-                return "'" + v.replace("'", "''") + "'"
-            return str(v)
-
-        values = ", ".join(sql_val(r[k]) for k in INSERT_KEYS)
+        values = ", ".join(_sql_literal(r[k]) for k in INSERT_KEYS)
         statements.append(
             f"INSERT INTO {IEMS_TABLE} ({col_list}) VALUES ({values}){upsert};"
         )

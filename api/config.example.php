@@ -15,6 +15,25 @@
 
 return [
     // ---------------------------------------------------------------
+    // Database
+    //
+    // Defaults to XAMPP's root account with no password, which is fine
+    // only while MySQL listens on localhost alone. Create a limited
+    // account (see sql/create_app_user.sql) and put it here instead —
+    // this file is gitignored, so the credentials stay out of the repo.
+    //
+    // A limited account also contains the damage from any future bug:
+    // it can read and write the application's tables and nothing else,
+    // so it cannot drop the schema or create users.
+    // ---------------------------------------------------------------
+    'database' => [
+        'host'     => '127.0.0.1',
+        'name'     => 'equalizeme',
+        'user'     => 'equalizeme_app',
+        'password' => 'put-a-strong-password-here',
+    ],
+
+    // ---------------------------------------------------------------
     // SMTP — used to send password reset emails.
     //
     // For Gmail you must use an APP PASSWORD, not your normal account

@@ -15,6 +15,15 @@ function app_config() {
     }
 
     $defaults = [
+        // XAMPP's defaults, so a fresh clone runs without configuration.
+        // Override in config.local.php with a limited account — see
+        // sql/create_app_user.sql.
+        'database' => [
+            'host' => '127.0.0.1',
+            'name' => 'equalizeme',
+            'user' => 'root',
+            'password' => '',
+        ],
         'smtp' => [
             'enabled' => false,
             'host' => '',
@@ -37,10 +46,12 @@ function app_config() {
         $local = [];
     }
 
-    // Merge one level deep so a partial 'smtp' block in config.local.php
-    // still inherits the defaults for anything it doesn't specify.
+    // Merge one level deep so a partial 'smtp' or 'database' block in
+    // config.local.php still inherits the defaults for anything it
+    // doesn't specify.
     $config = array_merge($defaults, $local);
     $config['smtp'] = array_merge($defaults['smtp'], $local['smtp'] ?? []);
+    $config['database'] = array_merge($defaults['database'], $local['database'] ?? []);
 
     return $config;
 }
