@@ -316,6 +316,42 @@ async function startTest(quizAnswers) {
   }
 }
 
+/**
+ * Decides whether the option cards can be chosen yet.
+ *
+ * A forced-choice comparison only means anything if the listener has
+ * actually heard both options. Previously each card unlocked itself 600ms
+ * after its own Play button was pressed, so someone could play A, wait
+ * half a second and pick A without ever hearing B — and the test would
+ * record that as a considered preference. Ten questions of that produces
+ * a profile that looks entirely valid and measures nothing.
+ *
+ * The 600ms delay was also left over from when Play was a server call
+ * that returned immediately. Browser playback lasts the length of the
+ * clip, so the old timer unlocked the card while the audio was still
+ * playing.
+ *
+ * Both cards now unlock together, and only once both have finished
+ * playing.
+ */
+function updateChoiceAvailability() {
+  const bothPlayed = hasPlayedA && hasPlayedB;
+
+  [['a', hasPlayedA], ['b', hasPlayedB]].forEach(([side, played]) => {
+    const card = document.getElementById(`option-${side}`);
+    const hint = document.getElementById(`hint-${side}`);
+    if (!card) return;
+
+    card.classList.toggle('selectable', bothPlayed);
+
+    if (hint) {
+      hint.textContent = bothPlayed
+        ? 'Tap to choose this one'
+        : (played ? 'Now play the other one' : 'Play to unlock');
+    }
+  });
+}
+
 function renderPair(pair) {
   hasPlayedA = false;
   hasPlayedB = false;
@@ -418,6 +454,10 @@ async function playSide(side) {
   optionCard.classList.remove('playing');
   btn.textContent = original;
   btn.disabled = false;
+
+  // Re-evaluate now that this side has finished — the cards become
+  // choosable only once both have been heard.
+  updateChoiceAvailability();
 }
 
 async function chooseSide(side) {

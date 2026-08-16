@@ -5,7 +5,7 @@ Ties catalog_parser.py + measurement_parser.py together and imports
 IEMs into the EqualizeME `iems` MySQL table.
 
 USAGE
-  python3 import_to_db.py phone_book.json measurements_dir/ [--dry-run]
+  python backend/import_to_db.py phone_book.json measurements_dir/ [--dry-run]
 
   phone_book.json    the full squig.link catalog file
   measurements_dir/  a folder of REW .txt files, one per IEM, where

@@ -481,11 +481,6 @@
         cards.forEach(card => {
           if (!card.el || !card.playBtn) return;
 
-          const unlock = () => {
-            card.el.classList.add('selectable');
-            if (card.hint) card.hint.textContent = 'Tap to choose this one';
-          };
-
           const onCardClick = (e) => {
             if (e.target.closest('.play-btn')) return; // let Play still work
             if (!card.el.classList.contains('selectable')) return; // not unlocked yet
@@ -499,14 +494,13 @@
           // Attached once — gated on the 'selectable' class at click time,
           // instead of re-adding a fresh listener on every unlock (which
           // would fire chooseSide() multiple times per click by round 2+).
+          //
+          // The 'selectable' class is applied by updateChoiceAvailability()
+          // in adaptiveTest.js, which only unlocks the cards once BOTH
+          // sides have finished playing. Unlocking used to happen here on
+          // a 600ms timer after a single Play press, which let someone
+          // choose a side they had heard without ever hearing the other.
           card.el.addEventListener('click', onCardClick);
-
-          // Unlock shortly after Play is pressed (audio for these short
-          // samples finishes quickly; adjust the delay if your samples
-          // are longer).
-          card.playBtn.addEventListener('click', () => {
-            setTimeout(unlock, 600);
-          });
         });
       })();
     </script>

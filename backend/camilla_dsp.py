@@ -18,17 +18,24 @@ import subprocess
 import yaml
 import websocket  # pip install websocket-client
 
-CAMILLA_EXE = os.path.join(os.path.dirname(__file__), "camilladsp.exe")
+# This file lives in backend/, while the audio lives in data/ at the project
+# root — one level up. Anchoring on the project root rather than on this
+# file's own folder means the paths keep working wherever the service is
+# launched from, and would have survived this move on their own.
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
+
+CAMILLA_EXE = os.path.join(_BACKEND_DIR, "camilladsp.exe")
 CAMILLA_WS_PORT = 1234
 
 # Fallback sample, used only if a session somehow has no sample assigned.
-TEST_SAMPLE_PATH = os.path.join(os.path.dirname(__file__), "data", "audio", "test-sample.wav")
+TEST_SAMPLE_PATH = os.path.join(_PROJECT_ROOT, "data", "audio", "test-sample.wav")
 
 # Folder holding sample1.wav .. sample10.wav. The test walks through all ten,
 # one per question (see adaptive_test.py), so the capture filename changes
 # between questions — apply_filters() rebuilds and re-pushes the whole config
 # each time, which is what makes the clip switch actually take effect.
-SAMPLES_DIR = os.path.join(os.path.dirname(__file__), "data", "audio", "samples")
+SAMPLES_DIR = os.path.join(_PROJECT_ROOT, "data", "audio", "samples")
 
 _process = None
 _ws = None

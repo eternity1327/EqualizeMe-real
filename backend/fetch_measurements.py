@@ -32,19 +32,19 @@ BEING A GOOD CITIZEN
 
 USAGE
   # see what would be downloaded, without downloading anything
-  python fetch_measurements.py phone_book.json measurements/ --limit 10 --dry-run
+  python backend/fetch_measurements.py phone_book.json measurements/ --limit 10 --dry-run
 
   # a spread of well-known models (recommended starting point)
-  python fetch_measurements.py phone_book.json measurements/ --preset demo
+  python backend/fetch_measurements.py phone_book.json measurements/ --preset demo
 
   # specific models by name
-  python fetch_measurements.py phone_book.json measurements/ --name "Truthear Zero" --name "Moondrop Aria"
+  python backend/fetch_measurements.py phone_book.json measurements/ --name "Truthear Zero" --name "Moondrop Aria"
 
   # everything from certain brands
-  python fetch_measurements.py phone_book.json measurements/ --brand Moondrop --brand Truthear
+  python backend/fetch_measurements.py phone_book.json measurements/ --brand Moondrop --brand Truthear
 
   # first N in the catalog
-  python fetch_measurements.py phone_book.json measurements/ --limit 20
+  python backend/fetch_measurements.py phone_book.json measurements/ --limit 20
 """
 
 import argparse
@@ -244,7 +244,7 @@ def main():
     if not args.dry_run:
         print(f"\nDownloaded {got}, already had {skipped}, "
               f"{missing} IEMs with nothing found, {failed} errors.")
-        print(f"\nNext: python import_to_db.py {args.catalog} {args.out_dir}")
+        print(f"\nNext: python backend/import_to_db.py {args.catalog} {args.out_dir}")
 
     return 0
 

@@ -36,8 +36,8 @@ WHAT THIS DOES
   labels are objective acoustic categories.
 
 USAGE
-  python calibrate_interpreter.py phone_book.json measurements/
-  python calibrate_interpreter.py phone_book.json measurements/ --apply
+  python backend/calibrate_interpreter.py phone_book.json measurements/
+  python backend/calibrate_interpreter.py phone_book.json measurements/ --apply
 """
 
 import argparse

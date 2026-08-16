@@ -1,7 +1,7 @@
 """
 EqualizeME AI Service (Flask)
 Handles the adaptive listening assessment flow.
-Run with: python ai_service.py  (defaults to http://127.0.0.1:5001)
+Run with: python backend/ai_service.py  (from the project root)  (defaults to http://127.0.0.1:5001)
 
 Environment variables:
   FLASK_DEBUG    "1" to enable the Werkzeug debugger/reloader (dev only —
