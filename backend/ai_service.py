@@ -1,7 +1,8 @@
 """
 EqualizeME AI Service (Flask)
 Handles the adaptive listening assessment flow.
-Run with: python backend/ai_service.py  (from the project root)  (defaults to http://127.0.0.1:5001)
+Run with: python backend/ai_service.py  (from the project root)
+Defaults to http://127.0.0.1:5001
 
 Environment variables:
   FLASK_DEBUG    "1" to enable the Werkzeug debugger/reloader (dev only —
@@ -479,7 +480,8 @@ def _save_dsp_profile(user_id, profile):
     with db_cursor() as (conn, cur):
         cur.execute(
             """
-            INSERT INTO auditory_profiles (user_id, bass_gain, treble_gain, presence_gain, confidence_score)
+            INSERT INTO auditory_profiles
+                (user_id, bass_gain, treble_gain, presence_gain, confidence_score)
             VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 bass_gain = VALUES(bass_gain),
@@ -496,6 +498,7 @@ def _save_dsp_profile(user_id, profile):
 # assessment.php, which is no longer linked from the site nav (superseded
 # by the adaptive test above). Left working, not extended further.
 # ---------------------------------------------------------------------------
+
 
 @app.route("/start-assessment", methods=["POST"])
 def start_assessment():

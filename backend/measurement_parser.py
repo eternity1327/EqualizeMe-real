@@ -96,6 +96,7 @@ if __name__ == "__main__":
     print(f"Parsed {len(points)} data points from {path}")
     print(f"Frequency range: {points[0][0]:.1f} Hz - {points[-1][0]:.1f} Hz")
     gains = compute_gains(points)
-    print(f"\nComputed gains (relative to {MID_REFERENCE_BAND[0]}-{MID_REFERENCE_BAND[1]} Hz reference):")
+    low, high = MID_REFERENCE_BAND
+    print(f"\nComputed gains (relative to {low}-{high} Hz reference):")
     for band, val in gains.items():
         print(f"  {band}: {val:+.2f} dB" if val is not None else f"  {band}: N/A")

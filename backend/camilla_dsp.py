@@ -66,7 +66,11 @@ def _build_config(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
             },
         },
         "pipeline": [
-            {"type": "Filter", "channels": [0, 1], "names": ["bass_shelf", "treble_shelf", "presence_peak"]}
+            {
+                "type": "Filter",
+                "channels": [0, 1],
+                "names": ["bass_shelf", "treble_shelf", "presence_peak"],
+            }
         ],
     }
 
@@ -96,7 +100,10 @@ def _connect(retries=10):
 
 
 def _push_config(params):
-    global _ws, _ready
+    # No `global` declaration here: this function only reads _ws and
+    # _ready, never rebinds them. Declaring them global would be
+    # misleading — it signals to a reader that this function changes
+    # module state when it doesn't.
     if not _ready or _ws is None:
         return False
     config_yaml = yaml.dump(_build_config(**params))
@@ -110,7 +117,12 @@ def _push_config(params):
 
 def apply_filters(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
     """Plays the given sample (or the fallback test sample) through arbitrary filter values."""
-    params = {"bassGain": bassGain, "trebleGain": trebleGain, "presenceGain": presenceGain, "sample": sample}
+    params = {
+        "bassGain": bassGain,
+        "trebleGain": trebleGain,
+        "presenceGain": presenceGain,
+        "sample": sample,
+    }
     ok = _push_config(params)
     return {"ok": ok, "params": params}
 

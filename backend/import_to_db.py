@@ -179,23 +179,29 @@ def build_rows(catalog_path, measurements_dir):
 
         mfiles = find_measurement_files(measurements_dir, entry["primary_file"])
         if not mfiles:
-            unmatched.append(f"{entry['brand']} {entry['model']} "
-                              f"(expected '{entry['primary_file']} L.txt' / "
-                              f"'{entry['primary_file']} R.txt')")
+            unmatched.append(
+                f"{entry['brand']} {entry['model']} "
+                f"(expected '{entry['primary_file']} L.txt' / "
+                f"'{entry['primary_file']} R.txt')"
+            )
             continue
 
         curves = [parse_rew_file(f) for f in mfiles]
         curves = [c for c in curves if c]
         if not curves:
-            unmatched.append(f"{entry['brand']} {entry['model']} "
-                              f"(measurement file(s) found but empty/unparseable)")
+            unmatched.append(
+                f"{entry['brand']} {entry['model']} "
+                f"(measurement file(s) found but empty/unparseable)"
+            )
             continue
 
         points = average_curves(curves)
         gains = compute_gains(points)
         if gains["bass_gain"] is None:
-            unmatched.append(f"{entry['brand']} {entry['model']} "
-                              f"(measurement found but missing mid-band reference data)")
+            unmatched.append(
+                f"{entry['brand']} {entry['model']} "
+                f"(measurement found but missing mid-band reference data)"
+            )
             continue
 
         matched.append({
@@ -207,9 +213,11 @@ def build_rows(catalog_path, measurements_dir):
             "presence_gain": gains["presence_gain"],
             "treble_gain": gains["treble_gain"],
             "fr_curve_json": json.dumps(serialize_curve(points)),
-            "description": describe_curve(gains["bass_gain"],
-                                           gains["presence_gain"],
-                                           gains["treble_gain"]),
+            "description": describe_curve(
+                gains["bass_gain"],
+                gains["presence_gain"],
+                gains["treble_gain"],
+            ),
         })
 
     return matched, unmatched
@@ -281,15 +289,15 @@ def _sql_literal(value):
         from pymysql.converters import escape_string
         return "'" + escape_string(text) + "'"
     except ImportError:
-        escaped = (
-            text.replace("\\", "\\\\")   # backslashes first, or the rest double-escape
-                .replace("'", "\\'")
-                .replace('"', '\\"')
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\x1a", "\\Z")
-                .replace("\0", "\\0")
-        )
+        # Backslashes first — doing them later would double-escape the
+        # backslashes introduced by the replacements below.
+        escaped = text.replace("\\", "\\\\")
+        escaped = escaped.replace("'", "\\'")
+        escaped = escaped.replace('"', '\\"')
+        escaped = escaped.replace("\n", "\\n")
+        escaped = escaped.replace("\r", "\\r")
+        escaped = escaped.replace("\x1a", "\\Z")
+        escaped = escaped.replace("\0", "\\0")
         return "'" + escaped + "'"
 
 
@@ -338,9 +346,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("catalog_path")
     parser.add_argument("measurements_dir")
-    parser.add_argument("--live", action="store_true",
-                         help="actually execute inserts against the database "
-                              "(default is to print SQL only)")
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="actually execute inserts against the database "
+             "(default is to print SQL only)",
+    )
     args = parser.parse_args()
 
     measurements_dir = Path(args.measurements_dir)
