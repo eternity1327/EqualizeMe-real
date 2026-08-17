@@ -1,19 +1,3 @@
-"""
-Turn three gain figures into a plain-language description.
-
-Rule-based rather than an LLM call: deterministic, reproducible, free,
-and inspectable — an LLM would word it differently every run and
-couldn't be defended as a measurement instrument. The interface is gains
-in, sentence out, so one could be swapped in later.
-
-The thresholds are percentiles of the real catalogue, set by
-calibrate_interpreter.py. Hand-picked cutoffs assumed gains scattered
-around zero and gave nearly every IEM the same description, because
-in-ear measurements all carry ear-canal resonance. The consequence is
-that labels are relative: "bass-boosted" means bassier than most of this
-catalogue, not above a fixed dB figure.
-"""
-
 BASS_THRESHOLDS = [
     (6.88, "bass-boosted"),
     (5.57, "warm, full bass"),
@@ -39,7 +23,6 @@ NO_DATA_MESSAGE = "No measurement data available for this IEM."
 
 
 def _classify(gain_db, thresholds):
-    """The label for this gain, or None when there's no measurement."""
     if gain_db is None:
         return None
     for cutoff, label in thresholds:
@@ -49,7 +32,6 @@ def _classify(gain_db, thresholds):
 
 
 def _join_phrases(phrases):
-    """Join labels the way a sentence would: "a, b, and c"."""
     if len(phrases) == 1:
         return phrases[0]
     if len(phrases) == 2:
@@ -58,11 +40,6 @@ def _join_phrases(phrases):
 
 
 def describe_curve(bass_gain, presence_gain, treble_gain):
-    """
-    One sentence describing an IEM's tonal balance.
-
-    A band with no measurement is left out rather than guessed at.
-    """
     labels = [
         _classify(bass_gain, BASS_THRESHOLDS),
         _classify(presence_gain, PRESENCE_THRESHOLDS),

@@ -1,23 +1,3 @@
-"""
-Retune interpreter.py's thresholds against the imported measurements.
-
-Hand-picked thresholds assumed the three gains scatter around zero. They
-don't: each band is a deviation from a 500-2000 Hz reference, so the
-numbers carry the ear-canal resonance every in-ear measurement has. On a
-real 123-IEM sample presence ranged +2.9 to +8.3, clearing the "forward"
-cutoff every time, while treble barely moved. Twelve of the first fifteen
-imports produced one of two sentences.
-
-This places the cutoffs at percentiles of the real distribution instead,
-so each label lands on an actual slice of the catalogue. The labels are
-therefore relative — "bass-boosted" means bassier than most of this
-catalogue, not above a fixed dB figure.
-
-Usage:
-    python backend/calibrate_interpreter.py phone_book.json measurements/
-    python backend/calibrate_interpreter.py phone_book.json measurements/ --apply
-"""
-
 import argparse
 import re
 import sys
@@ -29,15 +9,12 @@ from import_to_db import average_curves, find_measurement_files
 
 BAND_KEYS = ("bass_gain", "presence_gain", "treble_gain")
 
-# Which list in interpreter.py each band's thresholds live in.
 THRESHOLD_NAMES = {
     "bass_gain": "BASS_THRESHOLDS",
     "presence_gain": "PRESENCE_THRESHOLDS",
     "treble_gain": "TREBLE_THRESHOLDS",
 }
 
-# Percentile cut points per band. Bass gets five labels — it has the
-# widest spread and is what listeners ask about first.
 BASS_CUTS = [(80, "bass-boosted"), (60, "warm, full bass"),
              (40, "balanced bass"), (20, "light bass")]
 BASS_FLOOR_LABEL = "bass-light"
@@ -54,7 +31,6 @@ INTERPRETER_PATH = "interpreter.py"
 
 
 def percentile(sorted_values, pct):
-    """Linear-interpolated percentile. Avoids a numpy dependency."""
     if not sorted_values:
         return 0.0
     if len(sorted_values) == 1:
@@ -68,7 +44,6 @@ def percentile(sorted_values, pct):
 
 
 def gains_for(entry, measurements_dir):
-    """The three gains for one catalogue entry, or None if unmeasured."""
     if not entry["primary_file"]:
         return None
 
@@ -85,7 +60,6 @@ def gains_for(entry, measurements_dir):
 
 
 def collect_gains(catalog_path, measurements_dir):
-    """Every measured gain in the catalogue, sorted, band by band."""
     measurements_dir = Path(measurements_dir)
     bands = {band: [] for band in BAND_KEYS}
     matched = 0
@@ -106,7 +80,6 @@ def collect_gains(catalog_path, measurements_dir):
 
 
 def describe_distribution(name, values):
-    """A one-line summary of where a band's measurements sit."""
     if not values:
         return f"  {name:<15} no data"
     return (f"  {name:<15} n={len(values):<5} "
@@ -117,7 +90,6 @@ def describe_distribution(name, values):
 
 
 def _thresholds_from(values, cuts, floor_label):
-    """Turn percentile cut points into interpreter.py threshold rows."""
     rows = [
         (round(percentile(values, pct), THRESHOLD_DECIMALS), label)
         for pct, label in cuts
@@ -127,7 +99,6 @@ def _thresholds_from(values, cuts, floor_label):
 
 
 def build_thresholds(bands):
-    """The full threshold set, cut at percentiles of the real spread."""
     return {
         "BASS_THRESHOLDS": _thresholds_from(
             bands["bass_gain"], BASS_CUTS, BASS_FLOOR_LABEL),
@@ -139,7 +110,6 @@ def build_thresholds(bands):
 
 
 def render_block(name, rows):
-    """The threshold list as the Python source interpreter.py expects."""
     lines = [f"{name} = ["]
     for cutoff, label in rows:
         cut = 'float("-inf")' if cutoff == float("-inf") else f"{cutoff}"
@@ -156,7 +126,6 @@ def _classify(value, rows):
 
 
 def preview_labels(bands, thresholds):
-    """How many IEMs land in each label, to confirm the spread."""
     for band in BAND_KEYS:
         rows = thresholds[THRESHOLD_NAMES[band]]
 
@@ -171,7 +140,6 @@ def preview_labels(bands, thresholds):
 
 
 def apply_to_interpreter(thresholds, path=INTERPRETER_PATH):
-    """Rewrite interpreter.py's threshold lists in place."""
     with open(path, encoding="utf-8") as f:
         source = f.read()
 

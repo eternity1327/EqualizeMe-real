@@ -1,4 +1,3 @@
-// ===== Dark Mode =====
 (function () {
   const html = document.documentElement;
 
@@ -29,7 +28,6 @@
   });
 })();
 
-// ===== Profile dropdown =====
 document.addEventListener("DOMContentLoaded", () => {
   const avatarBtn = document.getElementById("profileAvatarBtn");
   const dropdown = document.getElementById("profileDropdown");
@@ -49,28 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Resolves to whatever host/domain the page itself was loaded from, so this
-// works on localhost and over the LAN with no edits — the normal case while
-// developing.
-//
-// EXCEPTION: Cloudflare quick tunnels put the app and the API on two
-// different random hostnames, so this same-host assumption breaks there.
-// When running tunnels, comment this line out and hardcode the API tunnel's
-// URL instead (and update it again on every cloudflared restart, since quick
-// tunnel URLs change each time):
-//
-//   const DSP_SERVICE_URL = "https://your-api-tunnel.trycloudflare.com";
-//
 const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
 
-// ---------------------------------------------------------------------------
-// CSRF token
-//
-// The PHP endpoints that change data require a token tied to your session.
-// Fetched once and reused — it doesn't change for the life of the session.
-// Only needed for the PHP API; the Flask service on :5001 is a separate
-// origin and relies on its ALLOWED_ORIGIN setting instead.
-// ---------------------------------------------------------------------------
 let _csrfToken = null;
 
 async function getCsrfToken() {
@@ -87,32 +65,11 @@ async function getCsrfToken() {
   }
 }
 
-// Clears the cached token so the next request fetches a fresh one — used
-// after a 403, which usually means the session (and its token) was
-// replaced while the page stayed open.
 function invalidateCsrfToken() {
   _csrfToken = null;
 }
 
-// ---------------------------------------------------------------------------
-// Prices
-//
-// The `price` column stores USD, because that's what the squig.link
-// catalogue quotes. Our users are in the Philippines, so pesos are shown
-// as the headline figure with the original dollar amount kept alongside.
-//
-// Showing both matters: the peso number is a CONVERSION, not a real local
-// price. Philippine retail for imported IEMs includes shipping, duties and
-// reseller margin, so the actual Shopee/Lazada price is usually higher
-// than this. Displaying only pesos would present a converted figure as if
-// it were what you'd pay.
-//
-// The rate below is fixed at build time rather than fetched live — a
-// student project shouldn't depend on a currency API being up, and a
-// stale-but-labelled rate is easier to defend than a silently changing
-// one. Update it (and the date) if it drifts enough to matter.
-// ---------------------------------------------------------------------------
-const USD_TO_PHP = 61.2;          // mid-market rate, checked 2026-08-13
+const USD_TO_PHP = 61.2;
 const USD_TO_PHP_ASOF = "Aug 2026";
 
 function formatPrice(price) {
@@ -133,28 +90,6 @@ function formatPrice(price) {
   return `${phpText} <span class="price-usd" title="Converted at ${USD_TO_PHP} PHP/USD, ${USD_TO_PHP_ASOF}. Local retail is usually higher.">(${usdText})</span>`;
 }
 
-// ---------------------------------------------------------------------------
-// Buy links
-//
-// Not every catalogue entry has a shop link — plenty of IEMs, especially
-// boutique ones, have no `shopLink` field at all, which left those cards
-// with nothing to click. A Shopee search is offered for every IEM so
-// there's always somewhere to go, and it's the store people here actually
-// use.
-//
-// This is a SEARCH url, not a verified product page: it's built from the
-// brand and model, so it lands on Shopee's results rather than guaranteeing
-// the exact item exists. Labelled "Search on Shopee" rather than "Buy"
-// so nobody expects a checkout page.
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-// Per-band agreement
-//
-// The headline match score is one number covering three bands, which hides
-// the interesting part: an IEM can nail your bass and miss your treble
-// completely, and end up with the same overall score as one that's mediocre
-// everywhere. Showing each band separately says WHERE it fits.
-// ---------------------------------------------------------------------------
 function buildBandMatch(bandMatch) {
   if (!bandMatch) return "";
 
@@ -196,7 +131,6 @@ function buildBuyLinks(item) {
   return `<div class="iem-links">${links.join("")}</div>`;
 }
 
-// Used on test.html - sends the chosen preference to the backend
 async function choose(sound) {
   const result = document.getElementById("result");
   result.innerHTML = "Saving...";
@@ -223,7 +157,6 @@ async function choose(sound) {
   }
 }
 
-// Used on recommendations.html - fetches matching IEMs from the real backend
 function buildIemCard(item) {
   return `
       <div class="iem-card" data-iem-id="${item.iem_id}">
@@ -244,10 +177,6 @@ function buildIemCard(item) {
     `;
 }
 
-/**
- * Charts load after the cards are on the page, one request per IEM, so a
- * missing measurement can't hold up or break the cards themselves.
- */
 function renderCurves(grid, data) {
   data.recommendations.forEach(item => {
     const card = grid.querySelector(`.iem-card[data-iem-id="${item.iem_id}"]`);
@@ -260,7 +189,6 @@ async function loadRecommendations() {
   if (!grid) return;
 
   try {
-    // The user's id comes from the PHP session, which is same-origin.
     const meRes = await fetch("api/auth/me.php");
     if (!meRes.ok) {
       grid.innerHTML = "<p>Please log in first.</p>";
@@ -290,28 +218,14 @@ async function loadRecommendations() {
   }
 }
 
-// Turning the listener's three preference numbers into a curve.
-//
-// A profile is three figures; an IEM measurement is several hundred
-// points. To draw them on the same axes, the three are expanded through
-// the exact filters the listening test applied — the same biquads
-// camilla_dsp.py and adaptiveTest.js use. The line drawn is literally the
-// EQ the listener chose, computed by Web Audio's own
-// getFrequencyResponse() rather than a hand-rolled approximation.
-//
-// Defined here because script.js loads before adaptiveTest.js, which
-// builds its playback filters from this same list.
 const EQ_BANDS = [
   { type: "lowshelf", frequency: 100, Q: 0.7, band: "bass_gain", gainKey: "bassGain" },
   { type: "peaking", frequency: 3000, Q: 1.4, band: "presence_gain", gainKey: "presenceGain" },
   { type: "highshelf", frequency: 8000, Q: 0.7, band: "treble_gain", gainKey: "trebleGain" },
 ];
 
-// getFrequencyResponse() needs a context but not a real one; a single
-// frame at CD rate is the cheapest that satisfies the constructor.
 const ANALYSIS_SAMPLE_RATE = 44100;
 
-// Amplitude ratio to decibels.
 const DB_PER_DECADE = 20;
 
 function buildPreferenceCurve(profile, frequencies) {
@@ -336,7 +250,6 @@ function buildPreferenceCurve(profile, frequencies) {
       const phase = new Float32Array(frequencies.length);
       filter.getFrequencyResponse(freqArray, mag, phase);
 
-      // Filters chain in series, so their dB contributions add.
       for (let i = 0; i < mag.length; i++) {
         totalDb[i] += DB_PER_DECADE * Math.log10(mag[i]);
       }
@@ -349,11 +262,6 @@ function buildPreferenceCurve(profile, frequencies) {
   }
 }
 
-// The measured curve's absolute SPL depends on how loud the rig was driven,
-// so it means nothing on its own. Subtracting the 500-2000 Hz average turns
-// it into a shape — deviation from its own midrange — which is directly
-// comparable to the preference curve, since that's also dB relative to flat.
-// This is the same normalisation measurement_parser.py uses for the gains.
 function normaliseToMidband(curve) {
   const mid = curve.filter(([f]) => f >= 500 && f <= 2000).map(([, spl]) => spl);
   if (!mid.length) return curve.map(([f, spl]) => [f, spl]);
@@ -362,15 +270,6 @@ function normaliseToMidband(curve) {
   return curve.map(([f, spl]) => [f, spl - ref]);
 }
 
-// Fetches one IEM's measured frequency response and renders it into its
-// card, overlaid with the listener's own preference curve, plus the
-// plain-language description generated by interpreter.py on the backend.
-//
-// An IEM with no imported measurement returns 404 — expected, not an
-// error — so the curve section just stays hidden and the card renders
-// normally without it.
-// Chart appearance, kept together so the two lines stay visually
-// distinguishable if either is restyled.
 const CURVE_LINE_WIDTH = 2;
 const CURVE_TENSION = 0.1;
 const PREFERENCE_DASH = [6, 4];
@@ -414,8 +313,6 @@ function curveChartOptions() {
     animation: false,
     interaction: { mode: "index", intersect: false },
     scales: {
-      // Logarithmic because hearing is: the octave from 100 to 200 Hz
-      // matters as much as the one from 5 to 10 kHz.
       x: {
         type: "logarithmic",
         title: { display: true, text: "Frequency (Hz)" },
@@ -451,8 +348,6 @@ async function renderIemCurve(iemId, cardEl, profile) {
 
     cardEl.querySelector(".iem-description").textContent = description || "";
 
-    // Chart.js comes from a CDN. If it's blocked, still show the written
-    // description — the sentence is the more important half.
     if (typeof Chart === "undefined") {
       wrap.hidden = false;
       return;
@@ -472,12 +367,10 @@ async function renderIemCurve(iemId, cardEl, profile) {
 
     wrap.hidden = false;
   } catch (err) {
-    // Network failure or malformed data — leave the card without a chart.
     console.error(`Could not load curve for IEM ${iemId}:`, err);
   }
 }
 
-// Used on profile.html - loads the user's saved auditory profile
 async function loadProfile() {
   const nameEl = document.getElementById("profile-name");
   const soundEl = document.getElementById("profile-sound");
@@ -512,7 +405,6 @@ async function loadProfile() {
   }
 }
 
-// Used on settings.html - loads and saves checkbox toggles
 async function loadSettings() {
   const checkboxes = document.querySelectorAll(".setting-checkbox");
   if (!checkboxes.length) return;
@@ -545,8 +437,6 @@ async function saveSetting(key, checked) {
       body: JSON.stringify({ [key]: checked })
     });
 
-    // A rejected token usually means the session was replaced while this
-    // page sat open — get a fresh one and retry once before giving up.
     if (res.status === 403) {
       invalidateCsrfToken();
       const retryToken = await getCsrfToken();
@@ -564,10 +454,6 @@ async function saveSetting(key, checked) {
   }
 }
 
-// Notifications checkbox needs to request browser permission before the
-// setting can actually do anything. Permission must be requested from a
-// direct user gesture (this onchange handler), so it's asked for here
-// first, synchronously, before saveSetting's async fetch runs.
 function toggleNotifications(checked) {
   if (checked && "Notification" in window && Notification.permission === "default") {
     Notification.requestPermission().then(updateNotifStatus);
@@ -589,7 +475,6 @@ function updateNotifStatus() {
   }
 }
 
-// Shows Login/Register or Logout in the nav depending on whether the user is logged in
 async function updateNavAuthState() {
   const loginLink = document.getElementById("nav-login");
   const registerLink = document.getElementById("nav-register");
@@ -608,7 +493,6 @@ async function updateNavAuthState() {
   }
 }
 
-// Run the right loader depending on which page we're on
 document.addEventListener("DOMContentLoaded", () => {
   updateNavAuthState();
   loadRecommendations();

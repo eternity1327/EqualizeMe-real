@@ -1,12 +1,4 @@
 <?php
-/**
- * Loads local configuration (SMTP credentials, base URL) from
- * config.local.php, falling back to safe defaults when that file doesn't
- * exist — so a fresh clone of the project still runs without anyone
- * having to set up email first.
- *
- * See config.example.php for the template and what each value does.
- */
 
 function app_config() {
     static $config = null;
@@ -15,9 +7,6 @@ function app_config() {
     }
 
     $defaults = [
-        // XAMPP's defaults, so a fresh clone runs without configuration.
-        // Override in config.local.php with a limited account — see
-        // sql/create_app_user.sql.
         'database' => [
             'host' => '127.0.0.1',
             'name' => 'equalizeme',
@@ -36,7 +25,7 @@ function app_config() {
         ],
         'base_url' => '',
         'reset_token_lifetime_minutes' => 60,
-        // Off by default so a fresh clone works on plain-HTTP localhost.
+
         'force_https' => false,
     ];
 
@@ -46,9 +35,6 @@ function app_config() {
         $local = [];
     }
 
-    // Merge one level deep so a partial 'smtp' or 'database' block in
-    // config.local.php still inherits the defaults for anything it
-    // doesn't specify.
     $config = array_merge($defaults, $local);
     $config['smtp'] = array_merge($defaults['smtp'], $local['smtp'] ?? []);
     $config['database'] = array_merge($defaults['database'], $local['database'] ?? []);
@@ -56,13 +42,6 @@ function app_config() {
     return $config;
 }
 
-/**
- * The site's public base URL, e.g. https://something.trycloudflare.com/equalizeme-ai
- *
- * Uses the configured value if set; otherwise reconstructs it from the
- * current request, which handles tunnels and LAN IPs without needing to
- * be updated by hand every time the URL changes.
- */
 function app_base_url() {
     $configured = trim(app_config()['base_url'] ?? '');
     if ($configured !== '') {
@@ -75,8 +54,6 @@ function app_base_url() {
 
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
-    // This file lives in <project>/api/, so the project root is one level up
-    // from this script's directory as seen from the web root.
     $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/'));
     $projectPath = rtrim(preg_replace('#/api(/auth)?$#', '', $scriptDir), '/');
 

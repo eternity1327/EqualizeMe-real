@@ -56,16 +56,12 @@ try {
     $stmt->execute([$name, $email, $hash]);
     $userId = $pdo->lastInsertId();
 
-    // Default rows, so profile and settings lookups never have to
-    // special-case a user who hasn't taken the test yet.
     $pdo->prepare(
         "INSERT INTO auditory_profiles (user_id, bass_gain, treble_gain, presence_gain)
          VALUES (?, 0, 0, 0)"
     )->execute([$userId]);
     $pdo->prepare("INSERT INTO settings (user_id) VALUES (?)")->execute([$userId]);
 
-    // Registering signs the user in, so it needs the same session
-    // fixation defence as login.
     session_regenerate_id(true);
     $_SESSION["user_id"] = $userId;
 

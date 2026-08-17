@@ -1,15 +1,8 @@
-// DSP_SERVICE_URL comes from script.js, which test.html loads first.
-// Redeclaring it here as `const` throws and silently aborts this whole
-// file, taking the test with it.
-
 let hasPlayedA = false;
 let hasPlayedB = false;
 let currentUserId = null;
 let autoPlayEnabled = false;
 
-// The fixed length of the trimmed clips. Keeps the "playing" indicator
-// on for the real duration, and tells Auto Play when it can hand off
-// from A to B without cutting the first clip short.
 const SAMPLE_PLAYBACK_MS = 10000;
 
 const paramLabels = {
@@ -18,38 +11,20 @@ const paramLabels = {
   presenceGain: 'Presence (3kHz)',
 };
 
-// The pair currently on screen. Kept because the A/B gain values arrive
-// with the pair from the server, and browser playback needs them at the
-// moment Play is pressed.
 let currentPair = null;
 
-// Browser audio.
-//
-// Asking the server to equalise meant CamillaDSP played through the sound
-// card of the machine running ai_service.py — fine for one person sitting
-// at it, silence for everyone else, while the test still recorded their
-// answers about audio they never heard. Equalising here means each
-// listener hears it on their own headphones, which is also what a
-// listening-preference test should be measuring.
-//
-// The filters come from EQ_BANDS in script.js, so playback here, the
-// preference curve on the recommendations page, and camilla_dsp.py can't
-// drift apart into three slightly different equalisers.
 const EQ_FILTERS = EQ_BANDS;
 
 const SAMPLES_BASE_URL = 'data/audio/samples/';
 
 let audioCtx = null;
 let activeSource = null;
-const bufferCache = new Map();   // filename -> decoded AudioBuffer
+const bufferCache = new Map();
 
 function browserAudioSupported() {
   return typeof (window.AudioContext || window.webkitAudioContext) !== 'undefined';
 }
 
-// Browsers refuse to start audio until the user has interacted with the
-// page, so the context is created lazily from inside the Play handler and
-// resumed if the browser suspended it.
 async function getAudioContext() {
   if (!audioCtx) {
     const Ctor = window.AudioContext || window.webkitAudioContext;
@@ -61,24 +36,10 @@ async function getAudioContext() {
   return audioCtx;
 }
 
-// The server refers to clips by their .wav filename, but the browser is
-// served the .mp3 alongside it.
-//
-// Two reasons. The source WAVs are 24-bit WAVE_FORMAT_EXTENSIBLE, which
-// decodeAudioData refuses — browsers handle 16-bit and 32-bit float PCM,
-// not 24-bit — so playing them here fails outright. And they're 2.8 MB
-// each, 28 MB for the set, which every listener would download; the MP3s
-// total 3.1 MB.
-//
-// The WAVs stay on disk untouched because CamillaDSP reads them for the
-// server-side fallback, and it can't read MP3.
 function browserSampleName(filename) {
   return filename.replace(/\.wav$/i, '.mp3');
 }
 
-// Clips are played at least twice (side A, then side B), so decoded
-// buffers are cached. Without this the same file would be downloaded and
-// decoded again for each side.
 async function loadSample(filename) {
   const webName = browserSampleName(filename);
 
@@ -103,29 +64,20 @@ function stopActiveSource() {
     try {
       activeSource.stop();
     } catch (err) {
-      // Already finished — stopping twice is not an error worth surfacing.
     }
     activeSource = null;
   }
 }
 
-/**
- * Plays one clip through the three EQ filters and resolves when it ends.
- * Rejects if the browser can't do it, so the caller can fall back to the
- * server route.
- */
 async function playThroughBrowser(filename, gains) {
   const ctx = await getAudioContext();
   const buffer = await loadSample(filename);
 
-  // Only one clip should ever be audible; starting B while A still plays
-  // would make the comparison meaningless.
   stopActiveSource();
 
   const source = ctx.createBufferSource();
   source.buffer = buffer;
 
-  // Chain the filters in series, matching the server's pipeline order.
   let node = source;
   for (const spec of EQ_FILTERS) {
     const filter = ctx.createBiquadFilter();
@@ -170,8 +122,6 @@ async function getAutoPlaySetting() {
   }
 }
 
-// Runs on page load: just checks the user is logged in. Nothing starts
-// until they press "Get Started" (see beginQuiz()).
 async function initPicker() {
   currentUserId = await getCurrentUserId();
   if (!currentUserId) return;
@@ -179,13 +129,6 @@ async function initPicker() {
   const startBtn = document.getElementById('start-test-btn');
   if (startBtn) startBtn.disabled = false;
 }
-
-// ---------------------------------------------------------------------------
-// Step 1: the written pre-quiz. Its answers become a starting estimate that
-// narrows the listening test's search range (scored server-side in
-// pre_quiz.py — the impact values are deliberately not sent to the browser,
-// so nobody can reverse-engineer which answer "adds bass").
-// ---------------------------------------------------------------------------
 
 function buildQuizQuestion(question) {
   const options = question.options.map(option => `
@@ -203,9 +146,6 @@ function buildQuizQuestion(question) {
     `;
 }
 
-/**
- * Highlight the chosen option's whole row, not just the radio dot.
- */
 function wireQuizHighlighting(container) {
   container.querySelectorAll('.quiz-q').forEach(group => {
     group.addEventListener('change', () => {
@@ -233,15 +173,12 @@ async function beginQuiz() {
     container.innerHTML = data.questions.map(buildQuizQuestion).join('');
     wireQuizHighlighting(container);
   } catch (err) {
-    // The quiz is an enhancement, not a gate — if it can't load, let them
-    // into the listening test rather than dead-ending here.
     container.innerHTML =
       '<p class="subtext">Could not load the questions — skipping ahead to the listening test.</p>';
     document.getElementById('quiz-submit-btn').textContent = 'Continue';
   }
 }
 
-// Reads the selected answers and hands them to the listening test.
 async function submitQuiz() {
   const answers = {};
   let unanswered = 0;
@@ -267,10 +204,6 @@ async function submitQuiz() {
   document.getElementById('quiz-screen').style.display = 'none';
   await beginTest(answers);
 }
-
-// ---------------------------------------------------------------------------
-// Step 2: the A/B listening test.
-// ---------------------------------------------------------------------------
 
 async function beginTest(quizAnswers) {
   document.getElementById('track-picker').style.display = 'none';
@@ -304,8 +237,6 @@ async function startTest(quizAnswers) {
 
     renderPair(pair);
   } catch (err) {
-    // Most likely the DSP service (ai_service.py) isn't running, or
-    // DSP_SERVICE_URL in script.js points at the wrong machine/IP.
     document.getElementById('status').textContent =
       'Could not reach the DSP service. Is ai_service.py running, and is DSP_SERVICE_URL set to the right IP?';
     document.getElementById('progress').innerHTML =
@@ -313,24 +244,6 @@ async function startTest(quizAnswers) {
   }
 }
 
-/**
- * Decides whether the option cards can be chosen yet.
- *
- * A forced-choice comparison only means anything if the listener has
- * actually heard both options. Previously each card unlocked itself 600ms
- * after its own Play button was pressed, so someone could play A, wait
- * half a second and pick A without ever hearing B — and the test would
- * record that as a considered preference. Ten questions of that produces
- * a profile that looks entirely valid and measures nothing.
- *
- * The 600ms delay was also left over from when Play was a server call
- * that returned immediately. Browser playback lasts the length of the
- * clip, so the old timer unlocked the card while the audio was still
- * playing.
- *
- * Both cards now unlock together, and only once both have finished
- * playing.
- */
 function updateChoiceAvailability() {
   const bothPlayed = hasPlayedA && hasPlayedB;
 
@@ -355,10 +268,6 @@ function renderPair(pair) {
   currentPair = pair;
   stopActiveSource();
 
-  // Reset both cards back to their pre-play state for the new round — the
-  // previous round leaves them 'selectable'/'chosen' with an unlocked hint,
-  // which needs clearing here since test.html's own click-handling script
-  // only sets those up once and won't do it again on its own.
   ['a', 'b'].forEach(side => {
     const card = document.getElementById(`option-${side}`);
     const hint = document.getElementById(`hint-${side}`);
@@ -392,10 +301,6 @@ function markSidePlayed(side) {
   if (side === 'B') hasPlayedB = true;
 }
 
-/**
- * Play locally, so the listener hears it on their own headphones.
- * Returns false when the browser can't, so the caller can fall back.
- */
 async function playLocally(side) {
   const gains = currentPair ? currentPair[side] : null;
   const sample = currentPair ? currentPair.sample : null;
@@ -411,17 +316,11 @@ async function playLocally(side) {
     setStatus('Play both, then pick which you prefer.');
     return true;
   } catch (err) {
-    // A missing clip, a codec the browser won't decode, or a blocked
-    // audio context all land here.
     console.error('Browser playback failed, falling back to server:', err);
     return false;
   }
 }
 
-/**
- * Ask the server to play through CamillaDSP. Only audible to someone
- * sitting at the machine running ai_service.py, so this is a last resort.
- */
 async function playOnServer(side) {
   try {
     const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/play`, {
@@ -440,8 +339,6 @@ async function playOnServer(side) {
     setStatus('Could not play the audio. Is ai_service.py running?');
   }
 
-  // Server playback reports no completion, so wait out the known clip
-  // length. Browser playback resolves when the buffer actually finishes.
   await new Promise(resolve => setTimeout(resolve, SAMPLE_PLAYBACK_MS));
 }
 
@@ -464,7 +361,6 @@ async function playSide(side) {
   btn.textContent = original;
   btn.disabled = false;
 
-  // The cards become choosable only once both sides have been heard.
   updateChoiceAvailability();
 }
 
@@ -503,8 +399,6 @@ function showDoneScreen(profile) {
   notifyTestComplete();
 }
 
-// Fires a browser notification if the user has the Notifications setting
-// turned on and has granted permission (requested from settings.html).
 async function notifyTestComplete() {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 

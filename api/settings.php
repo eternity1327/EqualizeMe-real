@@ -35,16 +35,6 @@ try {
         csrf_verify_or_fail();
         $data = json_decode(file_get_contents("php://input"), true);
 
-        // Column names can't be parameterised — placeholders only work for
-        // values — so the name is interpolated into the SQL. That's safe
-        // here because the loop iterates THIS map's hardcoded values, not
-        // anything from the request: the client can only choose which of
-        // these three settings to change, never the column name itself.
-        //
-        // The allowlist check below makes that guarantee structural rather
-        // than incidental. Without it, a later refactor that iterated the
-        // request keys instead would turn this line into an injection point
-        // with no visible change to the query.
         $columnMap = ["notifications" => "notifications", "darkMode" => "dark_mode", "autoPlay" => "auto_play"];
         $allowedColumns = ["notifications", "dark_mode", "auto_play"];
 
@@ -52,7 +42,7 @@ try {
 
         foreach ($columnMap as $key => $column) {
             if (!in_array($column, $allowedColumns, true)) {
-                continue; // unreachable today; a tripwire for future edits
+                continue;
             }
             if (array_key_exists($key, $data)) {
                 $value = $data[$key] ? 1 : 0;

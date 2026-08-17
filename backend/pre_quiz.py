@@ -1,24 +1,8 @@
-"""
-The written quiz that runs before the listening test.
-
-Without it, the A/B test spends its first rounds discovering roughly
-where a listener sits in the -6..+6 dB range. These plain-language
-questions produce a starting estimate instead, so the same ten questions
-land on a tighter final result.
-
-Every option carries an "impact" in dB. Impacts are summed across the
-answered questions and clamped to the usable range, so a partly filled
-quiz still yields a usable, if vaguer, seed.
-"""
-
 RANGE_LOW = -6
 RANGE_HIGH = 6
 
 BANDS = ("bassGain", "trebleGain", "presenceGain")
 
-# Each question: an id, the prompt, and options carrying dB impacts.
-# Impacts are deliberately modest — this is a starting hint for the
-# listening test, not a replacement for it.
 QUESTIONS = [
     {
         "id": "genre",
@@ -100,12 +84,6 @@ QUESTIONS = [
 
 
 def list_questions():
-    """
-    The quiz as the frontend needs it, with the dB impacts removed.
-
-    Withheld on purpose: if the UI showed which answer adds bass, people
-    would answer strategically instead of honestly.
-    """
     return [
         {
             "id": question["id"],
@@ -124,7 +102,6 @@ def _clamp(value):
 
 
 def _find_option(question, value):
-    """The chosen option, or None if the answer doesn't match any."""
     return next(
         (option for option in question["options"] if option["value"] == value),
         None,
@@ -132,12 +109,6 @@ def _find_option(question, value):
 
 
 def score_answers(answers):
-    """
-    Turn {question_id: option_value} into a starting dB estimate per band.
-
-    Unknown ids and values are ignored rather than raising, so a stale or
-    partly filled submission still scores.
-    """
     answers = answers or {}
     seed = {band: 0 for band in BANDS}
 

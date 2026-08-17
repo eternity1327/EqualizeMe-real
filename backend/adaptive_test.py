@@ -1,33 +1,10 @@
-"""
-The adaptive listening test.
-
-A binary-search staircase: for each band in turn, A plays at the low
-bound and B at the high bound, the range narrows toward whichever side
-was preferred, and the midpoint becomes that band's final value.
-
-Ten questions, one clip each - two excerpts from each of five songs.
-Within a question A and B are the same clip at two EQ settings, so the
-comparison is always EQ against EQ, never song against song.
-
-The pre-quiz's estimate, when present, arrives as `seed` and narrows
-where each band's search begins.
-
-Sessions are keyed by user_id, so progress doesn't collide between
-users. Audio itself plays in each listener's own browser.
-"""
-
 RANGE_LOW = -6
 RANGE_HIGH = 6
-NUM_SAMPLES = 10  # sample1.wav .. sample10.wav in data/audio/samples/
+NUM_SAMPLES = 10
 GAIN_DECIMALS = 1
 
-# How far either side of the pre-quiz's estimate the search starts.
-# Smaller trusts the quiz more and converges tighter, but a wrong estimate
-# becomes harder to escape. +/-3 keeps half the original range in play.
 SEED_WINDOW = 3
 
-# (band, rounds it gets). Must sum to NUM_SAMPLES - one clip per question.
-# Bass takes the spare round because preference varies most there.
 PARAM_ROUNDS = [
     ("bassGain", 4),
     ("trebleGain", 3),
@@ -36,8 +13,6 @@ PARAM_ROUNDS = [
 
 TOTAL_QUESTIONS = sum(rounds for _, rounds in PARAM_ROUNDS)
 
-# Display names, ordered so each song's two clips sit together - which is
-# also the order the test plays them in.
 SAMPLE_LABELS = {
     "sample1.wav": "Show — Chorus",
     "sample2.wav": "Show — Intro",
@@ -51,11 +26,10 @@ SAMPLE_LABELS = {
     "sample10.wav": "Original Me — Solo",
 }
 
-_sessions = {}  # user_id -> session dict
+_sessions = {}
 
 
 def list_samples():
-    """All 10 clips in the order the test plays them."""
     return [
         {"file": name, "label": SAMPLE_LABELS.get(name, name)}
         for name in (f"sample{i}.wav" for i in range(1, NUM_SAMPLES + 1))
@@ -63,12 +37,6 @@ def list_samples():
 
 
 def _bounds_for(param, seed):
-    """
-    Starting search range for one band.
-
-    Without a seed this is the full -6..+6. With one it's a window around
-    the quiz's estimate, clamped so it never runs past the usable range.
-    """
     if not seed or param not in seed:
         return {"low": RANGE_LOW, "high": RANGE_HIGH}
 
@@ -80,13 +48,6 @@ def _bounds_for(param, seed):
 
 
 def start_session(user_id, seed=None):
-    """
-    Begin a test for this user.
-
-    `seed` is the optional pre-quiz estimate, e.g.
-    {"bassGain": 2, "trebleGain": -1, "presenceGain": 0}. It is kept for
-    the whole session so each band is re-seeded as the test reaches it.
-    """
     first_param = PARAM_ROUNDS[0][0]
 
     _sessions[user_id] = {
@@ -102,20 +63,16 @@ def start_session(user_id, seed=None):
 
 
 def _sample_for_question(question_index):
-    """Question N plays clip N."""
     return f"sample{question_index + 1}.wav"
 
 
 def get_current_pair(user_id):
-    """The A/B comparison this user should hear next, or None when done."""
     session = _sessions.get(user_id)
     if session is None or _is_complete(session):
         return None
 
     param, rounds_for_param = PARAM_ROUNDS[session["paramIndex"]]
 
-    # A and B differ only in the band being tuned; the rest stay at
-    # whatever earlier questions locked in.
     a = dict(session["finalized"])
     a[param] = session["bounds"]["low"]
     b = dict(session["finalized"])
@@ -140,7 +97,6 @@ def get_current_pair(user_id):
 
 
 def record_answer(user_id, preferred):
-    """Narrow the search toward the preferred side and hand back what's next."""
     session = _sessions.get(user_id)
     error = _validate_answer(session, preferred)
     if error:
@@ -168,7 +124,6 @@ def record_answer(user_id, preferred):
 
 
 def _validate_answer(session, preferred):
-    """The reason this answer can't be accepted, or None if it can."""
     if session is None:
         return {"error": "No active session. Call start_session first."}
     if preferred not in ("A", "B"):
@@ -183,7 +138,6 @@ def _validate_answer(session, preferred):
 
 
 def _log_answer(session, param, preferred):
-    """Append this round to the session's history."""
     session["history"].append({
         "param": param,
         "round": session["round"] + 1,
@@ -196,7 +150,6 @@ def _log_answer(session, param, preferred):
 
 
 def _narrow_bounds(session, preferred):
-    """Discard the half of the range the listener rejected."""
     mid = _midpoint(session["bounds"])
     edge = "high" if preferred == "A" else "low"
     session["bounds"][edge] = mid
@@ -207,7 +160,6 @@ def _midpoint(bounds):
 
 
 def _finalize_param(session, param):
-    """Lock in this band's value and start the search for the next one."""
     session["finalized"][param] = round(_midpoint(session["bounds"]), GAIN_DECIMALS)
     session["paramIndex"] += 1
     session["round"] = 0
@@ -223,7 +175,6 @@ def _is_complete(session):
 
 
 def get_current_side_params(user_id, side):
-    """One side's filter settings plus the clip they apply to."""
     pair = get_current_pair(user_id)
     if pair is None:
         return None

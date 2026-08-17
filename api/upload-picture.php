@@ -11,7 +11,6 @@ if (!isset($_SESSION["user_id"])) {
     exit;
 }
 
-// Multipart upload — the token rides along as a normal form field.
 csrf_verify_or_fail();
 
 if (!isset($_FILES["photo"]) || $_FILES["photo"]["error"] !== UPLOAD_ERR_OK) {
@@ -29,7 +28,7 @@ if (!isset($allowed[$mime])) {
     exit;
 }
 
-$maxBytes = 5 * 1024 * 1024; // 5MB
+$maxBytes = 5 * 1024 * 1024;
 if ($_FILES["photo"]["size"] > $maxBytes) {
     http_response_code(400);
     echo json_encode(["error" => "Image must be under 5MB"]);
@@ -46,7 +45,6 @@ $relativePath = "uploads/" . $filename;
 try {
     $pdo = get_pdo();
 
-    // Remove the old photo file if one exists, so we don't pile up orphaned uploads
     $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $old = $stmt->fetchColumn();

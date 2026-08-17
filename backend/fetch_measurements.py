@@ -1,30 +1,3 @@
-"""
-Download REW measurement files from squig.link, ready for import_to_db.
-
-Permission
-    Mark Ryan Sallee (squig.link / Super* Review) granted this project
-    permission by email on 2026-08-11 to use his measurement data for
-    non-commercial purposes, provided it isn't redistributed in a way
-    that duplicates Squiglink's own functionality. Credit the source.
-
-    That permission covers only his own databases, which is why BASE_URL
-    is fixed here rather than being a command-line option. Other
-    squiglink sites host data owned by different measurers and would
-    need their own permission.
-
-Courtesy
-    This hits someone else's server. The default delay between requests
-    and the skip-if-already-downloaded check are there on purpose, and
-    a couple of dozen IEMs demonstrates the feature — fetching every
-    channel of all 588 is over a thousand requests for no benefit.
-
-Usage:
-    python backend/fetch_measurements.py phone_book.json measurements/ --preset demo
-    python backend/fetch_measurements.py phone_book.json measurements/ --limit 10 --dry-run
-    python backend/fetch_measurements.py phone_book.json measurements/ --name "Moondrop Aria"
-    python backend/fetch_measurements.py phone_book.json measurements/ --brand Moondrop
-"""
-
 import argparse
 import json
 import os
@@ -34,20 +7,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-# Fixed deliberately — see the permission note above.
 BASE_URL = "https://squig.link/data/"
 
-# Channel suffixes, tried in tiers. Nearly every entry is a plain L/R
-# pair, so probing all eight every time would mean six wasted 404s per
-# IEM against someone else's server.
 CHANNEL_TIERS = [
     ["L", "R"],
     ["L1", "R1", "L2", "R2", "L3", "R3"],
 ]
 
-# A spread of popular, tonally different IEMs — enough variety that the
-# matching has something to distinguish and the generated descriptions
-# visibly differ from each other.
 DEMO_PRESET = [
     "Truthear Zero",
     "Moondrop Aria",
@@ -68,13 +34,10 @@ DEFAULT_DELAY_SECONDS = 1.0
 REQUEST_TIMEOUT_SECONDS = 20
 NOT_FOUND = 404
 
-# A real REW export is hundreds of lines of numbers. Anything smaller is
-# almost certainly an error page rather than measurement data.
 MIN_MEASUREMENT_BYTES = 200
 
 
 def load_entries(catalog_path):
-    """Flatten phone_book.json into (brand, model, primary_file) tuples."""
     with open(catalog_path, "r", encoding="utf-8") as f:
         catalog = json.load(f)
 
@@ -90,7 +53,6 @@ def load_entries(catalog_path):
 
 
 def _primary_file(phone):
-    """The main measurement filename — "file" may be a string or a list."""
     file_field = phone.get("file")
     if isinstance(file_field, list):
         return file_field[0] if file_field else None
@@ -98,14 +60,12 @@ def _primary_file(phone):
 
 
 def _matches_any(entry, needles):
-    """True when a brand, model or filename contains one of the needles."""
     brand, model, primary = entry
     haystack = f"{brand} {model} {primary}".lower()
     return any(needle in haystack for needle in needles)
 
 
 def select_entries(entries, args):
-    """Apply whichever filter was asked for, in order of specificity."""
     if args.preset == "demo":
         return [e for e in entries if _matches_any(e, _lowered(DEMO_PRESET))]
 
@@ -127,12 +87,6 @@ def _lowered(values):
 
 
 def download_one(url, dest_path, timeout=REQUEST_TIMEOUT_SECONDS):
-    """
-    Fetch one measurement file.
-
-    Returns "ok", "skipped" (already on disk) or "missing" (no such file).
-    Anything else raises so the caller can decide whether to continue.
-    """
     if os.path.exists(dest_path):
         return "skipped"
 
@@ -176,18 +130,10 @@ def parse_args():
 
 
 def channel_url(primary, suffix):
-    """Where one channel's measurement file lives."""
     return BASE_URL + urllib.parse.quote(f"{primary} {suffix}.txt")
 
 
 def fetch_entry(primary, out_dir, delay, tally):
-    """
-    Download every channel file for one IEM.
-
-    Returns True if anything was found. Tiers are tried in order and the
-    second is skipped once the first succeeds, so a normal L/R pair costs
-    two requests instead of eight.
-    """
     for tier in CHANNEL_TIERS:
         found = _fetch_tier(primary, tier, out_dir, delay, tally)
         if found:
@@ -196,7 +142,6 @@ def fetch_entry(primary, out_dir, delay, tally):
 
 
 def _fetch_tier(primary, tier, out_dir, delay, tally):
-    """Try one tier of channel suffixes; True if any file was obtained."""
     found = False
     for suffix in tier:
         filename = f"{primary} {suffix}.txt"
@@ -218,15 +163,12 @@ def _fetch_tier(primary, tier, out_dir, delay, tally):
             print(f"  have it  {filename}")
             tally["skipped"] += 1
             found = True
-        # "missing" is normal — an IEM measured on one channel only, or a
-        # database using the numbered convention.
 
         time.sleep(delay)
     return found
 
 
 def preview(selected):
-    """Print what a real run would request, without touching the server."""
     for _, _, primary in selected:
         print(f"  would fetch  {channel_url(primary, CHANNEL_TIERS[0][0])}")
 

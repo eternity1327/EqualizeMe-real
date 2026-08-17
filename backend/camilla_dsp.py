@@ -1,22 +1,10 @@
-"""
-Server-side audio playback through CamillaDSP.
-
-Spawns camilladsp.exe and controls it over its websocket API, playing a
-bundled clip through whatever filter settings were last pushed. Audio
-comes out of the server's own speakers, so this only serves one listener
-at a time — the browser path in js/adaptiveTest.js replaced it for the
-class test and this remains as a fallback.
-"""
-
 import os
 import time
 import json
 import subprocess
 import yaml
-import websocket  # pip install websocket-client
+import websocket
 
-# Anchored on the project root rather than the current directory, so the
-# paths hold wherever the service is launched from.
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
 
@@ -30,17 +18,12 @@ SAMPLE_RATE = 48000
 CHUNK_SIZE = 1024
 STEREO_CHANNELS = [0, 1]
 
-# The same three filters the browser applies, so both paths sound alike:
-# a bass shelf, a presence peak, and a treble shelf.
 BASS_FREQ, BASS_Q = 100, 0.7
 PRESENCE_FREQ, PRESENCE_Q = 3000, 1.4
 TREBLE_FREQ, TREBLE_Q = 8000, 0.7
 
-# Used only if a session somehow has no clip assigned.
 TEST_SAMPLE_PATH = os.path.join(_PROJECT_ROOT, "data", "audio", "test-sample.wav")
 
-# Holds sample1.wav .. sample10.wav. The clip changes between questions,
-# so apply_filters() rebuilds and re-pushes the whole config each time.
 SAMPLES_DIR = os.path.join(_PROJECT_ROOT, "data", "audio", "samples")
 
 _process = None
@@ -49,7 +32,6 @@ _ready = False
 
 
 def _biquad(filter_type, freq, q, gain):
-    """One CamillaDSP biquad filter definition."""
     return {
         "type": "Biquad",
         "parameters": {"type": filter_type, "freq": freq, "q": q, "gain": gain},
@@ -57,7 +39,6 @@ def _biquad(filter_type, freq, q, gain):
 
 
 def _build_config(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
-    """The full CamillaDSP config for one clip at one set of gains."""
     capture_path = os.path.join(SAMPLES_DIR, sample) if sample else TEST_SAMPLE_PATH
     filters = {
         "bass_shelf": _biquad("Lowshelf", BASS_FREQ, BASS_Q, bassGain),
@@ -83,7 +64,6 @@ def _build_config(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
 
 
 def start():
-    """Start camilladsp.exe if it isn't running, then connect to it."""
     global _process
     if _process is not None:
         return
@@ -93,7 +73,6 @@ def start():
 
 
 def _connect(retries=CONNECT_RETRIES):
-    """Wait for the control socket to accept a connection."""
     global _ws, _ready
     for _ in range(retries):
         try:
@@ -112,7 +91,6 @@ def _connect(retries=CONNECT_RETRIES):
 
 
 def _push_config(params):
-    """Send a new config to the running process. True if it was accepted."""
     if not _ready or _ws is None:
         return False
 
@@ -126,7 +104,6 @@ def _push_config(params):
 
 
 def apply_filters(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
-    """Play one clip through the given filter values."""
     params = {
         "bassGain": bassGain,
         "trebleGain": trebleGain,
@@ -137,7 +114,6 @@ def apply_filters(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
 
 
 def stop():
-    """Shut the subprocess down."""
     global _process
     if _process:
         _process.terminate()

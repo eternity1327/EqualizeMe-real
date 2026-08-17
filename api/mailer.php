@@ -1,36 +1,4 @@
 <?php
-/**
- * Sending email from XAMPP.
- *
- * PHP's built-in mail() doesn't work on a default XAMPP install (there's
- * no local mail server), so this uses PHPMailer over SMTP when it's
- * available and configured.
- *
- * There are three modes, chosen automatically:
- *
- *   1. PHPMailer present + SMTP enabled in config.local.php
- *      -> real email is sent.
- *
- *   2. Anything missing (no PHPMailer, or SMTP not configured)
- *      -> the message is appended to logs/sent-mail.log instead.
- *         The reset flow still works end to end: open that file, copy the
- *         link, paste it in the browser. This is the intended way to test
- *         and demo without setting up a mail account at all.
- *
- *   3. SMTP configured but sending fails
- *      -> falls back to the log as well, and reports failure to the
- *         caller so it can decide what to tell the user.
- *
- * To enable real sending:
- *   1. Download PHPMailer: https://github.com/PHPMailer/PHPMailer/releases
- *      (the source zip — no Composer needed)
- *   2. Extract so that these exist:
- *        lib/PHPMailer/src/PHPMailer.php
- *        lib/PHPMailer/src/SMTP.php
- *        lib/PHPMailer/src/Exception.php
- *   3. Copy api/config.example.php to api/config.local.php, fill in your
- *      SMTP details, and set 'enabled' => true.
- */
 
 require_once __DIR__ . '/config.php';
 
@@ -42,10 +10,6 @@ function _mailer_log_path() {
     return $dir . '/sent-mail.log';
 }
 
-/**
- * Writes the message to the log instead of sending it. Always succeeds
- * (short of the disk being unwritable), so the caller never dead-ends.
- */
 function _mailer_write_to_log($to, $subject, $body, $reason) {
     $entry = str_repeat('=', 70) . "\n"
         . "TIME:    " . date('Y-m-d H:i:s') . "\n"
@@ -59,7 +23,6 @@ function _mailer_write_to_log($to, $subject, $body, $reason) {
 }
 
 function _mailer_load_phpmailer() {
-    // Composer install, if the project ever gains one.
     $composer = __DIR__ . '/../vendor/autoload.php';
     if (file_exists($composer)) {
         require_once $composer;
@@ -68,7 +31,6 @@ function _mailer_load_phpmailer() {
         }
     }
 
-    // Manual install — the documented path above.
     $base = __DIR__ . '/../lib/PHPMailer/src/';
     $files = ['Exception.php', 'PHPMailer.php', 'SMTP.php'];
 
@@ -84,13 +46,6 @@ function _mailer_load_phpmailer() {
     return class_exists('PHPMailer\\PHPMailer\\PHPMailer');
 }
 
-/**
- * Sends an email, or logs it if sending isn't possible.
- *
- * Returns ['sent' => bool, 'logged' => bool, 'reason' => string].
- * Callers should treat 'sent' => false as "tell the user to check the
- * log", not as a hard error, since the log path is a supported mode.
- */
 function send_email($to, $subject, $bodyText) {
     $config = app_config();
     $smtp = $config['smtp'];
@@ -129,8 +84,6 @@ function send_email($to, $subject, $bodyText) {
         $mail->send();
         return ['sent' => true, 'logged' => false, 'reason' => 'ok'];
     } catch (Exception $e) {
-        // Deliberately not surfacing $e->getMessage() to the user — SMTP
-        // errors can echo back the username being authenticated.
         $logged = _mailer_write_to_log($to, $subject, $bodyText, 'SMTP send failed: ' . $e->getMessage());
         return ['sent' => false, 'logged' => $logged, 'reason' => 'send_failed'];
     }
