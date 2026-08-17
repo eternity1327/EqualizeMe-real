@@ -1,14 +1,11 @@
 """
-camilla_dsp.py
-Python port of utils/camillaDsp.js.
+Server-side audio playback through CamillaDSP.
 
-Spawns camilladsp.exe as a subprocess and controls it live over its
-websocket API. Uses a File capture device (not a live audio input),
-so it plays a bundled test-sample WAV through whatever filter settings
-are currently pushed — audio plays out of THIS machine's speakers,
-not streamed to the browser.
-
-Swap TEST_SAMPLE_PATH once the real listening-test audio is ready.
+Spawns camilladsp.exe and controls it over its websocket API, playing a
+bundled clip through whatever filter settings were last pushed. Audio
+comes out of the server's own speakers, so this only serves one listener
+at a time — the browser path in js/adaptiveTest.js replaced it for the
+class test and this remains as a fallback.
 """
 
 import os
@@ -18,23 +15,32 @@ import subprocess
 import yaml
 import websocket  # pip install websocket-client
 
-# This file lives in backend/, while the audio lives in data/ at the project
-# root — one level up. Anchoring on the project root rather than on this
-# file's own folder means the paths keep working wherever the service is
-# launched from, and would have survived this move on their own.
+# Anchored on the project root rather than the current directory, so the
+# paths hold wherever the service is launched from.
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(_BACKEND_DIR)
 
 CAMILLA_EXE = os.path.join(_BACKEND_DIR, "camilladsp.exe")
 CAMILLA_WS_PORT = 1234
+CONNECT_RETRIES = 10
+RETRY_DELAY_SECONDS = 0.5
+CONNECT_TIMEOUT_SECONDS = 2
 
-# Fallback sample, used only if a session somehow has no sample assigned.
+SAMPLE_RATE = 48000
+CHUNK_SIZE = 1024
+STEREO_CHANNELS = [0, 1]
+
+# The same three filters the browser applies, so both paths sound alike:
+# a bass shelf, a presence peak, and a treble shelf.
+BASS_FREQ, BASS_Q = 100, 0.7
+PRESENCE_FREQ, PRESENCE_Q = 3000, 1.4
+TREBLE_FREQ, TREBLE_Q = 8000, 0.7
+
+# Used only if a session somehow has no clip assigned.
 TEST_SAMPLE_PATH = os.path.join(_PROJECT_ROOT, "data", "audio", "test-sample.wav")
 
-# Folder holding sample1.wav .. sample10.wav. The test walks through all ten,
-# one per question (see adaptive_test.py), so the capture filename changes
-# between questions — apply_filters() rebuilds and re-pushes the whole config
-# each time, which is what makes the clip switch actually take effect.
+# Holds sample1.wav .. sample10.wav. The clip changes between questions,
+# so apply_filters() rebuilds and re-pushes the whole config each time.
 SAMPLES_DIR = os.path.join(_PROJECT_ROOT, "data", "audio", "samples")
 
 _process = None
@@ -42,41 +48,42 @@ _ws = None
 _ready = False
 
 
+def _biquad(filter_type, freq, q, gain):
+    """One CamillaDSP biquad filter definition."""
+    return {
+        "type": "Biquad",
+        "parameters": {"type": filter_type, "freq": freq, "q": q, "gain": gain},
+    }
+
+
 def _build_config(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
+    """The full CamillaDSP config for one clip at one set of gains."""
     capture_path = os.path.join(SAMPLES_DIR, sample) if sample else TEST_SAMPLE_PATH
+    filters = {
+        "bass_shelf": _biquad("Lowshelf", BASS_FREQ, BASS_Q, bassGain),
+        "presence_peak": _biquad("Peaking", PRESENCE_FREQ, PRESENCE_Q, presenceGain),
+        "treble_shelf": _biquad("Highshelf", TREBLE_FREQ, TREBLE_Q, trebleGain),
+    }
     return {
         "devices": {
-            "samplerate": 48000,
-            "chunksize": 1024,
+            "samplerate": SAMPLE_RATE,
+            "chunksize": CHUNK_SIZE,
             "capture": {"type": "WavFile", "filename": capture_path},
             "playback": {"type": "Wasapi", "channels": 2, "exclusive": False},
         },
-        "filters": {
-            "bass_shelf": {
-                "type": "Biquad",
-                "parameters": {"type": "Lowshelf", "freq": 100, "q": 0.7, "gain": bassGain},
-            },
-            "treble_shelf": {
-                "type": "Biquad",
-                "parameters": {"type": "Highshelf", "freq": 8000, "q": 0.7, "gain": trebleGain},
-            },
-            "presence_peak": {
-                "type": "Biquad",
-                "parameters": {"type": "Peaking", "freq": 3000, "q": 1.4, "gain": presenceGain},
-            },
-        },
+        "filters": filters,
         "pipeline": [
             {
                 "type": "Filter",
-                "channels": [0, 1],
-                "names": ["bass_shelf", "treble_shelf", "presence_peak"],
+                "channels": STEREO_CHANNELS,
+                "names": list(filters),
             }
         ],
     }
 
 
 def start():
-    """Starts camilladsp.exe if not already running, then connects."""
+    """Start camilladsp.exe if it isn't running, then connect to it."""
     global _process
     if _process is not None:
         return
@@ -85,49 +92,52 @@ def start():
     _connect()
 
 
-def _connect(retries=10):
+def _connect(retries=CONNECT_RETRIES):
+    """Wait for the control socket to accept a connection."""
     global _ws, _ready
     for _ in range(retries):
         try:
-            _ws = websocket.create_connection(f"ws://127.0.0.1:{CAMILLA_WS_PORT}", timeout=2)
+            _ws = websocket.create_connection(
+                f"ws://127.0.0.1:{CAMILLA_WS_PORT}",
+                timeout=CONNECT_TIMEOUT_SECONDS,
+            )
             _ready = True
             print("Connected to CamillaDSP control socket")
             return
         except Exception:
-            time.sleep(0.5)
+            time.sleep(RETRY_DELAY_SECONDS)
+
     _ready = False
     print("Could not connect to CamillaDSP control socket.")
 
 
 def _push_config(params):
-    # No `global` declaration here: this function only reads _ws and
-    # _ready, never rebinds them. Declaring them global would be
-    # misleading — it signals to a reader that this function changes
-    # module state when it doesn't.
+    """Send a new config to the running process. True if it was accepted."""
     if not _ready or _ws is None:
         return False
+
     config_yaml = yaml.dump(_build_config(**params))
     try:
         _ws.send(json.dumps({"SetConfig": config_yaml}))
         return True
-    except Exception as e:
-        print("Failed to push config:", e)
+    except Exception as error:
+        print("Failed to push config:", error)
         return False
 
 
 def apply_filters(bassGain=0, trebleGain=0, presenceGain=0, sample=None):
-    """Plays the given sample (or the fallback test sample) through arbitrary filter values."""
+    """Play one clip through the given filter values."""
     params = {
         "bassGain": bassGain,
         "trebleGain": trebleGain,
         "presenceGain": presenceGain,
         "sample": sample,
     }
-    ok = _push_config(params)
-    return {"ok": ok, "params": params}
+    return {"ok": _push_config(params), "params": params}
 
 
 def stop():
+    """Shut the subprocess down."""
     global _process
     if _process:
         _process.terminate()

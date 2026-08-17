@@ -1,17 +1,15 @@
-// DSP_SERVICE_URL is declared once in script.js (loaded before this file on
-// test.html) — redeclaring it here as `const` threw
-// "Identifier 'DSP_SERVICE_URL' has already been declared", which silently
-// aborted this entire script and took playSide/chooseSide/startTest with it.
+// DSP_SERVICE_URL comes from script.js, which test.html loads first.
+// Redeclaring it here as `const` throws and silently aborts this whole
+// file, taking the test with it.
 
 let hasPlayedA = false;
 let hasPlayedB = false;
 let currentUserId = null;
 let autoPlayEnabled = false;
 
-// Matches the fixed length of the trimmed clips in data/audio/samples/.
-// Used both to keep the "playing" indicator on for the actual clip length
-// and, for Auto Play, to know when it's safe to hand off from A to B
-// without cutting the first clip off mid-playback.
+// The fixed length of the trimmed clips. Keeps the "playing" indicator
+// on for the real duration, and tells Auto Play when it can hand off
+// from A to B without cutting the first clip short.
 const SAMPLE_PLAYBACK_MS = 10000;
 
 const paramLabels = {
@@ -25,29 +23,19 @@ const paramLabels = {
 // moment Play is pressed.
 let currentPair = null;
 
-// ---------------------------------------------------------------------------
-// Browser audio
+// Browser audio.
 //
-// Previously every Play press asked the server to run the clip through
-// CamillaDSP, which outputs to the sound card of whichever machine runs
-// ai_service.py. That works for one person sitting at that machine and
-// nobody else: remote listeners heard silence while their clicks fought
-// over the host's single audio device — and the test still recorded their
-// answers, producing confident-looking data about audio they never heard.
+// Asking the server to equalise meant CamillaDSP played through the sound
+// card of the machine running ai_service.py — fine for one person sitting
+// at it, silence for everyone else, while the test still recorded their
+// answers about audio they never heard. Equalising here means each
+// listener hears it on their own headphones, which is also what a
+// listening-preference test should be measuring.
 //
-// Applying the EQ here instead means each listener hears it on their own
-// headphones. That's also the methodologically correct arrangement: a
-// listening-preference test should measure the listener's preference, not
-// the characteristics of one particular pair of speakers in one room.
-//
-// The filters below mirror camilla_dsp.py's biquads exactly, so the audio
-// is the same processing the server would have applied.
-// ---------------------------------------------------------------------------
-const EQ_FILTERS = [
-  { type: 'lowshelf', frequency: 100, Q: 0.7, gainKey: 'bassGain' },
-  { type: 'peaking', frequency: 3000, Q: 1.4, gainKey: 'presenceGain' },
-  { type: 'highshelf', frequency: 8000, Q: 0.7, gainKey: 'trebleGain' },
-];
+// The filters come from EQ_BANDS in script.js, so playback here, the
+// preference curve on the recommendations page, and camilla_dsp.py can't
+// drift apart into three slightly different equalisers.
+const EQ_FILTERS = EQ_BANDS;
 
 const SAMPLES_BASE_URL = 'data/audio/samples/';
 
@@ -199,6 +187,35 @@ async function initPicker() {
 // so nobody can reverse-engineer which answer "adds bass").
 // ---------------------------------------------------------------------------
 
+function buildQuizQuestion(question) {
+  const options = question.options.map(option => `
+            <label class="quiz-option">
+              <input type="radio" name="q-${question.id}" value="${option.value}">
+              <span>${option.label}</span>
+            </label>
+          `).join('');
+
+  return `
+      <div class="quiz-q" data-question-id="${question.id}">
+        <div class="quiz-prompt">${question.question}</div>
+        <div class="quiz-options">${options}</div>
+      </div>
+    `;
+}
+
+/**
+ * Highlight the chosen option's whole row, not just the radio dot.
+ */
+function wireQuizHighlighting(container) {
+  container.querySelectorAll('.quiz-q').forEach(group => {
+    group.addEventListener('change', () => {
+      group.querySelectorAll('.quiz-option').forEach(option => {
+        option.classList.toggle('picked', option.querySelector('input').checked);
+      });
+    });
+  });
+}
+
 async function beginQuiz() {
   document.getElementById('track-picker').style.display = 'none';
   document.getElementById('quiz-screen').style.display = 'block';
@@ -213,31 +230,11 @@ async function beginQuiz() {
       throw new Error('no questions returned');
     }
 
-    container.innerHTML = data.questions.map(q => `
-      <div class="quiz-q" data-question-id="${q.id}">
-        <div class="quiz-prompt">${q.question}</div>
-        <div class="quiz-options">
-          ${q.options.map(o => `
-            <label class="quiz-option">
-              <input type="radio" name="q-${q.id}" value="${o.value}">
-              <span>${o.label}</span>
-            </label>
-          `).join('')}
-        </div>
-      </div>
-    `).join('');
-
-    // Highlight the chosen option's row, not just the radio dot.
-    container.querySelectorAll('.quiz-q').forEach(group => {
-      group.addEventListener('change', () => {
-        group.querySelectorAll('.quiz-option').forEach(opt => {
-          opt.classList.toggle('picked', opt.querySelector('input').checked);
-        });
-      });
-    });
+    container.innerHTML = data.questions.map(buildQuizQuestion).join('');
+    wireQuizHighlighting(container);
   } catch (err) {
-    // Quiz is an enhancement, not a gate — if it can't load, let them
-    // straight into the listening test rather than dead-ending here.
+    // The quiz is an enhancement, not a gate — if it can't load, let them
+    // into the listening test rather than dead-ending here.
     container.innerHTML =
       '<p class="subtext">Could not load the questions — skipping ahead to the listening test.</p>';
     document.getElementById('quiz-submit-btn').textContent = 'Continue';
@@ -386,6 +383,68 @@ function renderPair(pair) {
   }
 }
 
+function setStatus(text) {
+  document.getElementById('status').textContent = text;
+}
+
+function markSidePlayed(side) {
+  if (side === 'A') hasPlayedA = true;
+  if (side === 'B') hasPlayedB = true;
+}
+
+/**
+ * Play locally, so the listener hears it on their own headphones.
+ * Returns false when the browser can't, so the caller can fall back.
+ */
+async function playLocally(side) {
+  const gains = currentPair ? currentPair[side] : null;
+  const sample = currentPair ? currentPair.sample : null;
+
+  if (!browserAudioSupported() || !gains || !sample) return false;
+
+  try {
+    setStatus(bufferCache.has(browserSampleName(sample))
+      ? 'Playing...' : 'Loading audio...');
+
+    await playThroughBrowser(sample, gains);
+    markSidePlayed(side);
+    setStatus('Play both, then pick which you prefer.');
+    return true;
+  } catch (err) {
+    // A missing clip, a codec the browser won't decode, or a blocked
+    // audio context all land here.
+    console.error('Browser playback failed, falling back to server:', err);
+    return false;
+  }
+}
+
+/**
+ * Ask the server to play through CamillaDSP. Only audible to someone
+ * sitting at the machine running ai_service.py, so this is a last resort.
+ */
+async function playOnServer(side) {
+  try {
+    const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/play`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ side, user_id: currentUserId }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      markSidePlayed(side);
+    } else {
+      setStatus(data.error || 'Something went wrong.');
+    }
+  } catch (err) {
+    setStatus('Could not play the audio. Is ai_service.py running?');
+  }
+
+  // Server playback reports no completion, so wait out the known clip
+  // length. Browser playback resolves when the buffer actually finishes.
+  await new Promise(resolve => setTimeout(resolve, SAMPLE_PLAYBACK_MS));
+}
+
 async function playSide(side) {
   const btn = document.getElementById(side === 'A' ? 'play-a' : 'play-b');
   const optionCard = document.getElementById(side === 'A' ? 'option-a' : 'option-b');
@@ -397,66 +456,15 @@ async function playSide(side) {
   otherCard.classList.remove('playing');
   optionCard.classList.add('playing');
 
-  const gains = currentPair ? currentPair[side] : null;
-  const sample = currentPair ? currentPair.sample : null;
-  let playedInBrowser = false;
-
-  // Preferred path: play locally, so the listener hears it on their own
-  // headphones rather than the server's speakers.
-  if (browserAudioSupported() && gains && sample) {
-    try {
-      document.getElementById('status').textContent =
-        bufferCache.has(browserSampleName(sample)) ? 'Playing...' : 'Loading audio...';
-
-      await playThroughBrowser(sample, gains);
-      playedInBrowser = true;
-
-      if (side === 'A') hasPlayedA = true;
-      if (side === 'B') hasPlayedB = true;
-      document.getElementById('status').textContent =
-        'Play both, then pick which you prefer.';
-    } catch (err) {
-      // Fall through to the server route below — a missing clip, a codec
-      // the browser won't decode, or a blocked audio context all land here.
-      console.error('Browser playback failed, falling back to server:', err);
-    }
-  }
-
-  // Fallback: ask the server to play through CamillaDSP. Only reachable
-  // when the browser can't do it, and only audible to someone sitting at
-  // the machine running ai_service.py.
-  if (!playedInBrowser) {
-    try {
-      const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/play`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ side, user_id: currentUserId }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        document.getElementById('status').textContent = data.error || 'Something went wrong.';
-      } else {
-        if (side === 'A') hasPlayedA = true;
-        if (side === 'B') hasPlayedB = true;
-      }
-    } catch (err) {
-      document.getElementById('status').textContent =
-        'Could not play the audio. Is ai_service.py running?';
-    }
-
-    // Server playback gives no completion signal, so fall back to waiting
-    // out the known clip length. Browser playback doesn't need this — it
-    // resolves when the buffer actually finishes.
-    await new Promise(resolve => setTimeout(resolve, SAMPLE_PLAYBACK_MS));
+  if (!await playLocally(side)) {
+    await playOnServer(side);
   }
 
   optionCard.classList.remove('playing');
   btn.textContent = original;
   btn.disabled = false;
 
-  // Re-evaluate now that this side has finished — the cards become
-  // choosable only once both have been heard.
+  // The cards become choosable only once both sides have been heard.
   updateChoiceAvailability();
 }
 

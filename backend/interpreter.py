@@ -1,18 +1,17 @@
 """
-interpreter.py
----------------
-Turns the 3 gain numbers (already computed per IEM) into a plain-
-language description -- the "interpreter module" piece from your
-Chapter I brief. Deliberately rule-based (thresholds on numbers you
-already have), not an LLM call: deterministic, free, and easy to
-defend/tune for a thesis panel. Swap in an LLM call later in
-describe_curve() if the group decides that's what "AI-assisted"
-should mean -- the interface (gains in, sentence out) stays the same
-either way.
+Turn three gain figures into a plain-language description.
 
-Thresholds are a starting point, not gospel -- tune BASS_THRESHOLDS /
-PRESENCE_THRESHOLDS / TREBLE_THRESHOLDS below once you've looked at
-the actual gain spread across your imported catalog.
+Rule-based rather than an LLM call: deterministic, reproducible, free,
+and inspectable — an LLM would word it differently every run and
+couldn't be defended as a measurement instrument. The interface is gains
+in, sentence out, so one could be swapped in later.
+
+The thresholds are percentiles of the real catalogue, set by
+calibrate_interpreter.py. Hand-picked cutoffs assumed gains scattered
+around zero and gave nearly every IEM the same description, because
+in-ear measurements all carry ear-canal resonance. The consequence is
+that labels are relative: "bass-boosted" means bassier than most of this
+catalogue, not above a fixed dB figure.
 """
 
 BASS_THRESHOLDS = [
@@ -36,7 +35,11 @@ TREBLE_THRESHOLDS = [
 ]
 
 
+NO_DATA_MESSAGE = "No measurement data available for this IEM."
+
+
 def _classify(gain_db, thresholds):
+    """The label for this gain, or None when there's no measurement."""
     if gain_db is None:
         return None
     for cutoff, label in thresholds:
@@ -45,45 +48,42 @@ def _classify(gain_db, thresholds):
     return thresholds[-1][1]
 
 
+def _join_phrases(phrases):
+    """Join labels the way a sentence would: "a, b, and c"."""
+    if len(phrases) == 1:
+        return phrases[0]
+    if len(phrases) == 2:
+        return f"{phrases[0]} and {phrases[1]}"
+    return ", ".join(phrases[:-1]) + f", and {phrases[-1]}"
+
+
 def describe_curve(bass_gain, presence_gain, treble_gain):
     """
-    Returns a plain-language sentence describing an IEM's tonal
-    balance from its 3 gain values. Any missing value is skipped
-    rather than guessed at.
+    One sentence describing an IEM's tonal balance.
+
+    A band with no measurement is left out rather than guessed at.
     """
-    parts = []
-    bass_label = _classify(bass_gain, BASS_THRESHOLDS)
-    presence_label = _classify(presence_gain, PRESENCE_THRESHOLDS)
-    treble_label = _classify(treble_gain, TREBLE_THRESHOLDS)
+    labels = [
+        _classify(bass_gain, BASS_THRESHOLDS),
+        _classify(presence_gain, PRESENCE_THRESHOLDS),
+        _classify(treble_gain, TREBLE_THRESHOLDS),
+    ]
+    described = [label for label in labels if label]
 
-    if bass_label:
-        parts.append(bass_label)
-    if presence_label:
-        parts.append(presence_label)
-    if treble_label:
-        parts.append(treble_label)
+    if not described:
+        return NO_DATA_MESSAGE
 
-    if not parts:
-        return "No measurement data available for this IEM."
-
-    if len(parts) == 1:
-        joined = parts[0]
-    elif len(parts) == 2:
-        joined = f"{parts[0]} and {parts[1]}"
-    else:
-        joined = f"{parts[0]}, {parts[1]}, and {parts[2]}"
-
-    return f"This IEM has {joined}."
+    return f"This IEM has {_join_phrases(described)}."
 
 
 if __name__ == "__main__":
-    # Sanity check against gains already computed earlier in this project
     examples = [
-        ("Hifiman Bolt (sample_measurement.txt)", 6.46, 1.00, -1.45),
+        ("Hifiman Bolt", 6.46, 1.00, -1.45),
         ("Unlabeled measurement2.txt", 2.42, 4.69, -1.50),
         ("Hypothetical neutral IEM", 0.2, -0.5, 0.8),
         ("Missing treble data", 5.0, 2.0, None),
+        ("No data at all", None, None, None),
     ]
-    for label, b, p, t in examples:
+    for label, bass, presence, treble in examples:
         print(f"{label}:")
-        print(f"  {describe_curve(b, p, t)}\n")
+        print(f"  {describe_curve(bass, presence, treble)}\n")

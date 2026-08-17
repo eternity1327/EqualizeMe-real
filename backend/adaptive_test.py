@@ -1,60 +1,33 @@
 """
-adaptive_test.py
-Python port of utils/adaptiveTest.js.
+The adaptive listening test.
 
-Binary-search "staircase" method: for each parameter (bassGain,
-trebleGain, presenceGain) in turn, plays A at the low bound and B at
-the high bound, narrows toward whichever side was preferred over that
-parameter's allotted rounds, then locks in the midpoint as that
-parameter's final value before moving to the next parameter.
+A binary-search staircase: for each band in turn, A plays at the low
+bound and B at the high bound, the range narrows toward whichever side
+was preferred, and the midpoint becomes that band's final value.
 
-TEST STRUCTURE
---------------
-The test is exactly 10 questions long, and each question uses a
-different clip — question 1 plays sample1.wav, question 2 sample2.wav,
-and so on through sample10.wav. The 10 clips are 2 clips (two different
-parts) from each of 5 songs, so every song is heard twice, from two
-different sections.
+Ten questions, one clip each - two excerpts from each of five songs.
+Within a question A and B are the same clip at two EQ settings, so the
+comparison is always EQ against EQ, never song against song.
 
-Within a single question, A and B are the SAME clip with two different
-EQ settings applied — the comparison is always EQ vs EQ, never song vs
-song.
+The pre-quiz's estimate, when present, arrives as `seed` and narrows
+where each band's search begins.
 
-The 10 questions are split across the three EQ bands as 4 / 3 / 3:
-
-    questions 1-4   -> bassGain
-    questions 5-7   -> trebleGain
-    questions 8-10  -> presenceGain
-
-Bass gets the extra round because it's first; with only 10 questions
-across 3 parameters the split can't be even, so treble and presence
-converge on a slightly coarser final value than bass does.
-
-If the listener took the written pre-quiz first (see pre_quiz.py), its
-estimate is passed in as `seed` and each band starts its search in a
-window around that estimate rather than the full range — so the same
-number of questions lands on a more precise final value.
-
-Sessions are keyed by user_id, so two different users' test progress
-won't collide. NOTE: this does NOT make audio playback itself
-multi-user — camilladsp.exe still only outputs to one machine's
-speakers at a time, so only one person can actually be listening
-to their test audio at once, even though their progress tracking
-is now isolated.
+Sessions are keyed by user_id, so progress doesn't collide between
+users. Audio itself plays in each listener's own browser.
 """
 
 RANGE_LOW = -6
 RANGE_HIGH = 6
 NUM_SAMPLES = 10  # sample1.wav .. sample10.wav in data/audio/samples/
+GAIN_DECIMALS = 1
 
 # How far either side of the pre-quiz's estimate the search starts.
-# Smaller = trusts the quiz more and converges tighter, but a wrong
-# estimate becomes harder to escape, since the true preference could sit
-# outside the window entirely. +/-3 keeps half the original range in play.
+# Smaller trusts the quiz more and converges tighter, but a wrong estimate
+# becomes harder to escape. +/-3 keeps half the original range in play.
 SEED_WINDOW = 3
 
-# (parameter, how many questions/rounds it gets). Must sum to NUM_SAMPLES,
-# since every question consumes exactly one clip.
+# (band, rounds it gets). Must sum to NUM_SAMPLES - one clip per question.
+# Bass takes the spare round because preference varies most there.
 PARAM_ROUNDS = [
     ("bassGain", 4),
     ("trebleGain", 3),
@@ -63,10 +36,8 @@ PARAM_ROUNDS = [
 
 TOTAL_QUESTIONS = sum(rounds for _, rounds in PARAM_ROUNDS)
 
-# Friendly display names for the 10 trimmed clips, in the order they were
-# copied in from the source recordings — keeps sample1.wav from being a
-# meaningless label in the UI. Ordered so each song's two clips sit next
-# to each other, which is also the order the test plays them in.
+# Display names, ordered so each song's two clips sit together - which is
+# also the order the test plays them in.
 SAMPLE_LABELS = {
     "sample1.wav": "Show — Chorus",
     "sample2.wav": "Show — Intro",
@@ -84,25 +55,19 @@ _sessions = {}  # user_id -> session dict
 
 
 def list_samples():
-    """All 10 clips in the order the test plays them.
-
-    The UI no longer lets the user choose one — the test walks through
-    every clip — but this stays useful for previewing the running order
-    and for debugging which files the service can see.
-    """
+    """All 10 clips in the order the test plays them."""
     return [
-        {"file": f"sample{i}.wav", "label": SAMPLE_LABELS.get(f"sample{i}.wav", f"sample{i}.wav")}
-        for i in range(1, NUM_SAMPLES + 1)
+        {"file": name, "label": SAMPLE_LABELS.get(name, name)}
+        for name in (f"sample{i}.wav" for i in range(1, NUM_SAMPLES + 1))
     ]
 
 
 def _bounds_for(param, seed):
-    """Starting search range for a parameter.
+    """
+    Starting search range for one band.
 
-    With no pre-quiz seed this is the full -6..+6. With one, it's a
-    window centred on the quiz's estimate — clamped so the window never
-    runs past the usable range (an estimate of +6 gives 0..+6, not
-    +3..+9).
+    Without a seed this is the full -6..+6. With one it's a window around
+    the quiz's estimate, clamped so it never runs past the usable range.
     """
     if not seed or param not in seed:
         return {"low": RANGE_LOW, "high": RANGE_HIGH}
@@ -115,49 +80,46 @@ def _bounds_for(param, seed):
 
 
 def start_session(user_id, seed=None):
-    """Begins a test. `seed` is the optional pre-quiz estimate, e.g.
-    {"bassGain": 2, "trebleGain": -1, "presenceGain": 0}; when given,
-    each band starts its search narrowed around that value."""
+    """
+    Begin a test for this user.
+
+    `seed` is the optional pre-quiz estimate, e.g.
+    {"bassGain": 2, "trebleGain": -1, "presenceGain": 0}. It is kept for
+    the whole session so each band is re-seeded as the test reaches it.
+    """
     first_param = PARAM_ROUNDS[0][0]
 
     _sessions[user_id] = {
-        "questionIndex": 0,  # 0-based; also picks which clip to play
+        "questionIndex": 0,
         "paramIndex": 0,
         "round": 0,
         "bounds": _bounds_for(first_param, seed),
-        "finalized": {"bassGain": 0, "trebleGain": 0, "presenceGain": 0},
+        "finalized": {band: 0 for band, _ in PARAM_ROUNDS},
         "history": [],
-        # Kept for the whole session so each band can be re-seeded as the
-        # test moves on to it.
         "seed": seed,
     }
     return get_current_pair(user_id)
 
 
 def _sample_for_question(question_index):
-    """Question N plays clip N — the clips are walked in fixed order."""
+    """Question N plays clip N."""
     return f"sample{question_index + 1}.wav"
 
 
 def get_current_pair(user_id):
+    """The A/B comparison this user should hear next, or None when done."""
     session = _sessions.get(user_id)
-    if session is None:
-        return None
-    if session["paramIndex"] >= len(PARAM_ROUNDS):
-        return None
-    if session["questionIndex"] >= TOTAL_QUESTIONS:
+    if session is None or _is_complete(session):
         return None
 
-    low = session["bounds"]["low"]
-    high = session["bounds"]["high"]
     param, rounds_for_param = PARAM_ROUNDS[session["paramIndex"]]
 
-    # A and B differ ONLY in the parameter currently being tuned; every
-    # other band stays at whatever earlier questions locked in.
+    # A and B differ only in the band being tuned; the rest stay at
+    # whatever earlier questions locked in.
     a = dict(session["finalized"])
-    a[param] = low
+    a[param] = session["bounds"]["low"]
     b = dict(session["finalized"])
-    b[param] = high
+    b[param] = session["bounds"]["high"]
 
     sample = _sample_for_question(session["questionIndex"])
 
@@ -178,57 +140,90 @@ def get_current_pair(user_id):
 
 
 def record_answer(user_id, preferred):
+    """Narrow the search toward the preferred side and hand back what's next."""
     session = _sessions.get(user_id)
+    error = _validate_answer(session, preferred)
+    if error:
+        return error
+
+    param, rounds_for_param = PARAM_ROUNDS[session["paramIndex"]]
+
+    _log_answer(session, param, preferred)
+    _narrow_bounds(session, preferred)
+
+    session["round"] += 1
+    session["questionIndex"] += 1
+
+    if session["round"] >= rounds_for_param:
+        _finalize_param(session, param)
+
+    if _is_complete(session):
+        return {
+            "done": True,
+            "profile": session["finalized"],
+            "history": session["history"],
+        }
+
+    return {"done": False, "next": get_current_pair(user_id)}
+
+
+def _validate_answer(session, preferred):
+    """The reason this answer can't be accepted, or None if it can."""
     if session is None:
         return {"error": "No active session. Call start_session first."}
     if preferred not in ("A", "B"):
         return {"error": 'preferred must be "A" or "B"'}
     if session["paramIndex"] >= len(PARAM_ROUNDS):
-        return {"error": "Test already complete", "done": True, "profile": session["finalized"]}
+        return {
+            "error": "Test already complete",
+            "done": True,
+            "profile": session["finalized"],
+        }
+    return None
 
-    low = session["bounds"]["low"]
-    high = session["bounds"]["high"]
-    mid = (low + high) / 2
-    param, rounds_for_param = PARAM_ROUNDS[session["paramIndex"]]
 
+def _log_answer(session, param, preferred):
+    """Append this round to the session's history."""
     session["history"].append({
         "param": param,
         "round": session["round"] + 1,
         "question": session["questionIndex"] + 1,
         "sample": _sample_for_question(session["questionIndex"]),
-        "low": low,
-        "high": high,
+        "low": session["bounds"]["low"],
+        "high": session["bounds"]["high"],
         "preferred": preferred,
     })
 
-    if preferred == "A":
-        session["bounds"]["high"] = mid
-    else:
-        session["bounds"]["low"] = mid
 
-    session["round"] += 1
-    session["questionIndex"] += 1
+def _narrow_bounds(session, preferred):
+    """Discard the half of the range the listener rejected."""
+    mid = _midpoint(session["bounds"])
+    edge = "high" if preferred == "A" else "low"
+    session["bounds"][edge] = mid
 
-    # Finished this parameter's allotted rounds — lock in its value and
-    # move to the next band with a fresh full range.
-    if session["round"] >= rounds_for_param:
-        final_value = (session["bounds"]["low"] + session["bounds"]["high"]) / 2
-        session["finalized"][param] = round(final_value, 1)
-        session["paramIndex"] += 1
-        session["round"] = 0
-        if session["paramIndex"] < len(PARAM_ROUNDS):
-            next_param = PARAM_ROUNDS[session["paramIndex"]][0]
-            session["bounds"] = _bounds_for(next_param, session.get("seed"))
 
-    if session["paramIndex"] >= len(PARAM_ROUNDS) or session["questionIndex"] >= TOTAL_QUESTIONS:
-        return {"done": True, "profile": session["finalized"], "history": session["history"]}
+def _midpoint(bounds):
+    return (bounds["low"] + bounds["high"]) / 2
 
-    return {"done": False, "next": get_current_pair(user_id)}
+
+def _finalize_param(session, param):
+    """Lock in this band's value and start the search for the next one."""
+    session["finalized"][param] = round(_midpoint(session["bounds"]), GAIN_DECIMALS)
+    session["paramIndex"] += 1
+    session["round"] = 0
+
+    if session["paramIndex"] < len(PARAM_ROUNDS):
+        next_param = PARAM_ROUNDS[session["paramIndex"]][0]
+        session["bounds"] = _bounds_for(next_param, session.get("seed"))
+
+
+def _is_complete(session):
+    return (session["paramIndex"] >= len(PARAM_ROUNDS)
+            or session["questionIndex"] >= TOTAL_QUESTIONS)
 
 
 def get_current_side_params(user_id, side):
-    """Returns the A or B parameter set for whatever pair is currently active,
-    plus the clip this question uses so camilla_dsp knows what to play."""
+    """One side's filter settings plus the clip they apply to."""
     pair = get_current_pair(user_id)
     if pair is None:
         return None

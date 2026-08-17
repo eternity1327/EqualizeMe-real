@@ -1,27 +1,14 @@
 """
-pre_quiz.py
-The written "pre-audiophile" quiz that runs BEFORE the listening test.
+The written quiz that runs before the listening test.
 
-Purpose
--------
-The A/B listening test in adaptive_test.py starts each EQ band with no
-information at all, so its first couple of rounds are spent discovering
-roughly where the listener sits in a -6..+6 dB range. This quiz asks a
-handful of plain-language preference questions first and turns the
-answers into a starting estimate for each band, so the listening test
-can begin already narrowed around that estimate instead of the full
-range. Same number of questions, tighter final result.
+Without it, the A/B test spends its first rounds discovering roughly
+where a listener sits in the -6..+6 dB range. These plain-language
+questions produce a starting estimate instead, so the same ten questions
+land on a tighter final result.
 
-No audio is involved here — these are text questions only. (The older
-audio-based branching quiz lives in ai_service.py's /start-assessment
-and /next-question routes and is a separate, unlinked flow.)
-
-How scoring works
------------------
-Every answer option carries an "impact": how many dB it nudges each
-band. Impacts are summed across all answered questions, then clamped to
-the usable range. Unanswered questions simply contribute nothing, so a
-partially-filled quiz still produces a usable (if vaguer) seed.
+Every option carries an "impact" in dB. Impacts are summed across the
+answered questions and clamped to the usable range, so a partly filled
+quiz still yields a usable, if vaguer, seed.
 """
 
 RANGE_LOW = -6
@@ -113,19 +100,22 @@ QUESTIONS = [
 
 
 def list_questions():
-    """The quiz as the frontend needs it — impacts stripped out.
+    """
+    The quiz as the frontend needs it, with the dB impacts removed.
 
-    Impacts are deliberately withheld so the UI can't hint at which
-    answer 'adds bass', which would nudge people toward answering
-    strategically instead of honestly.
+    Withheld on purpose: if the UI showed which answer adds bass, people
+    would answer strategically instead of honestly.
     """
     return [
         {
-            "id": q["id"],
-            "question": q["question"],
-            "options": [{"value": o["value"], "label": o["label"]} for o in q["options"]],
+            "id": question["id"],
+            "question": question["question"],
+            "options": [
+                {"value": option["value"], "label": option["label"]}
+                for option in question["options"]
+            ],
         }
-        for q in QUESTIONS
+        for question in QUESTIONS
     ]
 
 
@@ -133,24 +123,28 @@ def _clamp(value):
     return max(RANGE_LOW, min(RANGE_HIGH, value))
 
 
-def score_answers(answers):
-    """Turns {question_id: option_value} into a starting dB estimate per band.
+def _find_option(question, value):
+    """The chosen option, or None if the answer doesn't match any."""
+    return next(
+        (option for option in question["options"] if option["value"] == value),
+        None,
+    )
 
-    Unknown question ids and unknown option values are ignored rather
-    than raising, so a stale or partly-filled submission still scores.
+
+def score_answers(answers):
+    """
+    Turn {question_id: option_value} into a starting dB estimate per band.
+
+    Unknown ids and values are ignored rather than raising, so a stale or
+    partly filled submission still scores.
     """
     answers = answers or {}
     seed = {band: 0 for band in BANDS}
 
     for question in QUESTIONS:
-        chosen_value = answers.get(question["id"])
-        if chosen_value is None:
-            continue
-
-        option = next((o for o in question["options"] if o["value"] == chosen_value), None)
+        option = _find_option(question, answers.get(question["id"]))
         if option is None:
             continue
-
         for band, delta in option.get("impact", {}).items():
             if band in seed:
                 seed[band] += delta

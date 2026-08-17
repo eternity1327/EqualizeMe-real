@@ -11,16 +11,10 @@
 
 const PASSWORD_MIN_LENGTH = 8;
 
-// bcrypt — which password_hash() uses by default — only reads the first
-// 72 BYTES of a password and silently ignores the rest. A longer
-// passphrase would appear to be accepted while everything past byte 72
-// counted for nothing, and the user would never know their password was
-// weaker than they typed.
-//
-// Bytes, not characters: accented letters and emoji take several bytes
-// each, so a 40-character password can exceed the limit.
-//
-// Rejecting explicitly is better than truncating quietly.
+// bcrypt reads only the first 72 BYTES and silently ignores the rest, so
+// a longer passphrase would look accepted while everything past byte 72
+// counted for nothing. Bytes, not characters — accented letters and emoji
+// take several each. Rejecting explicitly beats truncating quietly.
 const PASSWORD_MAX_BYTES = 72;
 
 // Passwords that technically satisfy the character rules but are among
@@ -34,28 +28,48 @@ const PASSWORD_BLOCKLIST = [
     'equalizeme', 'equalize123',
 ];
 
+// Personal details shorter than this appear inside ordinary words too
+// often to treat as a match.
+const MIN_PERSONAL_TERM_LENGTH = 4;
+
 /**
- * Returns an array of human-readable problems. Empty array means the
- * password is acceptable.
- *
- * All failures are collected rather than returning on the first one, so
- * the user can fix everything in a single attempt instead of playing
- * whack-a-mole.
+ * True when the password contains a personal detail long enough to be a
+ * real match rather than a coincidence.
  */
-function password_problems($password, $email = '', $name = '') {
+function _contains_personal_term($lowerPassword, $term) {
+    $term = strtolower(trim($term));
+
+    return $term !== ''
+        && strlen($term) >= MIN_PERSONAL_TERM_LENGTH
+        && strpos($lowerPassword, $term) !== false;
+}
+
+/**
+ * The problems with a password's length. Byte-based on purpose: strlen()
+ * counts bytes, which is what bcrypt's limit is measured in, whereas
+ * mb_strlen() would undercount multi-byte characters and let an
+ * over-long password through.
+ */
+function _length_problems($password) {
     $problems = [];
 
     if (strlen($password) < PASSWORD_MIN_LENGTH) {
         $problems[] = "be at least " . PASSWORD_MIN_LENGTH . " characters long";
     }
 
-    // strlen() counts bytes, which is exactly what bcrypt's limit is
-    // measured in — mb_strlen() would undercount multi-byte characters
-    // and let an over-long password through.
     if (strlen($password) > PASSWORD_MAX_BYTES) {
         $problems[] = "be no longer than " . PASSWORD_MAX_BYTES
             . " characters (longer passwords aren't fully used by the encryption)";
     }
+
+    return $problems;
+}
+
+/**
+ * The problems with a password's mix of characters.
+ */
+function _composition_problems($password) {
+    $problems = [];
 
     if (!preg_match('/[a-z]/', $password) || !preg_match('/[A-Z]/', $password)) {
         $problems[] = "include both uppercase and lowercase letters";
@@ -69,30 +83,50 @@ function password_problems($password, $email = '', $name = '') {
         $problems[] = "not start or end with a space";
     }
 
+    return $problems;
+}
+
+/**
+ * The problems that make a password easy to guess even when it satisfies
+ * the character rules.
+ */
+function _guessability_problems($password, $email, $name) {
+    $problems = [];
     $lower = strtolower($password);
 
     if (in_array($lower, array_map('strtolower', PASSWORD_BLOCKLIST), true)) {
         $problems[] = "not be a commonly used password";
     }
 
-    // Reusing your own name or email local-part makes a password trivially
-    // guessable by anyone who knows who you are.
-    $emailLocal = strtolower(trim(explode('@', $email)[0] ?? ''));
-    if ($emailLocal !== '' && strlen($emailLocal) >= 4 && strpos($lower, $emailLocal) !== false) {
+    // A name or email anyone who knows the user could try first.
+    if (_contains_personal_term($lower, explode('@', $email)[0] ?? '')) {
         $problems[] = "not contain your email address";
     }
 
-    $nameTrimmed = strtolower(trim($name));
-    if ($nameTrimmed !== '' && strlen($nameTrimmed) >= 4 && strpos($lower, $nameTrimmed) !== false) {
+    if (_contains_personal_term($lower, $name)) {
         $problems[] = "not contain your name";
     }
 
-    // A single repeated character, e.g. "aaaaaaaa".
+    // One character repeated, e.g. "aaaaaaaa".
     if (preg_match('/^(.)\1+$/', $password)) {
         $problems[] = "not be the same character repeated";
     }
 
     return $problems;
+}
+
+/**
+ * Every human-readable problem with a password; empty means acceptable.
+ *
+ * All failures are collected rather than returning on the first, so the
+ * user can fix everything in one attempt instead of playing whack-a-mole.
+ */
+function password_problems($password, $email = '', $name = '') {
+    return array_merge(
+        _length_problems($password),
+        _composition_problems($password),
+        _guessability_problems($password, $email, $name)
+    );
 }
 
 /**

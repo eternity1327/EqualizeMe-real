@@ -7,9 +7,11 @@ require_once __DIR__ . "/../csrf.php";
 start_secure_session();
 header("Content-Type: application/json");
 
-if (!rate_limit_check("register", 5, 600)) {
+if (!rate_limit_check("register", REGISTER_MAX_ATTEMPTS, REGISTER_WINDOW_SECONDS)) {
     http_response_code(429);
-    echo json_encode(["error" => "Too many signup attempts. Please wait a few minutes and try again."]);
+    echo json_encode([
+        "error" => "Too many signup attempts. Please wait a few minutes and try again.",
+    ]);
     exit;
 }
 rate_limit_record("register");
@@ -54,14 +56,16 @@ try {
     $stmt->execute([$name, $email, $hash]);
     $userId = $pdo->lastInsertId();
 
-    // Default rows so profile/settings lookups don't need special-casing later
+    // Default rows, so profile and settings lookups never have to
+    // special-case a user who hasn't taken the test yet.
     $pdo->prepare(
-        "INSERT INTO auditory_profiles (user_id, bass_gain, treble_gain, presence_gain) VALUES (?, 0, 0, 0)"
+        "INSERT INTO auditory_profiles (user_id, bass_gain, treble_gain, presence_gain)
+         VALUES (?, 0, 0, 0)"
     )->execute([$userId]);
     $pdo->prepare("INSERT INTO settings (user_id) VALUES (?)")->execute([$userId]);
 
-    // Same session-fixation defense as login — this is effectively a
-    // fresh login too, since registering signs the user in immediately.
+    // Registering signs the user in, so it needs the same session
+    // fixation defence as login.
     session_regenerate_id(true);
     $_SESSION["user_id"] = $userId;
 

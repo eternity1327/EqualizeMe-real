@@ -1,28 +1,29 @@
 """
-catalog_parser.py
-------------------
-Parses squig.link-style phone_book.json catalogs into a flat list of
-normalized IEM dicts, ready to hand to import_to_db.py.
+Parse a squig.link phone_book.json into normalised IEM records.
 
-Handles the messy real-world data:
-  - "file" can be a single string OR a list of variant filenames
-  - "reviewScore" can be a number-as-string, OR free text like
-    "Tuned with Squiglink" (Juzear Harrier does this)
-  - "price" can be "$350", "", "$??", "Free", "Priceless", etc.
+The source data is inconsistent in ways that would otherwise crash the
+import, so each field is parsed defensively: "file" may be a string or a
+list of variants, "reviewScore" may be free text like "Tuned with
+Squiglink", and "price" may be "$350", "", "$??", "Free" or "Priceless".
+Anything unparseable becomes None while the original is kept alongside.
 """
 
 import json
 import re
 
+# The first number in a price string, with or without thousands commas.
+PRICE_PATTERN = r"[\d,]+(?:\.\d+)?"
+
 
 def _parse_price(raw):
-    """Return (price_float_or_None, raw_string)."""
+    """Return (price as a float or None, the original string)."""
     if not raw:
         return None, raw
-    match = re.search(r"[\d,]+(?:\.\d+)?", raw)
+
+    match = re.search(PRICE_PATTERN, raw)
     if not match:
-        # "Free", "Priceless", "$??" etc. -- no numeric price
         return None, raw
+
     try:
         return float(match.group(0).replace(",", "")), raw
     except ValueError:
@@ -30,77 +31,81 @@ def _parse_price(raw):
 
 
 def _parse_review_score(raw):
-    """Return (score_float_or_None, raw_string)."""
+    """Return (score as a float or None, the original string)."""
     if raw is None or raw == "":
         return None, raw
     try:
         return float(raw), raw
     except (TypeError, ValueError):
-        # e.g. "Tuned with Squiglink" -- not a numeric score
         return None, raw
 
 
 def _normalize_files(file_field, suffix_field):
     """
-    "file" is either a single string or a list of variant filenames.
-    Returns a list of {"file": ..., "suffix": ...} dicts. The first
-    entry is treated as the primary/default variant.
+    Every measurement variant as {"file", "suffix"}, primary one first.
+
+    "file" is either a single filename or a list of them.
     """
-    if isinstance(file_field, list):
-        suffixes = suffix_field if isinstance(suffix_field, list) else [None] * len(file_field)
-        # pad suffixes if mismatched length (seen in a few catalog entries)
-        if len(suffixes) < len(file_field):
-            suffixes = suffixes + [None] * (len(file_field) - len(suffixes))
-        return [{"file": f, "suffix": s} for f, s in zip(file_field, suffixes)]
-    else:
+    if not isinstance(file_field, list):
         return [{"file": file_field, "suffix": None}]
+
+    suffixes = list(suffix_field) if isinstance(suffix_field, list) else []
+    # A few catalogue entries list fewer suffixes than files.
+    suffixes += [None] * (len(file_field) - len(suffixes))
+
+    return [
+        {"file": name, "suffix": suffix}
+        for name, suffix in zip(file_field, suffixes)
+    ]
+
+
+def _parse_phone(brand, phone):
+    """One catalogue entry as a normalised record."""
+    price, price_raw = _parse_price(phone.get("price"))
+    score, score_raw = _parse_review_score(phone.get("reviewScore"))
+    variants = _normalize_files(phone.get("file"), phone.get("suffix"))
+
+    return {
+        "brand": brand,
+        "model": phone.get("name", "").strip(),
+        "price": price,
+        "price_raw": price_raw,
+        "review_score": score,
+        "review_score_raw": score_raw,
+        "review_link": phone.get("reviewLink") or None,
+        "shop_link": phone.get("shopLink") or None,
+        "primary_file": variants[0]["file"] if variants else None,
+        "all_variants": variants,
+    }
 
 
 def load_catalog(path):
     """
-    Load a phone_book.json file and return a flat list of dicts:
-      {
-        brand, model, price, price_raw, review_score, review_score_raw,
-        review_link, shop_link, primary_file, all_variants
-      }
-    One row per phone (not per variant) -- variants are kept in
-    all_variants for later use (e.g. importing alternate FR curves).
+    Every IEM in the catalogue, one record per model.
+
+    Alternate measurement variants stay in "all_variants" rather than
+    becoming rows of their own.
     """
     with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+        catalog = json.load(f)
 
-    rows = []
-    for brand_entry in data:
-        brand = brand_entry.get("name", "").strip()
-        for phone in brand_entry.get("phones", []):
-            model = phone.get("name", "").strip()
-            price, price_raw = _parse_price(phone.get("price"))
-            score, score_raw = _parse_review_score(phone.get("reviewScore"))
-            variants = _normalize_files(phone.get("file"), phone.get("suffix"))
-
-            rows.append({
-                "brand": brand,
-                "model": model,
-                "price": price,
-                "price_raw": price_raw,
-                "review_score": score,
-                "review_score_raw": score_raw,
-                "review_link": phone.get("reviewLink") or None,
-                "shop_link": phone.get("shopLink") or None,
-                "primary_file": variants[0]["file"] if variants else None,
-                "all_variants": variants,
-            })
-    return rows
+    return [
+        _parse_phone(brand_entry.get("name", "").strip(), phone)
+        for brand_entry in catalog
+        for phone in brand_entry.get("phones", [])
+    ]
 
 
 if __name__ == "__main__":
     import sys
+
     path = sys.argv[1] if len(sys.argv) > 1 else "test_phone_book.json"
     rows = load_catalog(path)
+
     print(f"Parsed {len(rows)} IEMs from {path}\n")
-    for r in rows:
-        print(f"- {r['brand']} {r['model']}: "
-              f"price={r['price']} (raw={r['price_raw']!r}), "
-              f"score={r['review_score']} (raw={r['review_score_raw']!r}), "
-              f"primary_file={r['primary_file']!r}, "
-              f"variants={len(r['all_variants'])}")
+    for row in rows:
+        print(f"- {row['brand']} {row['model']}: "
+              f"price={row['price']} (raw={row['price_raw']!r}), "
+              f"score={row['review_score']} (raw={row['review_score_raw']!r}), "
+              f"primary_file={row['primary_file']!r}, "
+              f"variants={len(row['all_variants'])}")

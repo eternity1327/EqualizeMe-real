@@ -11,14 +11,16 @@
 // work if this file is ever used standalone.
 require_once __DIR__ . '/config.php';
 
-// How long a session can sit idle before it's treated as expired. Each
-// request from the user pushes this back, so it only bites after a real
-// period of inactivity — not while someone is actively using the site.
-const SESSION_IDLE_TIMEOUT = 7200; // 2 hours
+// How long a session may sit idle before it expires. Each request pushes
+// this back, so it only bites after real inactivity.
+const SESSION_IDLE_TIMEOUT = 7200;      // 2 hours
 
-// Force a fresh session ID periodically even for active sessions, so a
-// stolen ID has a limited useful lifetime.
-const SESSION_REGENERATE_EVERY = 1800; // 30 minutes
+// Fresh session ID even for active sessions, so a stolen one has a
+// limited useful lifetime.
+const SESSION_REGENERATE_EVERY = 1800;  // 30 minutes
+
+// Any past expiry deletes a cookie; this is comfortably in the past.
+const COOKIE_DELETE_OFFSET = 42000;
 
 /**
  * True when the request reached us over HTTPS.
@@ -35,19 +37,11 @@ function request_is_https() {
 }
 
 /**
- * Redirects to HTTPS when the site is configured to require it.
+ * Redirects to HTTPS when 'force_https' is set in config.local.php.
  *
- * Off by default. Turning it on unconditionally would break local
- * development, where XAMPP serves plain HTTP on localhost and there's no
- * certificate to redirect to — the site would bounce forever.
- *
- * Enable by setting 'force_https' => true in api/config.local.php once
- * the site is served over TLS. Cloudflare already forces HTTPS at its
- * edge, so this is belt-and-braces there; it matters on hosting that
- * doesn't.
- *
- * Localhost is exempt regardless, so switching it on can't lock you out
- * of your own dev environment.
+ * Off by default: XAMPP serves plain HTTP locally with no certificate to
+ * redirect to, so forcing it unconditionally would bounce forever.
+ * Localhost stays exempt even when enabled.
  */
 function enforce_https_if_configured() {
     $config = function_exists('app_config') ? app_config() : [];
@@ -69,6 +63,9 @@ function enforce_https_if_configured() {
     exit;
 }
 
+/**
+ * Start a session with this project's hardened cookie settings.
+ */
 function start_secure_session() {
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
@@ -89,23 +86,18 @@ function start_secure_session() {
  * flags have to line up or the browser keeps the old one).
  */
 function session_cookie_options() {
-    // Works whether Apache terminates HTTPS itself, or a tunnel/proxy in
-    // front of it does and forwards the original protocol via header.
-    $isHttps = request_is_https();
-
     return [
         'lifetime' => 0,
         'path' => '/',
-        'httponly' => true,   // JavaScript can't read the session cookie
-        'samesite' => 'Lax',  // blocks most cross-site request forgery
-        'secure' => $isHttps, // only sent over HTTPS once you're behind one
+        'httponly' => true,             // JavaScript can't read the cookie
+        'samesite' => 'Lax',            // blocks most cross-site forgery
+        'secure' => request_is_https(), // only sent over HTTPS
     ];
 }
 
 /**
- * Ends the session everywhere: server-side state, the in-memory copy,
- * and the browser's cookie. session_destroy() alone leaves the cookie
- * sitting in the browser, which is untidy and can confuse later logins.
+ * Ends the session everywhere: server state, memory, and the browser's
+ * cookie. session_destroy() alone leaves the cookie in the browser.
  */
 function end_secure_session() {
     if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -116,13 +108,16 @@ function end_secure_session() {
 
     if (ini_get('session.use_cookies')) {
         $params = session_cookie_options();
-        $params['expires'] = time() - 42000; // any past time deletes it
+        $params['expires'] = time() - COOKIE_DELETE_OFFSET;
         setcookie(session_name(), '', $params);
     }
 
     session_destroy();
 }
 
+/**
+ * Clears a session that has been idle past the timeout.
+ */
 function _session_enforce_idle_timeout() {
     $now = time();
     $lastSeen = $_SESSION['_last_activity'] ?? null;
@@ -138,6 +133,9 @@ function _session_enforce_idle_timeout() {
     $_SESSION['_last_activity'] = $now;
 }
 
+/**
+ * Issues a new session ID once the current one is old enough.
+ */
 function _session_rotate_id_periodically() {
     $now = time();
     $lastRotated = $_SESSION['_id_issued_at'] ?? null;

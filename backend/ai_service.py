@@ -40,6 +40,33 @@ DB_CONFIG = {
     "database": os.environ.get("DB_NAME", "equalizeme"),
 }
 
+DEFAULT_PORT = 5001
+DEFAULT_HOST = "0.0.0.0"
+
+# The three frequency bands the listening test measures, named as they
+# appear in both the auditory_profiles and iems tables.
+BANDS = ("bass_gain", "treble_gain", "presence_gain")
+
+# Decibels of mismatch cost this many percentage points of match score.
+# At the original 10 the post-centring spread bottomed out at 0 for
+# everything and lost all ranking information.
+SCORE_SCALE = 5
+
+MEASUREMENT_DECIMALS = 2
+GAIN_DECIMALS = 1
+
+# A fully answered assessment, used when the adaptive test writes a profile.
+FULL_CONFIDENCE = 100.0
+
+DEFAULT_SEQUENCE_ORDER = 1
+
+# Best matches considered before sorting by price, and how many finally
+# reach the page. A wider pool surfaces cheaper options but dilutes match
+# quality; 15 into 5 keeps everything shown genuinely suitable while still
+# giving the price sort something to work with.
+CANDIDATE_POOL_SIZE = 15
+RESULTS_SHOWN = 5
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -48,19 +75,10 @@ logging.basicConfig(
 log = logging.getLogger("equalizeme")
 
 
-# ---------------------------------------------------------------------------
-# Error handling
-#
-# Every caller of this API is JavaScript doing `await res.json()`. Flask's
-# default 500 is an HTML page, so an unexpected exception made the frontend
-# fail a second time on the JSON parse, and the browser reported a parse
-# error rather than the actual fault. These handlers guarantee the response
-# is always JSON, so the real problem reaches the console.
-#
-# The message sent to the browser stays generic on purpose — exception text
-# can carry table names, queries and file paths. The full traceback goes to
-# the server log where it's useful and not exposed.
-# ---------------------------------------------------------------------------
+# Error handlers guarantee JSON. Every caller does `await res.json()`, so
+# Flask's default HTML error page made the frontend fail a second time on
+# the parse and hid the real fault. Messages stay generic — exception text
+# can carry table names and file paths — while the traceback goes to the log.
 
 @app.errorhandler(mysql.connector.Error)
 def handle_db_error(err):
@@ -91,17 +109,10 @@ def db_cursor(dictionary=False):
     """
     A database cursor that always cleans up after itself.
 
-    Every query block here used to open a connection and close it on the
-    last line of the happy path. Any exception in between — a malformed
-    row, a missing column, a bug in the scoring loop — skipped the close
-    and leaked the connection for good. MySQL allows 151 by default, so a
-    recurring error would slowly exhaust the pool until the service
-    stopped answering at all and needed a restart. That failure is
-    especially nasty because it looks like "the server randomly broke"
-    rather than pointing at the error that caused it.
-
-    Wrapping acquisition and release in try/finally means the connection
-    comes back regardless of how the block exits.
+    Closing on the last line of the happy path leaked a connection on any
+    exception. MySQL allows 151 by default, so a recurring error would
+    exhaust the pool until the service needed a restart. try/finally
+    returns the connection however the block exits.
     """
     conn = get_db()
     cur = conn.cursor(dictionary=dictionary)
@@ -115,18 +126,27 @@ def db_cursor(dictionary=False):
 
 
 def _generate_profile(cur, conn, assessment_id):
-    """
-    Reads all responses for this assessment, sums their score deltas
-    per band (bass/treble/presence), and writes the result into
-    auditory_profiles. Also computes a simple confidence score based
-    on how many questions were answered vs. how many exist total.
-    """
-    # Get user_id for this assessment
-    cur.execute("SELECT user_id FROM assessments WHERE assessment_id = %s", (assessment_id,))
-    row = cur.fetchone()
-    user_id = row["user_id"]
+    """Turn this assessment's answers into a stored auditory profile."""
+    user_id = fetch_assessment_user(cur, assessment_id)
+    gains = sum_band_deltas(cur, assessment_id)
+    confidence = completion_confidence(cur, assessment_id)
 
-    # Sum deltas per band by joining responses -> question_score_impact
+    profile = {**gains, "confidence_score": confidence}
+    save_profile(cur, conn, user_id, assessment_id, profile)
+    return profile
+
+
+def fetch_assessment_user(cur, assessment_id):
+    """Which user this assessment belongs to."""
+    cur.execute(
+        "SELECT user_id FROM assessments WHERE assessment_id = %s",
+        (assessment_id,),
+    )
+    return cur.fetchone()["user_id"]
+
+
+def sum_band_deltas(cur, assessment_id):
+    """Total the dB impact of every answer, band by band."""
     cur.execute(
         """
         SELECT qsi.band, SUM(qsi.delta) AS total
@@ -139,50 +159,48 @@ def _generate_profile(cur, conn, assessment_id):
         """,
         (assessment_id,),
     )
-    band_totals = {row["band"]: float(row["total"]) for row in cur.fetchall()}
-
-    bass_gain = round(band_totals.get("bass", 0.0), 1)
-    treble_gain = round(band_totals.get("treble", 0.0), 1)
-    presence_gain = round(band_totals.get("presence", 0.0), 1)
-
-    # Confidence: % of total available questions actually answered
-    cur.execute("SELECT COUNT(*) AS total FROM questions")
-    total_questions = cur.fetchone()["total"]
-
-    cur.execute(
-        "SELECT COUNT(DISTINCT question_id) AS answered FROM responses WHERE assessment_id = %s",
-        (assessment_id,),
-    )
-    answered = cur.fetchone()["answered"]
-
-    confidence_score = round((answered / total_questions) * 100, 1) if total_questions else 0.0
-
-    # Insert the profile
-    cur.execute(
-        """
-        INSERT INTO auditory_profiles
-            (user_id, assessment_id, bass_gain, treble_gain, presence_gain, confidence_score)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """,
-        (user_id, assessment_id, bass_gain, treble_gain, presence_gain, confidence_score),
-    )
-    conn.commit()
-
+    totals = {row["band"]: float(row["total"]) for row in cur.fetchall()}
     return {
-        "bass_gain": bass_gain,
-        "treble_gain": treble_gain,
-        "presence_gain": presence_gain,
-        "confidence_score": confidence_score,
+        f"{band}_gain": round(totals.get(band, 0.0), GAIN_DECIMALS)
+        for band in ("bass", "treble", "presence")
     }
 
 
-# How many of the best-matching IEMs to consider before sorting by price,
-# and how many finally reach the page. A wider pool surfaces cheaper
-# options but dilutes match quality; 15 into 5 keeps everything shown
-# comfortably above the "genuinely suits you" line while still giving the
-# price sort something to work with.
-CANDIDATE_POOL_SIZE = 15
-RESULTS_SHOWN = 5
+def completion_confidence(cur, assessment_id):
+    """How much of the questionnaire was answered, as a percentage."""
+    cur.execute("SELECT COUNT(*) AS total FROM questions")
+    total_questions = cur.fetchone()["total"]
+    if not total_questions:
+        return 0.0
+
+    cur.execute(
+        "SELECT COUNT(DISTINCT question_id) AS answered FROM responses "
+        "WHERE assessment_id = %s",
+        (assessment_id,),
+    )
+    answered = cur.fetchone()["answered"]
+    return round((answered / total_questions) * 100, GAIN_DECIMALS)
+
+
+def save_profile(cur, conn, user_id, assessment_id, profile):
+    """Write the finished profile to auditory_profiles."""
+    cur.execute(
+        """
+        INSERT INTO auditory_profiles
+            (user_id, assessment_id, bass_gain, treble_gain, presence_gain,
+             confidence_score)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        (
+            user_id,
+            assessment_id,
+            profile["bass_gain"],
+            profile["treble_gain"],
+            profile["presence_gain"],
+            profile["confidence_score"],
+        ),
+    )
+    conn.commit()
 
 
 def _median(values):
@@ -214,150 +232,135 @@ def _catalog_baseline(iems, bands):
 
 @app.route("/recommendations/<int:user_id>", methods=["GET"])
 def get_recommendations(user_id):
-    """
-    Finds the user's most recent auditory profile, compares it against
-    every IEM using absolute difference across bass/treble/presence,
-    and returns the top 5 closest matches with retailer links.
-    """
+    """Return the IEMs that best suit this listener, cheapest first."""
     with db_cursor(dictionary=True) as (conn, cur):
-        # Get the most recent profile for this user
-        cur.execute(
-            "SELECT bass_gain, treble_gain, presence_gain FROM auditory_profiles "
-            "WHERE user_id = %s ORDER BY updated_at DESC LIMIT 1",
-            (user_id,),
-        )
-        profile = cur.fetchone()
-
+        profile = fetch_latest_profile(cur, user_id)
         if not profile:
             return jsonify({"error": "No auditory profile found for this user"}), 404
 
-        # Pull every IEM with its retailer info.
-        #
-        # shop_link is the direct URL used by IEMs imported via
-        # import_to_db.py, which don't get a retailer_id — without selecting
-        # it here, those rows would show no buy link at all despite having a
-        # perfectly good URL.
-        cur.execute(
-            """
-            SELECT i.id, i.name, i.brand, i.sound_signature, i.bass_gain,
-                   i.treble_gain, i.presence_gain, i.price, i.image_url,
-                   i.shop_link,
-                   r.name AS retailer_name, r.product_url
-            FROM iems i
-            LEFT JOIN retailers r ON i.retailer_id = r.retailer_id
-            """
-        )
-        all_iems = cur.fetchall()
+        catalogue = fetch_iem_catalogue(cur)
 
-    # An imported measurement that didn't cover a whole band leaves that
-    # gain NULL. Scoring it would raise on float(None) and take the entire
-    # endpoint down, so those rows are dropped here — they simply can't be
-    # matched until a full measurement is imported.
-    bands = ("bass_gain", "treble_gain", "presence_gain")
-    scorable = [iem for iem in all_iems if not any(iem[b] is None for b in bands)]
+    scorable = [iem for iem in catalogue if has_complete_measurement(iem)]
+    baseline = _catalog_baseline(scorable, BANDS)
 
-    baseline = _catalog_baseline(scorable, bands)
-
-    results = []
-    for iem in scorable:
-        # Centre the IEM's measured gains on the catalogue before comparing.
-        #
-        # The two sides of this comparison are not the same quantity. The
-        # listening test's numbers are EQ settings: how many dB of boost the
-        # listener preferred relative to flat, so they sit around 0. The
-        # IEM's numbers come from a measured curve relative to its own
-        # mid-band, which carries the ear-canal resonance every in-ear
-        # measurement has — across this catalogue the median bass gain is
-        # about +5 dB and presence about +4.4 dB, on every IEM, regardless
-        # of tuning.
-        #
-        # Comparing them raw meant even a listener who preferred perfectly
-        # neutral EQ scored a distance of ~10 against everything, capping
-        # match scores near zero and effectively ranking IEMs by how
-        # unusual their measurement was rather than how well they fit.
-        #
-        # Subtracting the catalogue median puts both sides on the same
-        # footing: 0 now means "average IEM" on the measurement side, which
-        # is what "no EQ change needed" means on the listener side.
-        distance = sum(
-            abs(float(profile[band]) - (float(iem[band]) - baseline[band]))
-            for band in bands
-        )
-
-        # Convert distance to a 0-100 score. The scale factor of 5 (rather
-        # than the original 10) suits the post-centring spread: differences
-        # of a few dB per band are normal even between good matches, and at
-        # x10 those bottomed out at 0 and lost all ranking information.
-        match_score = max(0, round(100 - (distance * 5), 1))
-
-        # Per-band agreement, so the UI can show WHERE an IEM fits or
-        # misses rather than only an overall figure. Same 5x scale as the
-        # total, applied to that band's gap alone.
-        centred = {band: round(float(iem[band]) - baseline[band], 2) for band in bands}
-        band_match = {
-            band: max(0, round(100 - abs(float(profile[band]) - centred[band]) * 5, 1))
-            for band in bands
-        }
-
-        results.append({
-            "iem_id": iem["id"],
-            "name": iem["name"],
-            "brand": iem["brand"],
-            "sound_signature": iem["sound_signature"],
-            "price": float(iem["price"]) if iem["price"] is not None else None,
-            "image_url": iem.get("image_url"),
-            "retailer_name": iem["retailer_name"],
-            # Centred gains and per-band scores let the frontend draw the
-            # listener's preference against this IEM's measurement.
-            "gains": centred,
-            "band_match": band_match,
-            # Retailer link when there's a retailer row, otherwise the
-            # direct shop_link stored by the importer.
-            "product_url": iem["product_url"] or iem.get("shop_link"),
-            "match_score": match_score,
-        })
-
-    # Ordering: quality first, then affordability.
-    #
-    # Sorting the whole catalogue by price would put a cheap IEM that
-    # doesn't suit the listener above an excellent one, which defeats the
-    # point of running a listening test. Sorting purely by match went the
-    # other way — the best fits skew expensive, so the page opened with
-    # $1000+ IEMs and read as "you can't afford our advice".
-    #
-    # So: narrow to the best-matching candidates, then show the cheapest
-    # of those. Everything displayed is still a genuinely good fit; the
-    # affordable ones just come first.
-    results.sort(key=lambda r: r["match_score"], reverse=True)
-    candidates = results[:CANDIDATE_POOL_SIZE]
-
-    # Unknown prices sort last — an IEM with no price shouldn't lead the
-    # list when the whole point is showing what's affordable.
-    candidates.sort(
-        key=lambda r: (r["price"] is None, r["price"] if r["price"] is not None else 0)
-    )
-    top_results = candidates[:RESULTS_SHOWN]
+    scored = [score_iem(iem, profile, baseline) for iem in scorable]
 
     return jsonify({
         "user_id": user_id,
-        # The listener's own preference, echoed back so the frontend can
-        # plot it against each IEM's measured curve instead of only
-        # showing a number.
-        "profile": {band: float(profile[band]) for band in bands},
-        "recommendations": top_results,
+        "profile": {band: float(profile[band]) for band in BANDS},
+        "recommendations": rank_recommendations(scored),
     })
+
+
+def fetch_latest_profile(cur, user_id):
+    """The listener's most recent auditory profile, or None."""
+    cur.execute(
+        "SELECT bass_gain, treble_gain, presence_gain FROM auditory_profiles "
+        "WHERE user_id = %s ORDER BY updated_at DESC LIMIT 1",
+        (user_id,),
+    )
+    return cur.fetchone()
+
+
+def fetch_iem_catalogue(cur):
+    """Every IEM with its retailer details."""
+    # shop_link is selected alongside the retailer join because imported
+    # IEMs have no retailer_id — without it those rows show no buy link.
+    cur.execute(
+        """
+        SELECT i.id, i.name, i.brand, i.sound_signature, i.bass_gain,
+               i.treble_gain, i.presence_gain, i.price, i.image_url,
+               i.shop_link,
+               r.name AS retailer_name, r.product_url
+        FROM iems i
+        LEFT JOIN retailers r ON i.retailer_id = r.retailer_id
+        """
+    )
+    return cur.fetchall()
+
+
+def has_complete_measurement(iem):
+    """True when every band has a gain, so the IEM can be scored."""
+    return all(iem[band] is not None for band in BANDS)
+
+
+def centre_on_catalogue(iem, baseline):
+    """
+    Express an IEM's measured gains relative to the average IEM.
+
+    A listener's profile is an EQ setting centred on zero. A measurement is
+    a deviation from its own midrange, which includes the ear-canal
+    resonance present in every in-ear measurement — a median of roughly
+    +5 dB bass and +4.4 dB presence across this catalogue. Comparing the
+    two raw made even a neutral listener score near zero against
+    everything. Subtracting the catalogue median puts both on the same
+    footing.
+    """
+    return {
+        band: round(float(iem[band]) - baseline[band], MEASUREMENT_DECIMALS)
+        for band in BANDS
+    }
+
+
+def agreement_score(preference_db, iem_db):
+    """Convert a gap in decibels to a 0-100 agreement percentage."""
+    return max(0, round(100 - abs(preference_db - iem_db) * SCORE_SCALE, 1))
+
+
+def score_iem(iem, profile, baseline):
+    """Build the scored recommendation entry for one IEM."""
+    centred = centre_on_catalogue(iem, baseline)
+
+    distance = sum(abs(float(profile[band]) - centred[band]) for band in BANDS)
+    band_match = {
+        band: agreement_score(float(profile[band]), centred[band])
+        for band in BANDS
+    }
+
+    return {
+        "iem_id": iem["id"],
+        "name": iem["name"],
+        "brand": iem["brand"],
+        "sound_signature": iem["sound_signature"],
+        "price": float(iem["price"]) if iem["price"] is not None else None,
+        "image_url": iem.get("image_url"),
+        "retailer_name": iem["retailer_name"],
+        "product_url": iem["product_url"] or iem.get("shop_link"),
+        "gains": centred,
+        "band_match": band_match,
+        "match_score": max(0, round(100 - distance * SCORE_SCALE, 1)),
+    }
+
+
+def rank_recommendations(scored):
+    """
+    Pick the best matches, then lead with the most affordable of them.
+
+    Ranking by match alone surfaced flagship IEMs costing thousands.
+    Ranking by price alone recommends cheap IEMs that don't suit the
+    listener, which defeats the point of the test. Narrowing to the best
+    candidates first means everything shown is a genuine fit.
+    """
+    best_matches = sorted(scored, key=lambda r: r["match_score"], reverse=True)
+    candidates = best_matches[:CANDIDATE_POOL_SIZE]
+
+    candidates.sort(key=price_sort_key)
+    return candidates[:RESULTS_SHOWN]
+
+
+def price_sort_key(recommendation):
+    """Sort ascending by price, placing unknown prices last."""
+    price = recommendation["price"]
+    return (price is None, price if price is not None else 0)
 
 
 @app.route("/api/iems/<int:iem_id>/curve", methods=["GET"])
 def get_iem_curve(iem_id):
     """
-    The measured frequency-response curve for one IEM, plus the
-    plain-language description generated from it by interpreter.py.
+    One IEM's measured curve and its plain-language description.
 
-    Populated by import_to_db.py from REW measurement files — an IEM
-    that hasn't had a measurement imported yet has no curve, which is
-    a normal state rather than an error condition. recommendations.html
-    fetches this per card and quietly skips the chart when it 404s.
+    An IEM with no measurement imported yet is a normal state, not an
+    error — the recommendations page skips the chart when this 404s.
     """
     with db_cursor(dictionary=True) as (conn, cur):
         cur.execute(
@@ -368,21 +371,17 @@ def get_iem_curve(iem_id):
 
     if row is None:
         return jsonify({"error": "IEM not found"}), 404
-
     if not row["fr_curve_json"]:
         return jsonify({"error": "No measurement curve stored for this IEM"}), 404
 
-    # Stored as a JSON string by import_to_db.py; decoded here so the
-    # frontend gets a real array rather than a string it has to parse again.
+    # Stored as a JSON string, decoded here so the frontend gets an array
+    # rather than a string it has to parse again.
     try:
         curve = json.loads(row["fr_curve_json"])
     except (TypeError, ValueError):
         return jsonify({"error": "Stored curve data is not valid JSON"}), 500
 
-    return jsonify({
-        "curve": curve,
-        "description": row["description"],
-    })
+    return jsonify({"curve": curve, "description": row["description"]})
 
 
 # ---------------------------------------------------------------------------
@@ -402,24 +401,25 @@ def dsp_adaptive_samples():
     return jsonify({"samples": adaptive_test.list_samples()})
 
 
+def _missing_user_id():
+    return jsonify({"error": "user_id is required"}), 400
+
+
 @app.route("/api/dsp/adaptive/start", methods=["POST"])
 def dsp_adaptive_start():
-    """Starts CamillaDSP (if not running) and begins a new staircase session for this user."""
+    """Begin a new staircase session for this user."""
     data = request.get_json() or {}
     user_id = data.get("user_id")
     if not user_id:
-        return jsonify({"error": "user_id is required"}), 400
+        return _missing_user_id()
 
     camilla_dsp.start()
 
-    # Pre-quiz answers, if the user took it, become a starting estimate so
-    # each EQ band's search begins narrowed instead of at the full range.
-    # Skipping the quiz is fine — seed stays None and the test runs as
-    # before, just with less to go on.
+    # Pre-quiz answers narrow where each band's search begins. Skipping
+    # the quiz is fine — the seed stays None and the test runs the full
+    # range, just with less to go on.
     seed = pre_quiz.score_answers(data.get("quiz")) if data.get("quiz") else None
 
-    # No sample argument — the test walks through all 10 clips in fixed
-    # order, one per question, rather than using a single chosen track.
     pair = adaptive_test.start_session(user_id, seed=seed)
     if seed:
         pair["seed"] = seed
@@ -428,12 +428,13 @@ def dsp_adaptive_start():
 
 @app.route("/api/dsp/adaptive/play", methods=["POST"])
 def dsp_adaptive_play():
-    """Applies the filter values for the requested side (A or B) and plays them."""
+    """Play one side of the current comparison through CamillaDSP."""
     data = request.get_json()
-    side = data.get("side")
     user_id = data.get("user_id")
+    side = data.get("side")
+
     if not user_id:
-        return jsonify({"error": "user_id is required"}), 400
+        return _missing_user_id()
     if side not in ("A", "B"):
         return jsonify({"error": 'side must be "A" or "B"'}), 400
 
@@ -441,8 +442,7 @@ def dsp_adaptive_play():
     if params is None:
         return jsonify({"error": "No active test session"}), 400
 
-    result = camilla_dsp.apply_filters(**params)
-    if not result["ok"]:
+    if not camilla_dsp.apply_filters(**params)["ok"]:
         return jsonify({"error": "Could not reach CamillaDSP"}), 500
 
     return jsonify({"ok": True, "params": params})
@@ -450,32 +450,31 @@ def dsp_adaptive_play():
 
 @app.route("/api/dsp/adaptive/answer", methods=["POST"])
 def dsp_adaptive_answer():
-    """Records the preferred side, advances the staircase, and saves the profile on completion."""
+    """Record the preferred side, and save the profile once the test ends."""
     data = request.get_json()
-    preferred = data.get("preferred")
     user_id = data.get("user_id")
     if not user_id:
-        return jsonify({"error": "user_id is required"}), 400
+        return _missing_user_id()
 
-    result = adaptive_test.record_answer(user_id, preferred)
+    result = adaptive_test.record_answer(user_id, data.get("preferred"))
 
     if "error" in result:
         return jsonify(result), 400
 
     if result.get("done"):
         _save_dsp_profile(user_id, result["profile"])
-        return jsonify(result)
 
     return jsonify(result)
 
 
 def _save_dsp_profile(user_id, profile):
-    """Writes the finalized bassGain/trebleGain/presenceGain into auditory_profiles.
+    """
+    Store the finished listening-test profile.
 
-    Relies on user_id being UNIQUE on that table so the upsert replaces the
-    previous profile instead of stacking a new row on every retake. If that
-    constraint is missing the ON DUPLICATE KEY clause never fires and each
-    retake silently adds a row — see sql/schema_cleanup.sql.
+    Relies on user_id being UNIQUE on auditory_profiles so the upsert
+    replaces the previous profile. Without that constraint the ON
+    DUPLICATE KEY clause never fires and each retake silently adds a row
+    — see sql/schema_cleanup.sql.
     """
     with db_cursor() as (conn, cur):
         cur.execute(
@@ -489,7 +488,13 @@ def _save_dsp_profile(user_id, profile):
                 presence_gain = VALUES(presence_gain),
                 confidence_score = VALUES(confidence_score)
             """,
-            (user_id, profile["bassGain"], profile["trebleGain"], profile["presenceGain"], 100.0),
+            (
+                user_id,
+                profile["bassGain"],
+                profile["trebleGain"],
+                profile["presenceGain"],
+                FULL_CONFIDENCE,
+            ),
         )
         conn.commit()
 
@@ -533,70 +538,84 @@ def start_assessment():
 
 @app.route("/next-question", methods=["POST"])
 def next_question():
-    """
-    Takes the current assessment_id, question_id, and the user's answer.
-    Logs the response, then looks up question_rules to find what's next.
-    If no rule matches, the assessment is marked complete.
-    """
+    """Record an answer and return whatever the branching rules ask next."""
     data = request.get_json()
     assessment_id = data.get("assessment_id")
     question_id = data.get("question_id")
     answer_value = data.get("answer_value")
-    sequence_order = data.get("sequence_order", 1)
+    sequence_order = data.get("sequence_order", DEFAULT_SEQUENCE_ORDER)
 
     if not all([assessment_id, question_id, answer_value]):
-        return jsonify({"error": "assessment_id, question_id, and answer_value are required"}), 400
+        return jsonify({
+            "error": "assessment_id, question_id, and answer_value are required"
+        }), 400
 
     with db_cursor(dictionary=True) as (conn, cur):
-        # Log the response
-        cur.execute(
-            "INSERT INTO responses (assessment_id, question_id, answer_value, sequence_order) "
-            "VALUES (%s, %s, %s, %s)",
-            (assessment_id, question_id, answer_value, sequence_order),
-        )
-        conn.commit()
+        record_response(cur, conn, assessment_id, question_id,
+                        answer_value, sequence_order)
 
-        # Look up the branching rule
-        cur.execute(
-            "SELECT next_question_id FROM question_rules "
-            "WHERE from_question_id = %s AND condition_answer_value = %s "
-            "ORDER BY priority ASC LIMIT 1",
-            (question_id, answer_value),
-        )
-        rule = cur.fetchone()
-
-        if not rule:
-            # No further question -> assessment complete
-            cur.execute(
-                "UPDATE assessments SET status = 'completed', completed_at = NOW() "
-                "WHERE assessment_id = %s",
-                (assessment_id,),
-            )
-            conn.commit()
-
-            profile = _generate_profile(cur, conn, assessment_id)
+        next_id = find_next_question_id(cur, question_id, answer_value)
+        if next_id is None:
+            profile = complete_assessment(cur, conn, assessment_id)
             return jsonify({
                 "complete": True,
                 "assessment_id": assessment_id,
                 "profile": profile,
             })
 
-        # Fetch the next question's details
-        cur.execute(
-            "SELECT question_id, audio_stimulus_ref, question_type "
-            "FROM questions WHERE question_id = %s",
-            (rule["next_question_id"],),
-        )
-        next_q = cur.fetchone()
+        question = fetch_question(cur, next_id)
 
-    return jsonify({
-        "complete": False,
-        "question": next_q,
-    })
+    return jsonify({"complete": False, "question": question})
+
+
+def record_response(cur, conn, assessment_id, question_id, answer_value,
+                    sequence_order):
+    """Log one answer against its assessment."""
+    cur.execute(
+        "INSERT INTO responses "
+        "(assessment_id, question_id, answer_value, sequence_order) "
+        "VALUES (%s, %s, %s, %s)",
+        (assessment_id, question_id, answer_value, sequence_order),
+    )
+    conn.commit()
+
+
+def find_next_question_id(cur, question_id, answer_value):
+    """The question this answer branches to, or None when the quiz ends."""
+    cur.execute(
+        "SELECT next_question_id FROM question_rules "
+        "WHERE from_question_id = %s AND condition_answer_value = %s "
+        "ORDER BY priority ASC LIMIT 1",
+        (question_id, answer_value),
+    )
+    rule = cur.fetchone()
+    return rule["next_question_id"] if rule else None
+
+
+def fetch_question(cur, question_id):
+    """The details the frontend needs to display one question."""
+    cur.execute(
+        "SELECT question_id, audio_stimulus_ref, question_type "
+        "FROM questions WHERE question_id = %s",
+        (question_id,),
+    )
+    return cur.fetchone()
+
+
+def complete_assessment(cur, conn, assessment_id):
+    """Mark the assessment finished and build the resulting profile."""
+    cur.execute(
+        "UPDATE assessments SET status = 'completed', completed_at = NOW() "
+        "WHERE assessment_id = %s",
+        (assessment_id,),
+    )
+    conn.commit()
+    return _generate_profile(cur, conn, assessment_id)
 
 
 if __name__ == "__main__":
     if DEBUG_MODE:
         print("WARNING: FLASK_DEBUG=1 — the interactive debugger is ON. "
-              "Only run this if the service is NOT reachable from outside your own machine.")
-    app.run(host="0.0.0.0", port=5001, debug=DEBUG_MODE)
+              "Only run this if the service is NOT reachable from outside "
+              "your own machine.")
+    app.run(host=DEFAULT_HOST, port=DEFAULT_PORT, debug=DEBUG_MODE)

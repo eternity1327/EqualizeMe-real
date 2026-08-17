@@ -1,44 +1,21 @@
 """
-import_to_db.py
------------------
-Ties catalog_parser.py + measurement_parser.py together and imports
-IEMs into the EqualizeME `iems` MySQL table.
+Import IEMs into the `iems` table.
 
-USAGE
-  python backend/import_to_db.py phone_book.json measurements_dir/ [--dry-run]
+Combines catalog_parser (names, prices, shop links) with
+measurement_parser (three gain figures and the curve) and writes one row
+per IEM. Entries without a usable measurement file are skipped and listed
+at the end rather than guessed at.
 
-  phone_book.json    the full squig.link catalog file
-  measurements_dir/  a folder of REW .txt files, one per IEM, where
-                      each filename (minus .txt) matches a catalog
-                      entry's "file" field, e.g.:
-                        "Moondrop Blessing 3.txt"  <-> file: "Moondrop Blessing 3"
-  (default)           prints the generated SQL instead of touching
-                      the database -- read it before doing anything else
-  --live              actually connects and executes the inserts
-                      (only use this after you've verified DB_CONFIG
-                      and IEMS_TABLE_COLUMNS below match your real schema)
+Only each IEM's primary measurement variant is imported; alternate
+seatings or switch positions would need a separate table.
 
-WHAT THIS DOES NOT DO
-  - It does not guess filenames. Only catalog entries with a matching
-    .txt file in measurements_dir get imported (everything else is
-    skipped and listed at the end) -- you only gave me one sample
-    measurement so far, so most rows will skip until you drop more
-    REW files in that folder.
-  - It only imports each IEM's PRIMARY file/variant (the first one
-    listed), not every shallow/deep/switch-position variant. Ask if
-    you want those stored too -- would need a separate table.
+Usage:
+    python backend/import_to_db.py phone_book.json measurements/
+    python backend/import_to_db.py phone_book.json measurements/ --live
 
-BEFORE RUNNING FOR REAL
-  1. Add the shop_link column (iems currently only has retailer_id,
-     not a direct URL column):
-       ALTER TABLE iems ADD COLUMN shop_link VARCHAR(500) NULL;
-  2. Double check the rest of IEMS_TABLE_COLUMNS below against your
-     actual schema (SHOW COLUMNS FROM iems;) -- bass/presence/treble
-     gain column names are going off what's in memory from earlier
-     sessions, not a live check.
-  3. Fill in DB_CONFIG below (or set the env vars).
-  4. Run without --live first and read the generated SQL before
-     letting it touch your real database.
+Without --live the SQL is printed instead of executed, so it can be read
+first. Re-running is safe: the statement upserts, provided the
+UNIQUE (brand, name) key from sql/schema_cleanup.sql exists.
 """
 
 import argparse
@@ -52,9 +29,6 @@ from catalog_parser import load_catalog
 from measurement_parser import parse_rew_file, compute_gains, serialize_curve
 from interpreter import describe_curve
 
-# ---------------------------------------------------------------
-# CONFIG -- adjust these to match your real setup
-# ---------------------------------------------------------------
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
     "user": os.environ.get("DB_USER", "root"),
@@ -62,14 +36,23 @@ DB_CONFIG = {
     "database": os.environ.get("DB_NAME", "equalizeme"),
 }
 
-# Column names in your `iems` table. Adjust to match SHOW COLUMNS FROM iems;
-#
-# NOTE: the model name lives in a column called `name`, not `model` --
-# confirmed against the recommendations query in ai_service.py, which
-# does `SELECT i.id, i.name, i.brand, ...`. Writing to `model` would
-# either error or leave `name` NULL, and every imported IEM would render
-# with a blank title on recommendations.html.
+# How many skipped entries to print before summarising the rest.
+MAX_SKIPPED_SHOWN = 50
+
+# Channel suffix on a squiglink export: "L", "R", or a numbered variant.
+CHANNEL_SUFFIX = r"[LR]\d*"
+
+# Positions within a measurement point, as parsed from a REW file.
+FREQUENCY, SPL, PHASE = 0, 1, 2
+
+# cur.execute() returns this when the row was new rather than updated.
+ROWS_AFFECTED_BY_INSERT = 1
+
 IEMS_TABLE = "iems"
+
+# Script field -> database column. The model name lives in `name`, not
+# `model`: writing to `model` would leave `name` NULL and every imported
+# IEM would render with a blank title.
 IEMS_TABLE_COLUMNS = {
     "brand": "brand",
     "model": "name",
@@ -81,9 +64,9 @@ IEMS_TABLE_COLUMNS = {
     "fr_curve_json": "fr_curve_json",
     "description": "description",
 }
-# Note: retailer_id (the old FK-based retailer link) is intentionally
-# not touched by this script -- shop_link replaces it as the source
-# of the "buy" link for IEMs imported this way.
+
+# retailer_id is deliberately untouched — shop_link is the buy link for
+# IEMs imported this way.
 INSERT_KEYS = ["brand", "model", "price", "shop_link", "bass_gain",
                "presence_gain", "treble_gain", "fr_curve_json", "description"]
 
@@ -102,125 +85,122 @@ def _find_exact(measurements_dir, name):
 
 def find_measurement_files(measurements_dir, filename_stem):
     """
-    All measurement files belonging to one catalog entry.
+    All measurement files belonging to one catalogue entry.
 
-    Squiglink does NOT store measurements as "<file>.txt". Per the
-    official docs, exports are named by channel:
-
-        Dunu Zen L.txt          Dunu Zen R.txt
-        Dunu Zen L1.txt ...     Dunu Zen R1.txt ...   (multi-sample sites)
-
-    while the phone_book "file" field is just "Dunu Zen". Looking only
-    for an exact "<file>.txt" therefore matches nothing on a real
-    squiglink download — every IEM would be reported as skipped.
-
-    Returns a list of paths (possibly several channels/seatings), which
-    the caller averages into a single curve. Falls back to a plain
-    "<file>.txt" for databases that do store it that way.
+    Squiglink exports are named by channel — "Dunu Zen L.txt",
+    "Dunu Zen R.txt" — while the catalogue's file field is just
+    "Dunu Zen", so an exact "<file>.txt" lookup matches nothing on a real
+    download. The plain name is still tried as a fallback.
     """
-    found = []
-
-    # Channel/seating variants: "<name> L", "<name> R", "<name> L1"...
-    for candidate in sorted(measurements_dir.glob("*.txt")):
-        stem = candidate.stem
-        if not stem.lower().startswith(filename_stem.lower()):
-            continue
-        suffix = stem[len(filename_stem):].strip()
-        # Accept L / R optionally followed by a sample number. Anything
-        # else is a different IEM whose name merely starts the same
-        # (e.g. "Moondrop Aria" vs "Moondrop Aria 2"), so skip it.
-        if re.fullmatch(r"[LR]\d*", suffix, flags=re.IGNORECASE):
-            found.append(candidate)
-
-    if found:
-        return found
+    channels = [
+        path for path in sorted(measurements_dir.glob("*.txt"))
+        if _is_channel_of(path.stem, filename_stem)
+    ]
+    if channels:
+        return channels
 
     plain = _find_exact(measurements_dir, filename_stem)
     return [plain] if plain else []
 
 
-def average_curves(curve_list):
-    """
-    Average several channel/seating measurements into one curve.
+def _is_channel_of(stem, filename_stem):
+    """True when `stem` is `filename_stem` plus a channel suffix."""
+    if not stem.lower().startswith(filename_stem.lower()):
+        return False
+    # L or R, optionally numbered for multi-sample databases. Anything
+    # else is a different IEM whose name merely starts the same way
+    # ("Moondrop Aria" vs "Moondrop Aria 2").
+    suffix = stem[len(filename_stem):].strip()
+    return bool(re.fullmatch(CHANNEL_SUFFIX, suffix, flags=re.IGNORECASE))
 
-    Squiglink graphs show the average of the L and R channels rather
-    than either alone, so matching that keeps our numbers comparable to
-    what the site displays. Frequencies are taken from the first file;
-    the others are matched by index, which is safe because the export
-    settings squiglink requires (20-20kHz, 48 PPO) produce identical
-    frequency points across files from the same database.
-    """
-    if len(curve_list) == 1:
-        return curve_list[0]
 
-    shortest = min(len(c) for c in curve_list)
-    averaged = []
-    for i in range(shortest):
-        freq = curve_list[0][i][0]
-        spl = sum(c[i][1] for c in curve_list) / len(curve_list)
-        phase = curve_list[0][i][2]
-        averaged.append((freq, spl, phase))
-    return averaged
+def average_curves(curves):
+    """
+    Average several channel measurements into one curve.
+
+    Squiglink's own graphs show the L/R average, so matching that keeps
+    these numbers comparable to the site. Points are matched by index,
+    which is safe because squiglink's required export settings
+    (20-20 kHz, 48 PPO) give identical frequency points.
+    """
+    if len(curves) == 1:
+        return curves[0]
+
+    reference = curves[0]
+    shortest = min(len(curve) for curve in curves)
+    return [
+        (
+            reference[i][FREQUENCY],
+            sum(curve[i][SPL] for curve in curves) / len(curves),
+            reference[i][PHASE],
+        )
+        for i in range(shortest)
+    ]
 
 
 def build_rows(catalog_path, measurements_dir):
     """
-    Returns (matched_rows, unmatched_models) where matched_rows is a
-    list of dicts ready for insertion and unmatched_models is a list
-    of "Brand Model" strings that had no measurement file found.
+    Split the catalogue into importable rows and skipped entries.
+
+    Returns (matched_rows, skipped) where skipped holds "Brand Model
+    (reason)" strings so the operator can see what didn't make it.
     """
-    catalog = load_catalog(catalog_path)
-    matched, unmatched = [], []
+    matched, skipped = [], []
 
-    for entry in catalog:
-        if not entry["primary_file"]:
-            unmatched.append(f"{entry['brand']} {entry['model']} (no file field)")
-            continue
+    for entry in load_catalog(catalog_path):
+        row, reason = _build_row(entry, measurements_dir)
+        if row:
+            matched.append(row)
+        else:
+            skipped.append(f"{entry['brand']} {entry['model']} ({reason})")
 
-        mfiles = find_measurement_files(measurements_dir, entry["primary_file"])
-        if not mfiles:
-            unmatched.append(
-                f"{entry['brand']} {entry['model']} "
-                f"(expected '{entry['primary_file']} L.txt' / "
-                f"'{entry['primary_file']} R.txt')"
-            )
-            continue
+    return matched, skipped
 
-        curves = [parse_rew_file(f) for f in mfiles]
-        curves = [c for c in curves if c]
-        if not curves:
-            unmatched.append(
-                f"{entry['brand']} {entry['model']} "
-                f"(measurement file(s) found but empty/unparseable)"
-            )
-            continue
 
-        points = average_curves(curves)
-        gains = compute_gains(points)
-        if gains["bass_gain"] is None:
-            unmatched.append(
-                f"{entry['brand']} {entry['model']} "
-                f"(measurement found but missing mid-band reference data)"
-            )
-            continue
+def _build_row(entry, measurements_dir):
+    """
+    One catalogue entry as an insertable row.
 
-        matched.append({
-            "brand": entry["brand"],
-            "model": entry["model"],
-            "price": entry["price"],
-            "shop_link": entry["shop_link"],
-            "bass_gain": gains["bass_gain"],
-            "presence_gain": gains["presence_gain"],
-            "treble_gain": gains["treble_gain"],
-            "fr_curve_json": json.dumps(serialize_curve(points)),
-            "description": describe_curve(
-                gains["bass_gain"],
-                gains["presence_gain"],
-                gains["treble_gain"],
-            ),
-        })
+    Returns (row, None) on success or (None, reason) when the entry has
+    no usable measurement.
+    """
+    stem = entry["primary_file"]
+    if not stem:
+        return None, "no file field"
 
-    return matched, unmatched
+    files = find_measurement_files(measurements_dir, stem)
+    if not files:
+        return None, f"expected '{stem} L.txt' / '{stem} R.txt'"
+
+    curves = [c for c in (parse_rew_file(f) for f in files) if c]
+    if not curves:
+        return None, "measurement file(s) found but empty/unparseable"
+
+    points = average_curves(curves)
+    gains = compute_gains(points)
+    if gains["bass_gain"] is None:
+        return None, "measurement found but missing mid-band reference data"
+
+    return _row_from(entry, points, gains), None
+
+
+def _row_from(entry, points, gains):
+    """Assemble the column values for one IEM."""
+    return {
+        "brand": entry["brand"],
+        "model": entry["model"],
+        "price": entry["price"],
+        "shop_link": entry["shop_link"],
+        "bass_gain": gains["bass_gain"],
+        "presence_gain": gains["presence_gain"],
+        "treble_gain": gains["treble_gain"],
+        "fr_curve_json": json.dumps(serialize_curve(points)),
+        "description": describe_curve(
+            gains["bass_gain"],
+            gains["presence_gain"],
+            gains["treble_gain"],
+        ),
+    }
 
 
 # Columns refreshed when a row already exists. brand and name identify the
@@ -233,108 +213,88 @@ def _upsert_clause():
     """
     The ON DUPLICATE KEY UPDATE tail that makes importing idempotent.
 
-    Without it a second import inserted a whole second copy of every IEM,
-    because nothing in the statement told MySQL these rows were the same
-    ones. Re-running after adding measurements or recalibrating the
-    description thresholds is a normal thing to want to do, and it
-    shouldn't silently double the catalogue.
-
     Requires a UNIQUE key on (brand, name) — see sql/schema_cleanup.sql.
-    Without that constraint MySQL has no way to detect the collision and
-    this clause simply never fires.
+    Without that constraint MySQL can't detect the collision, this clause
+    never fires, and a second import duplicates the whole catalogue.
     """
-    cols = IEMS_TABLE_COLUMNS
-    assignments = ", ".join(f"{cols[k]} = VALUES({cols[k]})" for k in UPDATE_KEYS)
+    columns = IEMS_TABLE_COLUMNS
+    assignments = ", ".join(
+        f"{columns[key]} = VALUES({columns[key]})" for key in UPDATE_KEYS
+    )
     return f" ON DUPLICATE KEY UPDATE {assignments}"
+
+
+# MySQL characters that must be escaped inside a quoted string literal,
+# backslash first so later replacements aren't double-escaped.
+SQL_ESCAPES = [
+    ("\\", "\\\\"),
+    ("'", "\\'"),
+    ('"', '\\"'),
+    ("\n", "\\n"),
+    ("\r", "\\r"),
+    ("\x1a", "\\Z"),
+    ("\0", "\\0"),
+]
 
 
 def _sql_literal(value):
     """
-    Render a value as a SQL literal for the PREVIEW output.
+    Render a value as a SQL literal for the preview output.
 
-    Only the preview needs this — the --live path sends values as real
-    query parameters and never builds SQL from them. But the preview is
-    printed so it can be read and, quite reasonably, pasted into
-    phpMyAdmin, so the SQL it produces has to be correct.
-
-    The previous version escaped by doubling apostrophes and nothing else,
-    which breaks on backslashes. MySQL treats a backslash as an escape
-    character by default, so:
-
-        Foo\\' ; DROP TABLE iems;--
-
-    became  'Foo\\'' ; DROP TABLE iems;--'  — the \\' is read as an escaped
-    apostrophe, the next ' closes the string early, and the rest is
-    executable SQL. A value ending in a backslash escaped the closing
-    quote instead, breaking the statement.
-
-    This data comes from a third-party catalogue rather than from users,
-    so it isn't an active attack path — but it is untrusted input being
-    rendered into SQL a person may run, and a brand name containing a
-    backslash would corrupt the import without anyone acting maliciously.
-
-    pymysql's escaper handles backslashes, control characters and quotes
-    correctly; the fallback covers the same cases if it isn't installed
-    (the preview shouldn't require a database driver to run).
+    Only the preview needs this — --live sends values as real query
+    parameters. But the preview is printed to be read and pasted into
+    phpMyAdmin, so it has to be correct. Doubling apostrophes alone is
+    not: MySQL treats a backslash as an escape character, so a value
+    like  Foo\\' ; DROP TABLE iems;--  would close the string early and
+    leave the rest executable.
     """
     if value is None:
         return "NULL"
-
     if isinstance(value, (int, float)):
         return repr(value)
+    return "'" + _escape_sql_string(str(value)) + "'"
 
-    text = str(value)
 
+def _escape_sql_string(text):
+    """Escape a string for use inside single quotes in MySQL."""
     try:
         from pymysql.converters import escape_string
-        return "'" + escape_string(text) + "'"
+        return escape_string(text)
     except ImportError:
-        # Backslashes first — doing them later would double-escape the
-        # backslashes introduced by the replacements below.
-        escaped = text.replace("\\", "\\\\")
-        escaped = escaped.replace("'", "\\'")
-        escaped = escaped.replace('"', '\\"')
-        escaped = escaped.replace("\n", "\\n")
-        escaped = escaped.replace("\r", "\\r")
-        escaped = escaped.replace("\x1a", "\\Z")
-        escaped = escaped.replace("\0", "\\0")
-        return "'" + escaped + "'"
+        # The preview shouldn't need a database driver installed.
+        for char, replacement in SQL_ESCAPES:
+            text = text.replace(char, replacement)
+        return text
+
+
+def _insert_prefix():
+    """The shared INSERT INTO ... (columns) opening."""
+    columns = ", ".join(IEMS_TABLE_COLUMNS[key] for key in INSERT_KEYS)
+    return f"INSERT INTO {IEMS_TABLE} ({columns})"
 
 
 def render_sql(rows):
-    cols = IEMS_TABLE_COLUMNS
-    col_list = ", ".join(cols[k] for k in INSERT_KEYS)
+    """The import as readable SQL, for review before running it."""
+    prefix = _insert_prefix()
     upsert = _upsert_clause()
-    statements = []
-    for r in rows:
-        values = ", ".join(_sql_literal(r[k]) for k in INSERT_KEYS)
-        statements.append(
-            f"INSERT INTO {IEMS_TABLE} ({col_list}) VALUES ({values}){upsert};"
-        )
-    return statements
+    return [
+        f"{prefix} VALUES ("
+        + ", ".join(_sql_literal(row[key]) for key in INSERT_KEYS)
+        + f"){upsert};"
+        for row in rows
+    ]
 
 
 def run_import(rows):
+    """Execute the import, reporting how many rows were new."""
     import pymysql
-    conn = pymysql.connect(**DB_CONFIG)
-    cols = IEMS_TABLE_COLUMNS
-    col_list = ", ".join(cols[k] for k in INSERT_KEYS)
-    placeholders = ", ".join(["%s"] * len(INSERT_KEYS))
-    sql = (f"INSERT INTO {IEMS_TABLE} ({col_list}) VALUES ({placeholders})"
-           + _upsert_clause())
 
-    inserted = updated = 0
+    placeholders = ", ".join(["%s"] * len(INSERT_KEYS))
+    sql = f"{_insert_prefix()} VALUES ({placeholders}){_upsert_clause()}"
+
+    conn = pymysql.connect(**DB_CONFIG)
     try:
-        with conn.cursor() as cur:
-            for r in rows:
-                affected = cur.execute(sql, tuple(r[k] for k in INSERT_KEYS))
-                # MySQL reports 1 row affected for an insert and 2 for an
-                # update performed by ON DUPLICATE KEY (0 if the values were
-                # already identical).
-                if affected == 1:
-                    inserted += 1
-                else:
-                    updated += 1
+        inserted, updated = _execute_rows(conn, sql, rows)
         conn.commit()
         print(f"{inserted} new IEMs inserted, {updated} existing rows updated "
               f"in {IEMS_TABLE}.")
@@ -342,39 +302,65 @@ def run_import(rows):
         conn.close()
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def _execute_rows(conn, sql, rows):
+    """Run the statement for every row, counting inserts against updates."""
+    inserted = updated = 0
+    with conn.cursor() as cur:
+        for row in rows:
+            affected = cur.execute(sql, tuple(row[key] for key in INSERT_KEYS))
+            # MySQL reports 1 affected row for an insert, 2 for an update
+            # via ON DUPLICATE KEY, 0 when the values were already equal.
+            if affected == ROWS_AFFECTED_BY_INSERT:
+                inserted += 1
+            else:
+                updated += 1
+    return inserted, updated
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("catalog_path")
     parser.add_argument("measurements_dir")
     parser.add_argument(
         "--live",
         action="store_true",
-        help="actually execute inserts against the database "
-             "(default is to print SQL only)",
+        help="execute the inserts (default is to print the SQL only)",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def _report_skipped(skipped):
+    """List what didn't import, on stderr so it stays out of the SQL."""
+    if not skipped:
+        return
+
+    print(f"\n--- Skipped ({len(skipped)}) ---", file=sys.stderr)
+    for entry in skipped[:MAX_SKIPPED_SHOWN]:
+        print(f"  {entry}", file=sys.stderr)
+
+    remaining = len(skipped) - MAX_SKIPPED_SHOWN
+    if remaining > 0:
+        print(f"  ... and {remaining} more", file=sys.stderr)
+
+
+def main():
+    args = _parse_args()
 
     measurements_dir = Path(args.measurements_dir)
     if not measurements_dir.is_dir():
         sys.exit(f"Not a directory: {measurements_dir}")
 
-    matched, unmatched = build_rows(args.catalog_path, measurements_dir)
-
+    matched, skipped = build_rows(args.catalog_path, measurements_dir)
     print(f"Matched {len(matched)} IEMs to a measurement file.")
-    print(f"Skipped {len(unmatched)} (no matching .txt found).\n")
+    print(f"Skipped {len(skipped)} (no matching .txt found).\n")
 
     if args.live:
         run_import(matched)
     else:
-        for stmt in render_sql(matched):
-            print(stmt)
+        for statement in render_sql(matched):
+            print(statement)
 
-    if unmatched:
-        print(f"\n--- Skipped ({len(unmatched)}) ---", file=sys.stderr)
-        for m in unmatched[:50]:
-            print(f"  {m}", file=sys.stderr)
-        if len(unmatched) > 50:
-            print(f"  ... and {len(unmatched) - 50} more", file=sys.stderr)
+    _report_skipped(skipped)
 
 
 if __name__ == "__main__":

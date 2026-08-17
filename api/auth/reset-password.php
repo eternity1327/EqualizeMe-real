@@ -1,16 +1,10 @@
 <?php
 /**
- * Step 2 of password reset: user submits the token from their email plus
- * a new password.
+ * Step 2 of password reset: the user submits the emailed token and a new
+ * password.
  *
- * Token rules enforced here:
- *   - must match a stored hash
- *   - must not be expired
- *   - must not have been used already
- *   - is marked used the moment it succeeds, so it can't be replayed
- *
- * All existing sessions for that user are left alone deliberately — see
- * the note at the bottom.
+ * A token must match a stored hash, be unexpired, and be unused — and is
+ * marked used the moment it succeeds, so it can't be replayed.
  */
 require_once __DIR__ . "/../session.php";
 require_once __DIR__ . "/../db.php";
@@ -20,11 +14,32 @@ require_once __DIR__ . "/../password_policy.php";
 start_secure_session();
 header("Content-Type: application/json");
 
+// One message for every "this token won't work" case. Distinguishing
+// expired from already-used from never-existed only helps someone
+// probing token values.
+const INVALID_TOKEN_MESSAGE =
+    "This reset link is invalid or has expired. Please request a new one.";
+
 // Guards against someone brute-forcing token values.
-if (!rate_limit_check("reset_submit", 10, 900)) {
+if (!rate_limit_check(
+    "reset_submit",
+    RESET_SUBMIT_MAX_ATTEMPTS,
+    RESET_SUBMIT_WINDOW_SECONDS
+)) {
     http_response_code(429);
-    echo json_encode(["error" => "Too many attempts. Please wait a few minutes and try again."]);
+    echo json_encode([
+        "error" => "Too many attempts. Please wait a few minutes and try again.",
+    ]);
     exit;
+}
+
+/**
+ * True when this reset row can still be redeemed.
+ */
+function reset_is_usable($reset) {
+    return $reset
+        && $reset["used_at"] === null
+        && strtotime($reset["expires_at"]) >= time();
 }
 
 $body = json_decode(file_get_contents("php://input"), true);
@@ -36,7 +51,9 @@ $password = $body["password"] ?? "";
 
 if ($token === "") {
     http_response_code(400);
-    echo json_encode(["error" => "This reset link is missing its token. Please use the link from your email."]);
+    echo json_encode([
+        "error" => "This reset link is missing its token. Please use the link from your email.",
+    ]);
     exit;
 }
 
@@ -56,14 +73,9 @@ try {
     $stmt->execute([$tokenHash]);
     $reset = $stmt->fetch();
 
-    // One shared message for every "this token won't work" case — telling
-    // the difference between expired, already-used and never-existed only
-    // helps someone probing tokens.
-    $invalidMessage = "This reset link is invalid or has expired. Please request a new one.";
-
-    if (!$reset || $reset["used_at"] !== null || strtotime($reset["expires_at"]) < time()) {
+    if (!reset_is_usable($reset)) {
         http_response_code(400);
-        echo json_encode(["error" => $invalidMessage]);
+        echo json_encode(["error" => INVALID_TOKEN_MESSAGE]);
         exit;
     }
 
@@ -83,18 +95,18 @@ try {
     $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")
         ->execute([$hash, $reset["user_id"]]);
 
-    // Mark this token used, and clear any other outstanding ones for the
+    // Mark this token used and clear any other outstanding ones for the
     // same user in the same breath.
-    $pdo->prepare("UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL")
-        ->execute([$reset["user_id"]]);
+    $pdo->prepare(
+        "UPDATE password_resets SET used_at = NOW()
+         WHERE user_id = ? AND used_at IS NULL"
+    )->execute([$reset["user_id"]]);
 
     $pdo->commit();
 
-    // NOTE: other devices already logged in as this user stay logged in.
-    // Killing them would need a server-side session store keyed by user,
-    // which this project doesn't have (PHP's default file sessions can't
-    // be looked up by user id). Worth adding if account takeover ever
-    // becomes a real concern here.
+    // Other devices already signed in as this user stay signed in.
+    // Ending them needs a session store keyed by user, which PHP's
+    // default file sessions can't provide.
 
     echo json_encode([
         "status" => "ok",

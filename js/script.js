@@ -224,33 +224,8 @@ async function choose(sound) {
 }
 
 // Used on recommendations.html - fetches matching IEMs from the real backend
-async function loadRecommendations() {
-  const grid = document.getElementById("iem-grid");
-  if (!grid) return;
-
-  try {
-    // Get the logged-in user's id via the PHP session (same-origin, so this works)
-    const meRes = await fetch("api/auth/me.php");
-    if (!meRes.ok) {
-      grid.innerHTML = "<p>Please log in first.</p>";
-      return;
-    }
-    const me = await meRes.json();
-
-    const res = await fetch(`${DSP_SERVICE_URL}/recommendations/${me.id}`);
-    const data = await res.json();
-
-    if (data.error) {
-      grid.innerHTML = `<p>${data.error}. Take the <a href="test.html">listening test</a> first.</p>`;
-      return;
-    }
-
-    if (!data.recommendations || data.recommendations.length === 0) {
-      grid.innerHTML = "<p>No matching IEMs found yet.</p>";
-      return;
-    }
-
-    grid.innerHTML = data.recommendations.map(item => `
+function buildIemCard(item) {
+  return `
       <div class="iem-card" data-iem-id="${item.iem_id}">
         <img class="iem-card-img" src="${item.image_url || 'images/iem-placeholder.svg'}"
           alt="${item.brand} ${item.name}"
@@ -266,53 +241,88 @@ async function loadRecommendations() {
         </div>
         ${buildBuyLinks(item)}
       </div>
-    `).join("");
+    `;
+}
 
-    // Charts are loaded after the cards are on the page, one request per
-    // IEM. Done separately from the main render so a missing measurement
-    // (the common case until REW files are imported) can't hold up or
-    // break the cards themselves.
-    data.recommendations.forEach(item => {
-      const card = grid.querySelector(`.iem-card[data-iem-id="${item.iem_id}"]`);
-      if (card) renderIemCurve(item.iem_id, card, data.profile);
-    });
+/**
+ * Charts load after the cards are on the page, one request per IEM, so a
+ * missing measurement can't hold up or break the cards themselves.
+ */
+function renderCurves(grid, data) {
+  data.recommendations.forEach(item => {
+    const card = grid.querySelector(`.iem-card[data-iem-id="${item.iem_id}"]`);
+    if (card) renderIemCurve(item.iem_id, card, data.profile);
+  });
+}
+
+async function loadRecommendations() {
+  const grid = document.getElementById("iem-grid");
+  if (!grid) return;
+
+  try {
+    // The user's id comes from the PHP session, which is same-origin.
+    const meRes = await fetch("api/auth/me.php");
+    if (!meRes.ok) {
+      grid.innerHTML = "<p>Please log in first.</p>";
+      return;
+    }
+    const me = await meRes.json();
+
+    const res = await fetch(`${DSP_SERVICE_URL}/recommendations/${me.id}`);
+    const data = await res.json();
+
+    if (data.error) {
+      grid.innerHTML =
+        `<p>${data.error}. Take the <a href="test.html">listening test</a> first.</p>`;
+      return;
+    }
+
+    if (!data.recommendations || data.recommendations.length === 0) {
+      grid.innerHTML = "<p>No matching IEMs found yet.</p>";
+      return;
+    }
+
+    grid.innerHTML = data.recommendations.map(buildIemCard).join("");
+    renderCurves(grid, data);
   } catch (err) {
     grid.innerHTML = "<p>Could not load recommendations.</p>";
     console.error(err);
   }
 }
 
-// ---------------------------------------------------------------------------
-// Turning the listener's three preference numbers into a curve
+// Turning the listener's three preference numbers into a curve.
 //
-// The profile is three figures — bass, presence and treble gain — while an
-// IEM measurement is several hundred points. To draw them on the same axes
-// the three numbers have to become a curve.
+// A profile is three figures; an IEM measurement is several hundred
+// points. To draw them on the same axes, the three are expanded through
+// the exact filters the listening test applied — the same biquads
+// camilla_dsp.py and adaptiveTest.js use. The line drawn is literally the
+// EQ the listener chose, computed by Web Audio's own
+// getFrequencyResponse() rather than a hand-rolled approximation.
 //
-// They're expanded through the exact filters the listening test applied:
-// a 100 Hz low shelf, a 3 kHz peak and an 8 kHz high shelf, matching the
-// biquads in camilla_dsp.py. So the line drawn is literally the EQ the
-// listener chose during the test, not an artist's impression of it.
-//
-// Web Audio's BiquadFilterNode.getFrequencyResponse() does the maths,
-// which keeps this honest: the same filter definitions the browser and
-// CamillaDSP both implement, rather than a hand-rolled approximation.
-// ---------------------------------------------------------------------------
-const PREFERENCE_FILTERS = [
-  { type: "lowshelf", frequency: 100, Q: 0.7, band: "bass_gain" },
-  { type: "peaking", frequency: 3000, Q: 1.4, band: "presence_gain" },
-  { type: "highshelf", frequency: 8000, Q: 0.7, band: "treble_gain" },
+// Defined here because script.js loads before adaptiveTest.js, which
+// builds its playback filters from this same list.
+const EQ_BANDS = [
+  { type: "lowshelf", frequency: 100, Q: 0.7, band: "bass_gain", gainKey: "bassGain" },
+  { type: "peaking", frequency: 3000, Q: 1.4, band: "presence_gain", gainKey: "presenceGain" },
+  { type: "highshelf", frequency: 8000, Q: 0.7, band: "treble_gain", gainKey: "trebleGain" },
 ];
+
+// getFrequencyResponse() needs a context but not a real one; a single
+// frame at CD rate is the cheapest that satisfies the constructor.
+const ANALYSIS_SAMPLE_RATE = 44100;
+
+// Amplitude ratio to decibels.
+const DB_PER_DECADE = 20;
 
 function buildPreferenceCurve(profile, frequencies) {
   if (!profile || typeof OfflineAudioContext === "undefined") return null;
 
   try {
-    const ctx = new OfflineAudioContext(1, 1, 44100);
+    const ctx = new OfflineAudioContext(1, 1, ANALYSIS_SAMPLE_RATE);
     const freqArray = new Float32Array(frequencies);
     const totalDb = new Float32Array(frequencies.length);
 
-    for (const spec of PREFERENCE_FILTERS) {
+    for (const spec of EQ_BANDS) {
       const gain = Number(profile[spec.band] ?? 0);
       if (!gain) continue;
 
@@ -328,7 +338,7 @@ function buildPreferenceCurve(profile, frequencies) {
 
       // Filters chain in series, so their dB contributions add.
       for (let i = 0; i < mag.length; i++) {
-        totalDb[i] += 20 * Math.log10(mag[i]);
+        totalDb[i] += DB_PER_DECADE * Math.log10(mag[i]);
       }
     }
 
@@ -359,6 +369,75 @@ function normaliseToMidband(curve) {
 // An IEM with no imported measurement returns 404 — expected, not an
 // error — so the curve section just stays hidden and the card renders
 // normally without it.
+// Chart appearance, kept together so the two lines stay visually
+// distinguishable if either is restyled.
+const CURVE_LINE_WIDTH = 2;
+const CURVE_TENSION = 0.1;
+const PREFERENCE_DASH = [6, 4];
+const CURVE_X_TICK_LIMIT = 7;
+const LEGEND_BOX_WIDTH = 24;
+const LEGEND_FONT_SIZE = 11;
+
+function curveDatasets(shaped, preference) {
+  const styles = getComputedStyle(document.documentElement);
+  const iemColour = styles.getPropertyValue("--accent").trim() || "#e8a33d";
+  const prefColour = styles.getPropertyValue("--accent-2").trim() || "#5b8def";
+
+  const datasets = [{
+    label: "This IEM",
+    data: shaped.map(([, db]) => db),
+    borderColor: iemColour,
+    borderWidth: CURVE_LINE_WIDTH,
+    pointRadius: 0,
+    tension: CURVE_TENSION,
+  }];
+
+  if (preference) {
+    datasets.push({
+      label: "Your preference",
+      data: preference,
+      borderColor: prefColour,
+      borderWidth: CURVE_LINE_WIDTH,
+      borderDash: PREFERENCE_DASH,
+      pointRadius: 0,
+      tension: CURVE_TENSION,
+    });
+  }
+
+  return datasets;
+}
+
+function curveChartOptions() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: "index", intersect: false },
+    scales: {
+      // Logarithmic because hearing is: the octave from 100 to 200 Hz
+      // matters as much as the one from 5 to 10 kHz.
+      x: {
+        type: "logarithmic",
+        title: { display: true, text: "Frequency (Hz)" },
+        ticks: { maxTicksLimit: CURVE_X_TICK_LIMIT },
+      },
+      y: {
+        title: { display: true, text: "dB (relative to midrange)" },
+      },
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: "bottom",
+        labels: {
+          boxWidth: LEGEND_BOX_WIDTH,
+          font: { size: LEGEND_FONT_SIZE },
+        },
+      },
+    },
+  };
+}
+
 async function renderIemCurve(iemId, cardEl, profile) {
   const wrap = cardEl.querySelector(".iem-curve-wrap");
   if (!wrap) return;
@@ -372,9 +451,8 @@ async function renderIemCurve(iemId, cardEl, profile) {
 
     cardEl.querySelector(".iem-description").textContent = description || "";
 
-    // Chart.js is loaded from a CDN in recommendations.html. If it's
-    // blocked or offline, still show the written description rather than
-    // failing outright — the sentence is the more important half.
+    // Chart.js comes from a CDN. If it's blocked, still show the written
+    // description — the sentence is the more important half.
     if (typeof Chart === "undefined") {
       wrap.hidden = false;
       return;
@@ -382,60 +460,14 @@ async function renderIemCurve(iemId, cardEl, profile) {
 
     const shaped = normaliseToMidband(curve);
     const freqs = shaped.map(([f]) => f);
-    const preference = buildPreferenceCurve(profile, freqs);
 
-    const styles = getComputedStyle(document.documentElement);
-    const iemColour = styles.getPropertyValue("--accent").trim() || "#e8a33d";
-    const prefColour = styles.getPropertyValue("--accent-2").trim() || "#5b8def";
-
-    const datasets = [{
-      label: "This IEM",
-      data: shaped.map(([, db]) => db),
-      borderColor: iemColour,
-      borderWidth: 2,
-      pointRadius: 0,
-tension: 0.1,
-    }];
-
-    if (preference) {
-      datasets.push({
-        label: "Your preference",
-        data: preference,
-        borderColor: prefColour,
-        borderWidth: 2,
-        borderDash: [6, 4],
-        pointRadius: 0,
-        tension: 0.1,
-      });
-    }
-
-    const ctx = cardEl.querySelector(".iem-curve-chart").getContext("2d");
-    new Chart(ctx, {
+    new Chart(cardEl.querySelector(".iem-curve-chart").getContext("2d"), {
       type: "line",
-      data: { labels: freqs, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        interaction: { mode: "index", intersect: false },
-        scales: {
-          x: {
-            type: "logarithmic",
-            title: { display: true, text: "Frequency (Hz)" },
-            ticks: { maxTicksLimit: 7 },
-          },
-          y: {
-            title: { display: true, text: "dB (relative to midrange)" },
-          },
-        },
-        plugins: {
-          legend: {
-            display: true,
-            position: "bottom",
-            labels: { boxWidth: 24, font: { size: 11 } },
-          },
-        },
+      data: {
+        labels: freqs,
+        datasets: curveDatasets(shaped, buildPreferenceCurve(profile, freqs)),
       },
+      options: curveChartOptions(),
     });
 
     wrap.hidden = false;

@@ -215,7 +215,7 @@ Handles messy real data.
 Turns ~300 frequency/SPL points into three numbers.
 *Example:* `bass_gain = avg(20–250 Hz) − avg(500–2000 Hz)`. It's measured
 *relative* to the midrange because absolute loudness depends on how loud
-the測 rig was driven, not on the IEM's tuning.
+the rig was driven, not on the IEM's tuning.
 
 ### `interpreter.py` (89 lines) — the "AI" description
 Turns three numbers into a sentence.

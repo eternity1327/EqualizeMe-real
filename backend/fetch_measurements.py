@@ -1,52 +1,28 @@
 """
-fetch_measurements.py
-----------------------
-Downloads REW measurement .txt files from squig.link into a local
-folder, ready for import_to_db.py.
+Download REW measurement files from squig.link, ready for import_to_db.
 
-PERMISSION
-  Mark Ryan Sallee (squig.link / Super* Review) granted this project
-  permission by email on 2026-08-11 to use his measurement data for
-  NON-COMMERCIAL purposes, on the condition that it isn't redistributed
-  in a way that duplicates Squiglink's own functionality.
+Permission
+    Mark Ryan Sallee (squig.link / Super* Review) granted this project
+    permission by email on 2026-08-11 to use his measurement data for
+    non-commercial purposes, provided it isn't redistributed in a way
+    that duplicates Squiglink's own functionality. Credit the source.
 
-  That permission covers ONLY his own databases:
-      https://squig.link/
-      https://squig.link/headphones/
-      https://squig.link/earbuds/
+    That permission covers only his own databases, which is why BASE_URL
+    is fixed here rather than being a command-line option. Other
+    squiglink sites host data owned by different measurers and would
+    need their own permission.
 
-  Other squiglink sites (e.g. achoreviews.squig.link) host data owned by
-  different measurers. Do NOT point this script at them without asking
-  those operators first — which is why BASE_URL is fixed here rather
-  than being a command-line option.
+Courtesy
+    This hits someone else's server. The default delay between requests
+    and the skip-if-already-downloaded check are there on purpose, and
+    a couple of dozen IEMs demonstrates the feature — fetching every
+    channel of all 588 is over a thousand requests for no benefit.
 
-  Credit the source in the paper.
-
-BEING A GOOD CITIZEN
-  This hits someone else's server, so by default it pauses between
-  requests and skips files already downloaded. Please don't remove the
-  delay, and don't pull the whole catalog when a couple of dozen IEMs
-  is enough to demonstrate the feature. There are 588 IEMs in the
-  catalog — fetching every channel of every one is over a thousand
-  requests for no benefit.
-
-USAGE
-  # see what would be downloaded, without downloading anything
-  python backend/fetch_measurements.py phone_book.json measurements/ --limit 10 --dry-run
-
-  # a spread of well-known models (recommended starting point)
-  python backend/fetch_measurements.py phone_book.json measurements/ --preset demo
-
-  # specific models by name
-  python backend/fetch_measurements.py phone_book.json measurements/ \
-      --name "Truthear Zero" --name "Moondrop Aria"
-
-  # everything from certain brands
-  python backend/fetch_measurements.py phone_book.json measurements/ \
-      --brand Moondrop --brand Truthear
-
-  # first N in the catalog
-  python backend/fetch_measurements.py phone_book.json measurements/ --limit 20
+Usage:
+    python backend/fetch_measurements.py phone_book.json measurements/ --preset demo
+    python backend/fetch_measurements.py phone_book.json measurements/ --limit 10 --dry-run
+    python backend/fetch_measurements.py phone_book.json measurements/ --name "Moondrop Aria"
+    python backend/fetch_measurements.py phone_book.json measurements/ --brand Moondrop
 """
 
 import argparse
@@ -62,17 +38,16 @@ import urllib.request
 BASE_URL = "https://squig.link/data/"
 
 # Channel suffixes, tried in tiers. Nearly every entry is a plain L/R
-# pair, so those go first and the numbered multi-sample names are only
-# attempted if neither turned up. Probing all eight every time would mean
-# six wasted 404s per IEM against someone else's server.
+# pair, so probing all eight every time would mean six wasted 404s per
+# IEM against someone else's server.
 CHANNEL_TIERS = [
     ["L", "R"],
     ["L1", "R1", "L2", "R2", "L3", "R3"],
 ]
 
 # A spread of popular, tonally different IEMs — enough variety that the
-# recommendation matching has something to distinguish and the generated
-# descriptions visibly differ from each other.
+# matching has something to distinguish and the generated descriptions
+# visibly differ from each other.
 DEMO_PRESET = [
     "Truthear Zero",
     "Moondrop Aria",
@@ -86,47 +61,60 @@ DEMO_PRESET = [
     "Truthear Hexa",
 ]
 
-USER_AGENT = "EqualizeME-student-project/1.0 (academic use, permission granted by squig.link)"
+USER_AGENT = ("EqualizeME-student-project/1.0 "
+              "(academic use, permission granted by squig.link)")
+
+DEFAULT_DELAY_SECONDS = 1.0
+REQUEST_TIMEOUT_SECONDS = 20
+NOT_FOUND = 404
+
+# A real REW export is hundreds of lines of numbers. Anything smaller is
+# almost certainly an error page rather than measurement data.
+MIN_MEASUREMENT_BYTES = 200
 
 
 def load_entries(catalog_path):
     """Flatten phone_book.json into (brand, model, primary_file) tuples."""
     with open(catalog_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+        catalog = json.load(f)
 
     entries = []
-    for brand_entry in data:
+    for brand_entry in catalog:
         brand = (brand_entry.get("name") or "").strip()
         for phone in brand_entry.get("phones", []):
-            model = (phone.get("name") or "").strip()
-            file_field = phone.get("file")
-            # "file" is either a string or a list of variants; the first
-            # is the primary measurement.
-            if isinstance(file_field, list):
-                primary = file_field[0] if file_field else None
-            else:
-                primary = file_field
+            primary = _primary_file(phone)
             if primary:
+                model = (phone.get("name") or "").strip()
                 entries.append((brand, model, primary))
     return entries
 
 
+def _primary_file(phone):
+    """The main measurement filename — "file" may be a string or a list."""
+    file_field = phone.get("file")
+    if isinstance(file_field, list):
+        return file_field[0] if file_field else None
+    return file_field
+
+
+def _matches_any(entry, needles):
+    """True when a brand, model or filename contains one of the needles."""
+    brand, model, primary = entry
+    haystack = f"{brand} {model} {primary}".lower()
+    return any(needle in haystack for needle in needles)
+
+
 def select_entries(entries, args):
-    """Apply whichever filter the user asked for."""
+    """Apply whichever filter was asked for, in order of specificity."""
     if args.preset == "demo":
-        wanted = [w.lower() for w in DEMO_PRESET]
-        selected = [e for e in entries
-                    if any(w in f"{e[0]} {e[1]}".lower() or w in e[2].lower() for w in wanted)]
-        return selected
+        return [e for e in entries if _matches_any(e, _lowered(DEMO_PRESET))]
 
     if args.name:
-        wanted = [n.lower() for n in args.name]
-        return [e for e in entries
-                if any(w in f"{e[0]} {e[1]}".lower() or w in e[2].lower() for w in wanted)]
+        return [e for e in entries if _matches_any(e, _lowered(args.name))]
 
     if args.brand:
-        wanted = [b.lower() for b in args.brand]
-        return [e for e in entries if e[0].lower() in wanted]
+        brands = set(_lowered(args.brand))
+        return [e for e in entries if e[0].lower() in brands]
 
     if args.limit:
         return entries[:args.limit]
@@ -134,26 +122,30 @@ def select_entries(entries, args):
     return entries
 
 
-def download_one(url, dest_path, timeout=20):
+def _lowered(values):
+    return [value.lower() for value in values]
+
+
+def download_one(url, dest_path, timeout=REQUEST_TIMEOUT_SECONDS):
     """
-    Returns "ok", "skipped" (already present) or "missing" (404).
+    Fetch one measurement file.
+
+    Returns "ok", "skipped" (already on disk) or "missing" (no such file).
     Anything else raises so the caller can decide whether to continue.
     """
     if os.path.exists(dest_path):
         return "skipped"
 
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = resp.read()
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            body = response.read()
+    except urllib.error.HTTPError as error:
+        if error.code == NOT_FOUND:
             return "missing"
         raise
 
-    # A real REW export is many lines of numbers. Anything tiny is almost
-    # certainly an error page rather than measurement data.
-    if len(body) < 200:
+    if len(body) < MIN_MEASUREMENT_BYTES:
         return "missing"
 
     with open(dest_path, "wb") as f:
@@ -161,24 +153,86 @@ def download_one(url, dest_path, timeout=20):
     return "ok"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("catalog", help="path to phone_book.json")
+    parser.add_argument("out_dir", help="folder to save .txt files into")
+    parser.add_argument("--preset", choices=["demo"],
+                        help="download a curated spread of well-known IEMs")
+    parser.add_argument("--name", action="append",
+                        help="match IEMs by name (repeatable)")
+    parser.add_argument("--brand", action="append",
+                        help="download every IEM from this brand (repeatable)")
+    parser.add_argument("--limit", type=int,
+                        help="just take the first N catalog entries")
+    parser.add_argument("--delay", type=float, default=DEFAULT_DELAY_SECONDS,
+                        help="seconds between requests (please be polite)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="print the URLs that would be fetched, download nothing")
+    return parser.parse_args()
+
+
+def channel_url(primary, suffix):
+    """Where one channel's measurement file lives."""
+    return BASE_URL + urllib.parse.quote(f"{primary} {suffix}.txt")
+
+
+def fetch_entry(primary, out_dir, delay, tally):
+    """
+    Download every channel file for one IEM.
+
+    Returns True if anything was found. Tiers are tried in order and the
+    second is skipped once the first succeeds, so a normal L/R pair costs
+    two requests instead of eight.
+    """
+    for tier in CHANNEL_TIERS:
+        found = _fetch_tier(primary, tier, out_dir, delay, tally)
+        if found:
+            return True
+    return False
+
+
+def _fetch_tier(primary, tier, out_dir, delay, tally):
+    """Try one tier of channel suffixes; True if any file was obtained."""
+    found = False
+    for suffix in tier:
+        filename = f"{primary} {suffix}.txt"
+        dest = os.path.join(out_dir, filename)
+
+        try:
+            result = download_one(channel_url(primary, suffix), dest)
+        except Exception as error:
+            print(f"  FAILED   {filename}: {error}")
+            tally["failed"] += 1
+            time.sleep(delay)
+            continue
+
+        if result == "ok":
+            print(f"  saved    {filename}")
+            tally["got"] += 1
+            found = True
+        elif result == "skipped":
+            print(f"  have it  {filename}")
+            tally["skipped"] += 1
+            found = True
+        # "missing" is normal — an IEM measured on one channel only, or a
+        # database using the numbered convention.
+
+        time.sleep(delay)
+    return found
+
+
+def preview(selected):
+    """Print what a real run would request, without touching the server."""
+    for _, _, primary in selected:
+        print(f"  would fetch  {channel_url(primary, CHANNEL_TIERS[0][0])}")
+
+
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("catalog", help="path to phone_book.json")
-    ap.add_argument("out_dir", help="folder to save .txt files into")
-    ap.add_argument("--preset", choices=["demo"],
-                    help="download a curated spread of well-known IEMs")
-    ap.add_argument("--name", action="append",
-                    help="match IEMs by name (repeatable)")
-    ap.add_argument("--brand", action="append",
-                    help="download every IEM from this brand (repeatable)")
-    ap.add_argument("--limit", type=int,
-                    help="just take the first N catalog entries")
-    ap.add_argument("--delay", type=float, default=1.0,
-                    help="seconds between requests (default 1.0 — please be polite)")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="print the URLs that would be fetched, download nothing")
-    args = ap.parse_args()
+    args = parse_args()
 
     entries = load_entries(args.catalog)
     selected = select_entries(entries, args)
@@ -188,66 +242,29 @@ def main():
         print("Try --preset demo, or --brand Moondrop, or --limit 10.")
         return 1
 
-    if not args.dry_run:
-        os.makedirs(args.out_dir, exist_ok=True)
-
     print(f"Catalog holds {len(entries)} IEMs; {len(selected)} selected.")
+
     if args.dry_run:
         print("DRY RUN — nothing will be downloaded.\n")
-    else:
-        print(f"Saving into {args.out_dir}/ with a {args.delay}s pause between requests.\n")
+        preview(selected)
+        return 0
 
-    got, skipped, missing, failed = 0, 0, 0, 0
+    os.makedirs(args.out_dir, exist_ok=True)
+    print(f"Saving into {args.out_dir}/ with a {args.delay}s pause "
+          f"between requests.\n")
 
+    tally = {"got": 0, "skipped": 0, "missing": 0, "failed": 0}
     for brand, model, primary in selected:
-        found_any = False
+        if not fetch_entry(primary, args.out_dir, args.delay, tally):
+            print(f"  none     {brand} {model} "
+                  f"(no channel files found for '{primary}')")
+            tally["missing"] += 1
 
-        for tier in CHANNEL_TIERS:
-            # Once a plain L/R pair has been found there's no reason to
-            # probe the numbered-sample names as well.
-            if found_any:
-                break
-
-            for suffix in tier:
-                filename = f"{primary} {suffix}.txt"
-                url = BASE_URL + urllib.parse.quote(filename)
-                dest = os.path.join(args.out_dir, filename)
-
-                if args.dry_run:
-                    print(f"  would fetch  {url}")
-                    found_any = True
-                    continue
-
-                try:
-                    result = download_one(url, dest)
-                except Exception as e:
-                    print(f"  FAILED   {filename}: {e}")
-                    failed += 1
-                    time.sleep(args.delay)
-                    continue
-
-                if result == "ok":
-                    print(f"  saved    {filename}")
-                    got += 1
-                    found_any = True
-                elif result == "skipped":
-                    print(f"  have it  {filename}")
-                    skipped += 1
-                    found_any = True
-                # "missing" is normal — an IEM measured on one channel
-                # only, or a database using the numbered convention.
-
-                time.sleep(args.delay)
-
-        if not found_any and not args.dry_run:
-            print(f"  none     {brand} {model} (no channel files found for '{primary}')")
-            missing += 1
-
-    if not args.dry_run:
-        print(f"\nDownloaded {got}, already had {skipped}, "
-              f"{missing} IEMs with nothing found, {failed} errors.")
-        print(f"\nNext: python backend/import_to_db.py {args.catalog} {args.out_dir}")
-
+    print(f"\nDownloaded {tally['got']}, already had {tally['skipped']}, "
+          f"{tally['missing']} IEMs with nothing found, "
+          f"{tally['failed']} errors.")
+    print(f"\nNext: python backend/import_to_db.py "
+          f"{args.catalog} {args.out_dir}")
     return 0
 
 
