@@ -193,7 +193,7 @@ def get_recommendations(user_id):
 def fetch_latest_profile(cur, user_id):
     cur.execute(
         "SELECT bass_gain, treble_gain, presence_gain FROM auditory_profiles "
-        "WHERE user_id = %s ORDER BY updated_at DESC LIMIT 1",
+        "WHERE user_id = %s ORDER BY created_at DESC LIMIT 1",
         (user_id,),
     )
     return cur.fetchone()

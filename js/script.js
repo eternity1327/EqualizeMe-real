@@ -479,7 +479,8 @@ async function updateNavAuthState() {
   const loginLink = document.getElementById("nav-login");
   const registerLink = document.getElementById("nav-register");
   const logoutLink = document.getElementById("nav-logout");
-  if (!loginLink && !registerLink && !logoutLink) return;
+  const historyLink = document.getElementById("nav-history");
+  if (!loginLink && !registerLink && !logoutLink && !historyLink) return;
 
   try {
     const res = await fetch("api/auth/me.php");
@@ -488,6 +489,7 @@ async function updateNavAuthState() {
     if (loginLink) loginLink.style.display = loggedIn ? "none" : "";
     if (registerLink) registerLink.style.display = loggedIn ? "none" : "";
     if (logoutLink) logoutLink.style.display = loggedIn ? "" : "none";
+    if (historyLink) historyLink.style.display = loggedIn ? "" : "none";
   } catch (err) {
     console.error(err);
   }
