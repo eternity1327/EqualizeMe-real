@@ -1,7 +1,4 @@
 <?php
-// NOTE: recommendations.html + js/script.js's loadRecommendations() is the
-// version linked from the nav now. This standalone page is left working
-// but isn't currently linked from anywhere in the UI.
 require_once __DIR__ . "/api/session.php";
 start_secure_session();
 if (!isset($_SESSION['user_id'])) {
@@ -12,42 +9,44 @@ $userId = $_SESSION['user_id'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>EqualizeME — Your Recommendations</title>
+    <meta charset="UTF-8">
+    <title>EqualizeME — Your Recommendations</title>
 </head>
+
 <body>
 
-<h1>Your IEM Recommendations</h1>
-<div id="results">
-    <p>Loading recommendations...</p>
-</div>
+    <h1>Your IEM Recommendations</h1>
+    <div id="results">
+        <p>Loading recommendations...</p>
+    </div>
 
-<script>
-// Same host the page was loaded from, so this keeps working over the LAN
-// or a public tunnel domain, not just on the machine running ai_service.py.
-const AI_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
-const userId = <?php echo json_encode($userId); ?>;
+    <script>
+        // Same host the page was loaded from, so this keeps working over the LAN
+        // or a public tunnel domain, not just on the machine running ai_service.py.
+        const AI_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
+        const userId = <?php echo json_encode($userId); ?>;
 
-async function loadRecommendations() {
-    const res = await fetch(`${AI_SERVICE_URL}/recommendations/${userId}`);
-    const data = await res.json();
+        async function loadRecommendations() {
+            const res = await fetch(`${AI_SERVICE_URL}/recommendations/${userId}`);
+            const data = await res.json();
 
-    const container = document.getElementById("results");
+            const container = document.getElementById("results");
 
-    if (data.error) {
-        container.innerHTML = `<p>${data.error}. Take the <a href="assessment.php">listening assessment</a> first.</p>`;
-        return;
-    }
+            if (data.error) {
+                container.innerHTML = `<p>${data.error}. Take the <a href="assessment.php">listening assessment</a> first.</p>`;
+                return;
+            }
 
-    if (data.recommendations.length === 0) {
-        container.innerHTML = "<p>No IEMs found in the database yet.</p>";
-        return;
-    }
+            if (data.recommendations.length === 0) {
+                container.innerHTML = "<p>No IEMs found in the database yet.</p>";
+                return;
+            }
 
-    let html = "<ol>";
-    data.recommendations.forEach(iem => {
-        html += `
+            let html = "<ol>";
+            data.recommendations.forEach(iem => {
+                html += `
             <li>
                 <strong>${iem.brand} ${iem.name}</strong> — ${iem.sound_signature ?? "N/A"}<br>
                 Match score: ${iem.match_score}%<br>
@@ -56,13 +55,14 @@ async function loadRecommendations() {
             </li>
             <br>
         `;
-    });
-    html += "</ol>";
-    container.innerHTML = html;
-}
+            });
+            html += "</ol>";
+            container.innerHTML = html;
+        }
 
-loadRecommendations();
-</script>
+        loadRecommendations();
+    </script>
 
 </body>
+
 </html>
