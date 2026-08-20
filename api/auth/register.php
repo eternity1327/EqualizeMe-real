@@ -68,6 +68,7 @@ try {
     http_response_code(201);
     echo json_encode(["id" => (int)$userId, "name" => $name, "email" => $email]);
 } catch (PDOException $e) {
+    error_log("auth/register.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(["error" => "Something went wrong creating your account"]);
 }

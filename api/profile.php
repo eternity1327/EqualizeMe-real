@@ -42,6 +42,7 @@ try {
         "profilePicture" => $profilePicture ?: null,
     ]);
 } catch (PDOException $e) {
+    error_log("profile.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(["error" => "Something went wrong"]);
 }

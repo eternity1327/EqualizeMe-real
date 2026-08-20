@@ -5,16 +5,15 @@ import re
 import sys
 from pathlib import Path
 
+import db_config
 from catalog_parser import load_catalog
 from measurement_parser import parse_rew_file, compute_gains, serialize_curve
 from interpreter import describe_curve
 
-DB_CONFIG = {
-    "host": os.environ.get("DB_HOST", "localhost"),
-    "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASS", ""),
-    "database": os.environ.get("DB_NAME", "equalizeme"),
-}
+# Shared with ai_service.py so both read the same credentials. Note the old
+# code here looked for DB_PASS while ai_service.py used DB_PASSWORD, so
+# setting one did not configure the other; db_config resolves that.
+DB_CONFIG = db_config.db_config()
 
 MAX_SKIPPED_SHOWN = 50
 

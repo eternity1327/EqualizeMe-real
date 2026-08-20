@@ -5,6 +5,19 @@ GAIN_DECIMALS = 1
 
 SEED_WINDOW = 3
 
+# Confidence is derived from how precisely the search actually pinned each
+# band down, rather than being asserted as a flat 100.
+#
+# Every answer halves the remaining range, so a band that finishes with
+# bounds 1.5 dB wide has been located to within +/- 0.75 dB. Knowing nothing
+# at all means the answer could be anywhere in the full 12 dB range, i.e.
+# +/- 6 dB. Scoring the achieved uncertainty against that worst case gives a
+# figure that means something: it rises with more rounds, and rises again
+# when the pre-quiz seeds a narrower starting window.
+MAX_UNCERTAINTY_DB = (RANGE_HIGH - RANGE_LOW) / 2
+
+CONFIDENCE_DECIMALS = 1
+
 PARAM_ROUNDS = [
     ("bassGain", 4),
     ("trebleGain", 3),
@@ -56,6 +69,7 @@ def start_session(user_id, seed=None):
         "round": 0,
         "bounds": _bounds_for(first_param, seed),
         "finalized": {band: 0 for band, _ in PARAM_ROUNDS},
+        "uncertainty": {},
         "history": [],
         "seed": seed,
     }
@@ -117,10 +131,33 @@ def record_answer(user_id, preferred):
         return {
             "done": True,
             "profile": session["finalized"],
+            "confidence": confidence_score(session),
+            "precision": {
+                band: round(value, GAIN_DECIMALS)
+                for band, value in session["uncertainty"].items()
+            },
             "history": session["history"],
         }
 
     return {"done": False, "next": get_current_pair(user_id)}
+
+
+def confidence_score(session):
+    """How precisely the test located this listener's preferences, 0-100.
+
+    Averages each band's achieved uncertainty against the worst case of
+    knowing nothing (+/- 6 dB). A seeded 10-question run scores in the
+    mid-90s; an unseeded one closer to 90, which is the honest difference
+    the pre-quiz makes.
+    """
+    uncertainty = session.get("uncertainty") or {}
+    if not uncertainty:
+        return 0.0
+
+    average = sum(uncertainty.values()) / len(uncertainty)
+    score = 100.0 * (1 - average / MAX_UNCERTAINTY_DB)
+
+    return round(max(0.0, min(100.0, score)), CONFIDENCE_DECIMALS)
 
 
 def _validate_answer(session, preferred):
@@ -160,7 +197,14 @@ def _midpoint(bounds):
 
 
 def _finalize_param(session, param):
-    session["finalized"][param] = round(_midpoint(session["bounds"]), GAIN_DECIMALS)
+    bounds = session["bounds"]
+
+    session["finalized"][param] = round(_midpoint(bounds), GAIN_DECIMALS)
+
+    # The answer is the midpoint of the surviving range, so the most it can
+    # be wrong by is half that range's width.
+    session["uncertainty"][param] = (bounds["high"] - bounds["low"]) / 2
+
     session["paramIndex"] += 1
     session["round"] = 0
 

@@ -1,0 +1,35 @@
+# Uploads are user-supplied files. Nothing in this folder should ever be
+# executed as code.
+#
+# api/upload-picture.php already validates the MIME type from the file's
+# actual bytes and regenerates the filename from a whitelist, so a .php
+# file cannot be stored here under normal circumstances. This is the second
+# layer: even a valid image can carry PHP source in its metadata (a
+# "polyglot" file), which is harmless right up until something executes it.
+
+# Apache 2.4 with mod_php
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+<IfModule mod_php5.c>
+    php_flag engine off
+</IfModule>
+
+# Belt and braces: strip handlers for anything script-like, which covers
+# PHP running as CGI/FastCGI where php_flag has no effect.
+<FilesMatch "\.(?i:php|phtml|php3|php4|php5|php7|phps|pht|cgi|pl|py|asp|aspx|sh)$">
+    Require all denied
+</FilesMatch>
+
+# Only serve the image types the uploader actually accepts.
+<FilesMatch "\.(?i:jpe?g|png|webp)$">
+    Require all granted
+</FilesMatch>
+
+Options -ExecCGI -Indexes
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .phps

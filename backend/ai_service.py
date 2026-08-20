@@ -8,33 +8,43 @@ import os
 import camilla_dsp
 import adaptive_test
 import pre_quiz
+import db_config
 
 app = Flask(__name__)
 
 DEBUG_MODE = os.environ.get("FLASK_DEBUG", "0") == "1"
-ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "*")
+
+# This service performs no authentication of its own — it takes the user id
+# it is given. That is safe only because it is not reachable from a browser:
+# every request arrives from api/dsp.php, which checks the session first and
+# supplies the user id itself.
+#
+# Two things enforce that. The service binds to loopback (see DEFAULT_HOST
+# below), and CORS defaults to refusing browser origins outright. Setting
+# ALLOWED_ORIGIN to "*" re-opens direct access and should only be done for
+# local debugging on a machine nothing else can reach.
+ALLOWED_ORIGIN = os.environ.get("ALLOWED_ORIGIN", "null")
 CORS(app, origins=ALLOWED_ORIGIN)
 
-DB_CONFIG = {
-    "host": os.environ.get("DB_HOST", "127.0.0.1"),
-    "user": os.environ.get("DB_USER", "root"),
-    "password": os.environ.get("DB_PASSWORD", ""),
-    "database": os.environ.get("DB_NAME", "equalizeme"),
-}
+DB_CONFIG = db_config.db_config()
 
 DEFAULT_PORT = 5001
-DEFAULT_HOST = "0.0.0.0"
+
+# Loopback only. Previously 0.0.0.0, which exposed every route — including
+# ones that read and overwrite user profiles — to anyone on the same network.
+# api/dsp.php runs on the same machine, so it can still reach this.
+DEFAULT_HOST = os.environ.get("DSP_BIND_HOST", "127.0.0.1")
 
 BANDS = ("bass_gain", "treble_gain", "presence_gain")
 
 SCORE_SCALE = 5
 
 MEASUREMENT_DECIMALS = 2
-GAIN_DECIMALS = 1
 
+# Fallback only. The adaptive test reports a real figure derived from how
+# far it actually narrowed each band (see adaptive_test.confidence_score);
+# this is used only if a caller somehow omits it.
 FULL_CONFIDENCE = 100.0
-
-DEFAULT_SEQUENCE_ORDER = 1
 
 CANDIDATE_POOL_SIZE = 15
 RESULTS_SHOWN = 5
@@ -80,79 +90,6 @@ def db_cursor(dictionary=False):
             cur.close()
         finally:
             conn.close()
-
-
-def _generate_profile(cur, conn, assessment_id):
-    user_id = fetch_assessment_user(cur, assessment_id)
-    gains = sum_band_deltas(cur, assessment_id)
-    confidence = completion_confidence(cur, assessment_id)
-
-    profile = {**gains, "confidence_score": confidence}
-    save_profile(cur, conn, user_id, assessment_id, profile)
-    return profile
-
-
-def fetch_assessment_user(cur, assessment_id):
-    cur.execute(
-        "SELECT user_id FROM assessments WHERE assessment_id = %s",
-        (assessment_id,),
-    )
-    return cur.fetchone()["user_id"]
-
-
-def sum_band_deltas(cur, assessment_id):
-    cur.execute(
-        """
-        SELECT qsi.band, SUM(qsi.delta) AS total
-        FROM responses r
-        JOIN question_score_impact qsi
-            ON qsi.question_id = r.question_id
-            AND qsi.answer_value = r.answer_value
-        WHERE r.assessment_id = %s
-        GROUP BY qsi.band
-        """,
-        (assessment_id,),
-    )
-    totals = {row["band"]: float(row["total"]) for row in cur.fetchall()}
-    return {
-        f"{band}_gain": round(totals.get(band, 0.0), GAIN_DECIMALS)
-        for band in ("bass", "treble", "presence")
-    }
-
-
-def completion_confidence(cur, assessment_id):
-    cur.execute("SELECT COUNT(*) AS total FROM questions")
-    total_questions = cur.fetchone()["total"]
-    if not total_questions:
-        return 0.0
-
-    cur.execute(
-        "SELECT COUNT(DISTINCT question_id) AS answered FROM responses "
-        "WHERE assessment_id = %s",
-        (assessment_id,),
-    )
-    answered = cur.fetchone()["answered"]
-    return round((answered / total_questions) * 100, GAIN_DECIMALS)
-
-
-def save_profile(cur, conn, user_id, assessment_id, profile):
-    cur.execute(
-        """
-        INSERT INTO auditory_profiles
-            (user_id, assessment_id, bass_gain, treble_gain, presence_gain,
-             confidence_score)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """,
-        (
-            user_id,
-            assessment_id,
-            profile["bass_gain"],
-            profile["treble_gain"],
-            profile["presence_gain"],
-            profile["confidence_score"],
-        ),
-    )
-    conn.commit()
 
 
 def _median(values):
@@ -352,135 +289,42 @@ def dsp_adaptive_answer():
         return jsonify(result), 400
 
     if result.get("done"):
-        _save_dsp_profile(user_id, result["profile"])
+        _save_dsp_profile(user_id, result["profile"], result.get("confidence"))
 
     return jsonify(result)
 
 
-def _save_dsp_profile(user_id, profile):
+def _save_dsp_profile(user_id, profile, confidence=None):
     with db_cursor() as (conn, cur):
+        # A plain insert: every completed test appends a row, which is what
+        # api/profile/history.php and api/profile/compare.php need in order
+        # to show how a listener's preferences change over time.
+        #
+        # This previously carried ON DUPLICATE KEY UPDATE, which was doing
+        # real work — auditory_profiles had a UNIQUE index on user_id named
+        # `unique_user_profile`, so each retake overwrote the previous row
+        # and history never accumulated. That index has since been dropped
+        # (see sql/add_profile_history.sql), leaving only PRIMARY on id, so
+        # there is nothing left for a retake to collide with.
+        #
+        # If a duplicate-key error ever appears here, a UNIQUE index on
+        # user_id has been reintroduced; drop it rather than restoring the
+        # clause, or history silently breaks again.
         cur.execute(
             """
             INSERT INTO auditory_profiles
                 (user_id, bass_gain, treble_gain, presence_gain, confidence_score)
             VALUES (%s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                bass_gain = VALUES(bass_gain),
-                treble_gain = VALUES(treble_gain),
-                presence_gain = VALUES(presence_gain),
-                confidence_score = VALUES(confidence_score)
             """,
             (
                 user_id,
                 profile["bassGain"],
                 profile["trebleGain"],
                 profile["presenceGain"],
-                FULL_CONFIDENCE,
+                FULL_CONFIDENCE if confidence is None else confidence,
             ),
         )
         conn.commit()
-
-
-@app.route("/start-assessment", methods=["POST"])
-def start_assessment():
-    data = request.get_json()
-    user_id = data.get("user_id")
-    if not user_id:
-        return jsonify({"error": "user_id is required"}), 400
-
-    with db_cursor(dictionary=True) as (conn, cur):
-        cur.execute(
-            "INSERT INTO assessments (user_id, status) VALUES (%s, 'in_progress')",
-            (user_id,),
-        )
-        assessment_id = cur.lastrowid
-        conn.commit()
-
-        cur.execute(
-            "SELECT question_id, audio_stimulus_ref, question_type "
-            "FROM questions WHERE is_starting_question = TRUE LIMIT 1"
-        )
-        question = cur.fetchone()
-
-    if not question:
-        return jsonify({"error": "No starting question configured"}), 500
-
-    return jsonify({
-        "assessment_id": assessment_id,
-        "question": question,
-    })
-
-
-@app.route("/next-question", methods=["POST"])
-def next_question():
-    data = request.get_json()
-    assessment_id = data.get("assessment_id")
-    question_id = data.get("question_id")
-    answer_value = data.get("answer_value")
-    sequence_order = data.get("sequence_order", DEFAULT_SEQUENCE_ORDER)
-
-    if not all([assessment_id, question_id, answer_value]):
-        return jsonify({
-            "error": "assessment_id, question_id, and answer_value are required"
-        }), 400
-
-    with db_cursor(dictionary=True) as (conn, cur):
-        record_response(cur, conn, assessment_id, question_id,
-                        answer_value, sequence_order)
-
-        next_id = find_next_question_id(cur, question_id, answer_value)
-        if next_id is None:
-            profile = complete_assessment(cur, conn, assessment_id)
-            return jsonify({
-                "complete": True,
-                "assessment_id": assessment_id,
-                "profile": profile,
-            })
-
-        question = fetch_question(cur, next_id)
-
-    return jsonify({"complete": False, "question": question})
-
-
-def record_response(cur, conn, assessment_id, question_id, answer_value,
-                    sequence_order):
-    cur.execute(
-        "INSERT INTO responses "
-        "(assessment_id, question_id, answer_value, sequence_order) "
-        "VALUES (%s, %s, %s, %s)",
-        (assessment_id, question_id, answer_value, sequence_order),
-    )
-    conn.commit()
-
-
-def find_next_question_id(cur, question_id, answer_value):
-    cur.execute(
-        "SELECT next_question_id FROM question_rules "
-        "WHERE from_question_id = %s AND condition_answer_value = %s "
-        "ORDER BY priority ASC LIMIT 1",
-        (question_id, answer_value),
-    )
-    rule = cur.fetchone()
-    return rule["next_question_id"] if rule else None
-
-
-def fetch_question(cur, question_id):
-    cur.execute(
-        "SELECT question_id, audio_stimulus_ref, question_type "
-        "FROM questions WHERE question_id = %s",
-        (question_id,),
-    )
-    return cur.fetchone()
-
-
-def complete_assessment(cur, conn, assessment_id):
-    cur.execute(
-        "UPDATE assessments SET status = 'completed', completed_at = NOW() "
-        "WHERE assessment_id = %s",
-        (assessment_id,),
-    )
-    conn.commit()
-    return _generate_profile(cur, conn, assessment_id)
 
 
 if __name__ == "__main__":
@@ -488,4 +332,9 @@ if __name__ == "__main__":
         print("WARNING: FLASK_DEBUG=1 — the interactive debugger is ON. "
               "Only run this if the service is NOT reachable from outside "
               "your own machine.")
+
+    print(db_config.describe_source())
+    print(f"binding to {DEFAULT_HOST}:{DEFAULT_PORT} "
+          f"(requests arrive via api/dsp.php)")
+
     app.run(host=DEFAULT_HOST, port=DEFAULT_PORT, debug=DEBUG_MODE)

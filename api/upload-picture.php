@@ -45,12 +45,13 @@ $relativePath = "uploads/" . $filename;
 try {
     $pdo = get_pdo();
 
+    // Remember the old picture, but don't delete it yet — if the new file
+    // fails to save we'd be left with no picture at all and a users row
+    // pointing at a file that no longer exists. Delete only once the new
+    // one is safely written and the row has been updated.
     $stmt = $pdo->prepare("SELECT profile_picture FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $old = $stmt->fetchColumn();
-    if ($old && file_exists(__DIR__ . "/../" . $old)) {
-        unlink(__DIR__ . "/../" . $old);
-    }
 
     if (!move_uploaded_file($_FILES["photo"]["tmp_name"], $destPath)) {
         http_response_code(500);
@@ -61,8 +62,15 @@ try {
     $update = $pdo->prepare("UPDATE users SET profile_picture = ? WHERE id = ?");
     $update->execute([$relativePath, $userId]);
 
+    // Safe to clean up now. Guard against deleting the file we just wrote,
+    // in case the generated name somehow matched the previous one.
+    if ($old && $old !== $relativePath && file_exists(__DIR__ . "/../" . $old)) {
+        unlink(__DIR__ . "/../" . $old);
+    }
+
     echo json_encode(["profilePicture" => $relativePath]);
 } catch (PDOException $e) {
+    error_log("upload-picture.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(["error" => "Something went wrong"]);
 }

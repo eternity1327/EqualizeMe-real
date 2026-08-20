@@ -1,0 +1,15 @@
+{
+  "_comment": [
+    "Copy this file to backend/config.local.json and fill in the password.",
+    "config.local.json is gitignored; this example is not, so it can serve",
+    "as the template. Leave the file absent entirely to fall back to root",
+    "with no password, which is XAMPP's default and fine for local work.",
+    "See sql/create_app_user.sql for how to create the account below."
+  ],
+  "database": {
+    "host": "127.0.0.1",
+    "user": "equalizeme_app",
+    "password": "PUT-THE-PASSWORD-YOU-CHOSE-HERE",
+    "database": "equalizeme"
+  }
+}

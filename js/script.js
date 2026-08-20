@@ -47,7 +47,35 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-const DSP_SERVICE_URL = `${window.location.protocol}//${window.location.hostname}:5001`;
+// All DSP traffic goes through api/dsp.php, which checks the session and
+// injects the user id server-side. The Python service itself is bound to
+// 127.0.0.1 and is no longer reachable from the browser — see api/dsp.php
+// for why.
+const DSP_PROXY = "api/dsp.php";
+
+function dspUrl(route, params = {}) {
+  const query = new URLSearchParams({ route, ...params });
+  return `${DSP_PROXY}?${query}`;
+}
+
+async function dspPost(route, payload = {}) {
+  const send = async (token) => fetch(dspUrl(route), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, csrf_token: token || "" }),
+  });
+
+  let res = await send(await getCsrfToken());
+
+  // A 403 means the token was stale — most likely the session rotated its
+  // id, which happens every 30 minutes. Fetch a fresh one and retry once.
+  if (res.status === 403) {
+    invalidateCsrfToken();
+    res = await send(await getCsrfToken());
+  }
+
+  return res;
+}
 
 let _csrfToken = null;
 
@@ -131,32 +159,6 @@ function buildBuyLinks(item) {
   return `<div class="iem-links">${links.join("")}</div>`;
 }
 
-async function choose(sound) {
-  const result = document.getElementById("result");
-  result.innerHTML = "Saving...";
-
-  try {
-    const res = await fetch("/api/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sound })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      result.innerHTML = `Error: ${data.error}`;
-      return;
-    }
-
-    const labels = { bass: "Bass", balanced: "Balanced", detail: "Clarity" };
-    result.innerHTML = `You prefer: ${labels[sound]}`;
-  } catch (err) {
-    result.innerHTML = "Something went wrong. Is the server running?";
-    console.error(err);
-  }
-}
-
 function buildIemCard(item) {
   return `
       <div class="iem-card" data-iem-id="${item.iem_id}">
@@ -189,14 +191,15 @@ async function loadRecommendations() {
   if (!grid) return;
 
   try {
-    const meRes = await fetch("api/auth/me.php");
-    if (!meRes.ok) {
+    // No user id in the URL any more — api/dsp.php takes it from the
+    // session, so there is nothing here for a caller to tamper with.
+    const res = await fetch(dspUrl("recommendations"));
+
+    if (res.status === 401) {
       grid.innerHTML = "<p>Please log in first.</p>";
       return;
     }
-    const me = await meRes.json();
 
-    const res = await fetch(`${DSP_SERVICE_URL}/recommendations/${me.id}`);
     const data = await res.json();
 
     if (data.error) {
@@ -340,7 +343,7 @@ async function renderIemCurve(iemId, cardEl, profile) {
   if (!wrap) return;
 
   try {
-    const res = await fetch(`${DSP_SERVICE_URL}/api/iems/${iemId}/curve`);
+    const res = await fetch(dspUrl("iem-curve", { id: iemId }));
     if (!res.ok) return;
 
     const { curve, description } = await res.json();

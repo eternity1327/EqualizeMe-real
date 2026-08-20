@@ -9,10 +9,9 @@ $csrfToken = csrf_token();
 
 // Only allow redirecting to known pages in this project — never to an
 // arbitrary URL, to avoid this being abused as an open redirect.
-// index.html is the fallback default rather than assessment.php, which is
-// legacy/unlinked from the nav now that test.html is the real sound test.
+// index.html is the fallback default; test.html is the sound test.
 $allowedRedirects = [
-    "index.html", "test.html", "assessment.php",
+    "index.html", "test.html",
     "recommendations.html", "profile.html", "settings.html"
 ];
 $redirectTarget = $_REQUEST["redirect"] ?? "";

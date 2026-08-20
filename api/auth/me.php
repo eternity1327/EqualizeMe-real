@@ -24,6 +24,7 @@ try {
 
     echo json_encode(["id" => (int)$user["id"], "name" => $user["name"], "email" => $user["email"]]);
 } catch (PDOException $e) {
+    error_log("auth/me.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(["error" => "Something went wrong"]);
 }

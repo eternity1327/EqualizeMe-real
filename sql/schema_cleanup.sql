@@ -93,15 +93,12 @@ DROP TABLE IF EXISTS test_history;
 
 
 -- ---------------------------------------------------------------------
--- 5. NOT dropped, deliberately: the legacy assessment tables
+-- 5. Superseded: the legacy assessment tables
 -- ---------------------------------------------------------------------
 -- assessments, questions, question_rules, question_score_impact and
--- responses belong to the older branching-quiz flow. It's superseded by the
--- adaptive test but still functional, still reachable at assessment.php,
--- and its Flask routes still exist.
+-- responses belonged to the older branching-quiz flow. They were kept here
+-- for a time as a reference implementation.
 --
--- They're left in place because removing them would break that page, and
--- because a working older implementation is worth being able to point at
--- when explaining why the current design was chosen. Drop them only if you
--- also remove assessment.php and the /start-assessment and /next-question
--- routes from ai_service.py.
+-- They have since been removed. See sql/drop_legacy_assessment.sql for the
+-- migration, and SRS.md Appendix A for the design and the reasoning behind
+-- replacing it with the adaptive binary search.

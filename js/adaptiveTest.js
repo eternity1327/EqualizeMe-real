@@ -163,7 +163,7 @@ async function beginQuiz() {
   const container = document.getElementById('quiz-questions');
 
   try {
-    const res = await fetch(`${DSP_SERVICE_URL}/api/quiz/questions`);
+    const res = await fetch(dspUrl('quiz-questions'));
     const data = await res.json();
 
     if (!res.ok || !data.questions || !data.questions.length) {
@@ -216,16 +216,14 @@ async function beginTest(quizAnswers) {
 
 async function startTest(quizAnswers) {
   try {
-    const payload = { user_id: currentUserId };
+    // user_id is deliberately not sent — api/dsp.php injects it from the
+    // session, so the test can only ever be started as yourself.
+    const payload = {};
     if (quizAnswers && Object.keys(quizAnswers).length) {
       payload.quiz = quizAnswers;
     }
 
-    const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const res = await dspPost('adaptive-start', payload);
     const pair = await res.json();
 
     if (!res.ok) {
@@ -238,7 +236,7 @@ async function startTest(quizAnswers) {
     renderPair(pair);
   } catch (err) {
     document.getElementById('status').textContent =
-      'Could not reach the DSP service. Is ai_service.py running, and is DSP_SERVICE_URL set to the right IP?';
+      'Could not reach the audio service. Is ai_service.py running?';
     document.getElementById('progress').innerHTML =
       '<span class="dot"></span><span>Could not reach the DSP service</span>';
   }
@@ -323,11 +321,7 @@ async function playLocally(side) {
 
 async function playOnServer(side) {
   try {
-    const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/play`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ side, user_id: currentUserId }),
-    });
+    const res = await dspPost('adaptive-play', { side });
     const data = await res.json();
 
     if (res.ok) {
@@ -367,11 +361,7 @@ async function playSide(side) {
 async function chooseSide(side) {
   document.getElementById('status').textContent = 'Saving your answer...';
 
-  const res = await fetch(`${DSP_SERVICE_URL}/api/dsp/adaptive/answer`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ preferred: side, user_id: currentUserId }),
-  });
+  const res = await dspPost('adaptive-answer', { preferred: side });
   const data = await res.json();
 
   if (data.error) {
@@ -380,21 +370,37 @@ async function chooseSide(side) {
   }
 
   if (data.done) {
-    showDoneScreen(data.profile);
+    showDoneScreen(data.profile, data.confidence, data.precision);
   } else {
     renderPair(data.next);
   }
 }
 
-function showDoneScreen(profile) {
+function showDoneScreen(profile, confidence, precision) {
   document.getElementById('test-screen').style.display = 'none';
   document.getElementById('done-screen').style.display = 'block';
 
-  const lines = Object.entries(profile)
-    .map(([key, val]) => `${paramLabels[key] || key}: ${val > 0 ? '+' : ''}${val} dB`)
-    .join('\n');
+  const lines = Object.entries(profile).map(([key, val]) => {
+    const label = paramLabels[key] || key;
+    const sign = val > 0 ? '+' : '';
 
-  document.getElementById('profile-output').textContent = lines;
+    // precision is keyed by the same band names as the profile, and holds
+    // how far each value could be off — worth showing, since a figure
+    // quoted to one decimal place implies more certainty than the test
+    // actually has.
+    const margin = precision && precision[key] !== undefined
+      ? `  (± ${precision[key]} dB)`
+      : '';
+
+    return `${label}: ${sign}${val} dB${margin}`;
+  });
+
+  if (typeof confidence === 'number') {
+    lines.push('');
+    lines.push(`Confidence: ${confidence}%`);
+  }
+
+  document.getElementById('profile-output').textContent = lines.join('\n');
 
   notifyTestComplete();
 }

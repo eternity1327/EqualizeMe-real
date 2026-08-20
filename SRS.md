@@ -382,3 +382,60 @@ The system is accepted when:
 6. Password reset works end to end by email
 7. All security requirements in section 4.1 hold
 8. At least 40 users can hold accounts without degradation
+
+
+---
+
+## Appendix A — Design History
+
+### A.1 Superseded approach: rule-based branching questionnaire
+
+The first implementation of the listening test used a **rule-based branching
+questionnaire**. Questions were stored in a `questions` table, the path
+between them in `question_rules`, and each answer's effect on the three bands
+in `question_score_impact`. After each answer the server looked up the next
+question; on completion it summed the recorded deltas to produce a profile.
+
+It worked, but had three limitations.
+
+**Authoring cost.** Every question, branch and score impact had to be written
+by hand as database rows. Adding a single question meant editing three tables
+and reasoning about how it interacted with the existing rules.
+
+**Poor convergence.** Because the path was fixed in advance, the number of
+questions needed did not adapt to the listener. Reaching the precision the
+current test achieves in ten questions would have required substantially
+more.
+
+**Coarse output.** A score was the sum of hand-assigned deltas, so the result
+could only ever be as granular as the values someone had typed in.
+
+### A.2 Current approach: adaptive binary search
+
+The current test replaces the rule graph with a **binary search over each
+band's decibel range**. Sample A always carries the low end of the remaining
+range and sample B the high end, so every answer discards half of what
+remains.
+
+This addresses all three limitations. There is no rule graph to author, since
+each pair is generated from the current bounds. Convergence is exponential:
+four rounds locate a preference to within ±0.375 dB across a 12 dB range. And
+the result is a continuous value rather than a sum of authored constants.
+
+The written questionnaire was kept, but repurposed. Rather than driving the
+test, its six answers now **seed** the starting bounds — narrowing the initial
+window from 12 dB to 6 dB and roughly doubling final precision at no extra
+cost to the listener. The confidence score reported at the end is derived from
+the achieved precision, which is why a seeded run scores around 95% and an
+unseeded one around 90%.
+
+### A.3 Removal
+
+The superseded implementation was retained in the codebase for a period as a
+reference. It has since been removed — `assessment.php`, the
+`/start-assessment` and `/next-question` routes, their nine helper functions,
+and the five database tables — so that two systems no longer appear to serve
+the same purpose. This appendix records the design and the reasoning in their
+place.
+
+See `sql/drop_legacy_assessment.sql` for the schema migration.

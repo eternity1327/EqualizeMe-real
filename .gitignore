@@ -8,3 +8,6 @@ api/config.local.php
 # Password reset emails written to disk when SMTP isn't configured.
 # These contain working reset links, so they must not be committed.
 logs/
+
+# Local secrets for the Python service — same role as api/config.local.php.
+backend/config.local.json

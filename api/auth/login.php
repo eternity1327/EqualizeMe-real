@@ -72,6 +72,7 @@ try {
         "email" => $user["email"],
     ]);
 } catch (PDOException $e) {
+    error_log("auth/login.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(["error" => "Something went wrong logging in"]);
 }
