@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Profile History</title>
+
+    <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+      .history-box {
+        max-width: 900px;
+        margin: 0 auto;
+        text-align: left;
+      }
+
+      .history-card {
+        background: var(--card-bg);
+        border-radius: 30px;
+        box-shadow: 0 15px 35px var(--shadow-color);
+        padding: 12px;
+        overflow: hidden;
+      }
+
+      .history-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 20px;
+        border-radius: 20px;
+      }
+
+      .history-row + .history-row {
+        border-top: 1px solid var(--border);
+      }
+
+      .history-row-head {
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+      }
+
+      .history-date {
+        flex: 1 1 200px;
+        font-weight: 600;
+      }
+
+      .history-metric {
+        flex: 1 1 90px;
+        color: var(--text-muted);
+      }
+
+      .history-row:not(.history-row-head) .history-metric {
+        color: var(--text);
+      }
+
+      .history-action {
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+
+      .badge-latest {
+        display: inline-block;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: white;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.75em;
+        font-weight: 600;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+
+      .btn-compare {
+        padding: 8px 18px;
+        background: var(--pill-bg);
+        color: var(--text);
+        border: none;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.85em;
+        font-weight: 600;
+        font-family: inherit;
+      }
+
+      .btn-compare:hover {
+        background: var(--pill-bg-hover);
+        color: white;
+      }
+
+      .empty-dash {
+        color: var(--text-muted);
+      }
+
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, .5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+      }
+
+      .modal-content {
+        background: var(--card-bg);
+        color: var(--text);
+        padding: 35px;
+        border-radius: 30px;
+        max-width: 500px;
+        width: 90%;
+        position: relative;
+        box-shadow: 0 15px 35px var(--shadow-color);
+        text-align: left;
+      }
+
+      .modal-close {
+        position: absolute;
+        top: 14px;
+        right: 18px;
+        background: none;
+        border: none;
+        font-size: 26px;
+        line-height: 1;
+        cursor: pointer;
+        color: var(--text-muted);
+      }
+
+      .modal-close:hover {
+        color: var(--text);
+      }
+
+      .comparison {
+        margin-top: 20px;
+      }
+
+      .comparison-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 25px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .comparison-header strong {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+      }
+
+      .band-changes {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .band-row {
+        display: grid;
+        grid-template-columns: 60px 1fr 30px 1fr 80px;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        background: var(--pill-bg);
+        border-radius: 14px;
+      }
+
+      .band-row strong {
+        font-weight: 600;
+      }
+
+      .band-row span {
+        text-align: center;
+      }
+
+      .band-row .arrow {
+        font-size: 1.2em;
+        font-weight: bold;
+      }
+
+      .band-row .change {
+        font-weight: 600;
+        font-size: 0.95em;
+      }
+
+      .confidence-change {
+        padding: 16px;
+        background: var(--pill-bg);
+        border-radius: 14px;
+        text-align: center;
+      }
+
+      .confidence-change strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .error {
+        color: var(--danger);
+        padding: 15px;
+        background: var(--pill-bg);
+        border-radius: 14px;
+      }
+
+      .loading {
+        color: var(--text-muted);
+        font-style: italic;
+      }
+
+      .subtitle {
+        color: var(--text-muted);
+        margin: -30px 0 30px;
+        text-align: left;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      @media (max-width: 700px) {
+        .history-row-head {
+          display: none;
+        }
+
+        .history-row {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 6px;
+        }
+
+        .history-action {
+          margin-left: 0;
+        }
+
+        .band-row {
+          grid-template-columns: 50px 1fr 20px 1fr 60px;
+          font-size: 0.9em;
+        }
+
+        .modal-content {
+          padding: 22px;
+        }
+      }
+    </style>
+
+  </head>
+
+  <body>
+
+    <nav class="navbar">
+
+      <a href="index.html" class="logo">
+        <img src="images/logo.png" alt="EqualizeME logo" class="logo-light">
+        <img src="images/logo-dark.png" alt="EqualizeME logo" class="logo-dark">
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="test.html">Sound Test</a></li>
+        <li><a href="recommendations.html">Recommendations</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+
+      <div class="nav-right">
+        <div class="profile-menu">
+          <button class="profile-avatar" id="profileAvatarBtn"
+            aria-haspopup="true" aria-expanded="false">
+            👤
+          </button>
+          <div class="dropdown" id="profileDropdown">
+            <a href="profile.html" id="nav-profile">Profile</a>
+            <a href="profile-history.html" id="nav-history" class="active">History</a>
+            <a href="login.php" id="nav-login" style="display:none;">Login</a>
+            <a href="login.php?tab=register" id="nav-register" style="display:none;">Register</a>
+            <a href="logout.php" id="nav-logout" class="dropdown-logout"
+              style="display:none;">Logout</a>
+          </div>
+        </div>
+      </div>
+
+      <button id="themeToggle" class="theme-toggle"
+        aria-label="Toggle dark mode">🌙</button>
+
+    </nav>
+
+    <section class="section">
+
+      <h1 class="section-title">Auditory Profile History</h1>
+      <p class="subtitle">View and compare how your listening preferences have changed over time.</p>
+
+      <div class="history-box">
+        <div id="historyContainer">
+          <p class="loading">Loading your profile history...</p>
+        </div>
+      </div>
+
+      <div id="comparisonModal" class="modal" style="display: none;">
+        <div class="modal-content">
+          <button class="modal-close" onclick="closeComparison()">×</button>
+          <h2>Profile Comparison</h2>
+          <div id="comparisonData"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <script src="js/script.js"></script>
+    <script>
+      let profiles = [];
+
+      async function loadHistory() {
+        const container = document.getElementById('historyContainer');
+        try {
+          const res = await fetch('api/profile/history.php');
+          if (!res.ok) {
+            container.innerHTML = '<p class="error">Could not load profile history.</p>';
+            return;
+          }
+          const data = await res.json();
+          profiles = data.profiles;
+
+          if (profiles.length === 0) {
+            container.innerHTML = '<p>No profiles yet. Take the listening test to create your first profile.</p>';
+            return;
+          }
+
+          let html = '<div class="history-card">';
+          html += '<div class="history-row history-row-head">';
+          html += '<span class="history-date">Date</span>';
+          html += '<span class="history-metric">Bass</span>';
+          html += '<span class="history-metric">Presence</span>';
+          html += '<span class="history-metric">Treble</span>';
+          html += '<span class="history-metric">Confidence</span>';
+          html += '<span class="history-action"></span>';
+          html += '</div>';
+
+          for (let i = 0; i < profiles.length; i++) {
+            const p = profiles[i];
+            const date = new Date(p.created_at).toLocaleString();
+            const badge = i === 0 ? '<span class="badge-latest">Latest</span>' : '';
+
+            html += '<div class="history-row">';
+            html += `<span class="history-date">${date}${badge}</span>`;
+            html += `<span class="history-metric">${p.bass_gain > 0 ? '+' : ''}${p.bass_gain.toFixed(2)} dB</span>`;
+            html += `<span class="history-metric">${p.presence_gain > 0 ? '+' : ''}${p.presence_gain.toFixed(2)} dB</span>`;
+            html += `<span class="history-metric">${p.treble_gain > 0 ? '+' : ''}${p.treble_gain.toFixed(2)} dB</span>`;
+            html += `<span class="history-metric">${p.confidence_score.toFixed(1)}%</span>`;
+
+            if (i > 0) {
+              html += `<span class="history-action"><button class="btn-compare" onclick="compareProfiles(${p.id}, ${profiles[0].id})">vs Latest</button></span>`;
+            } else {
+              html += '<span class="history-action empty-dash">—</span>';
+            }
+            html += '</div>';
+          }
+
+          html += '</div>';
+          container.innerHTML = html;
+        } catch (err) {
+          container.innerHTML = '<p class="error">Error loading profile history.</p>';
+          console.error(err);
+        }
+      }
+
+      async function compareProfiles(oldId, newId) {
+        const modal = document.getElementById('comparisonModal');
+        const data = document.getElementById('comparisonData');
+
+        try {
+          const res = await fetch(`api/profile/compare.php?p1=${oldId}&p2=${newId}`);
+          if (!res.ok) {
+            data.innerHTML = '<p class="error">Could not load comparison.</p>';
+            modal.style.display = 'flex';
+            return;
+          }
+          const comparison = await res.json();
+
+          const band = (name, older, newer, change) => {
+            const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '→';
+            const color = change > 0 ? '#22c55e' : change < 0 ? 'var(--danger)' : 'var(--text-muted)';
+            return `
+              <div class="band-row">
+                <strong>${name}</strong>
+                <span>${older > 0 ? '+' : ''}${older.toFixed(2)} dB</span>
+                <span class="arrow" style="color: ${color}">${arrow}</span>
+                <span>${newer > 0 ? '+' : ''}${newer.toFixed(2)} dB</span>
+                <span class="change">${change > 0 ? '+' : ''}${change.toFixed(2)} dB</span>
+              </div>
+            `;
+          };
+
+          let html = '<div class="comparison">';
+          html += '<div class="comparison-header">';
+          html += `<div><strong>Earlier</strong><br>${new Date(comparison.older.created_at).toLocaleString()}</div>`;
+          html += `<div><strong>Recent</strong><br>${new Date(comparison.newer.created_at).toLocaleString()}</div>`;
+          html += '</div>';
+
+          html += '<div class="band-changes">';
+          html += band('Bass', comparison.older.bass_gain, comparison.newer.bass_gain, comparison.changes.bass_gain);
+          html += band('Presence', comparison.older.presence_gain, comparison.newer.presence_gain, comparison.changes.presence_gain);
+          html += band('Treble', comparison.older.treble_gain, comparison.newer.treble_gain, comparison.changes.treble_gain);
+          html += '</div>';
+
+          html += '<div class="confidence-change">';
+          html += `<strong>Confidence</strong><br>`;
+          html += `${comparison.older.confidence_score.toFixed(1)}% → ${comparison.newer.confidence_score.toFixed(1)}%`;
+          const confChange = comparison.changes.confidence_change;
+          if (confChange !== 0) {
+            html += ` (${confChange > 0 ? '+' : ''}${confChange.toFixed(1)}%)`;
+          }
+          html += '</div>';
+
+          html += '</div>';
+          data.innerHTML = html;
+          modal.style.display = 'flex';
+        } catch (err) {
+          data.innerHTML = '<p class="error">Error comparing profiles.</p>';
+          console.error(err);
+          modal.style.display = 'flex';
+        }
+      }
+
+      function closeComparison() {
+        document.getElementById('comparisonModal').style.display = 'none';
+      }
+
+      document.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('comparisonModal')) {
+          closeComparison();
+        }
+      });
+
+      loadHistory();
+    </script>
+
+  </body>
+</html>
