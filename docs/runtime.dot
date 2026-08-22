@@ -1,0 +1,156 @@
+digraph Runtime {
+  graph [rankdir=TB, splines=spline, bgcolor="white", fontname="Helvetica",
+         nodesep=0.34, ranksep=0.75, pad=0.45, newrank=true];
+  node  [shape=box, style="filled,rounded", fontname="Helvetica", fontsize=10.5,
+         height=0.38, margin="0.16,0.07", color="#00000000"];
+  edge  [fontname="Helvetica", fontsize=9, color="#61748a", arrowsize=0.65];
+
+  subgraph cluster_1 {
+    label=<<B>1 &#8226; BROWSER</B>   pages the user opens>;
+    fontsize=13; labeljust=l; style="rounded,filled";
+    fillcolor="#edf3fa"; color="#b6c7da"; margin=16;
+
+    pages [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="7">
+        <TR>
+          <TD BGCOLOR="#d5e5f6" HEIGHT="30" WIDTH="136"><FONT COLOR="#12314f" POINT-SIZE="10">index.html</FONT></TD>
+          <TD BGCOLOR="#d5e5f6" WIDTH="136"><FONT COLOR="#12314f" POINT-SIZE="10">login.php</FONT></TD>
+          <TD BGCOLOR="#d5e5f6" WIDTH="150"><FONT COLOR="#12314f" POINT-SIZE="10">register.php</FONT></TD>
+        </TR>
+        <TR>
+          <TD BGCOLOR="#d5e5f6" HEIGHT="30"><FONT COLOR="#12314f" POINT-SIZE="10">forgot-password.php</FONT></TD>
+          <TD BGCOLOR="#d5e5f6"><FONT COLOR="#12314f" POINT-SIZE="10">reset-password.php</FONT></TD>
+          <TD BGCOLOR="#d5e5f6"><FONT COLOR="#12314f" POINT-SIZE="10">test.html</FONT></TD>
+        </TR>
+        <TR>
+          <TD BGCOLOR="#d5e5f6" HEIGHT="30"><FONT COLOR="#12314f" POINT-SIZE="10">recommendations.html</FONT></TD>
+          <TD BGCOLOR="#d5e5f6"><FONT COLOR="#12314f" POINT-SIZE="10">profile.html</FONT></TD>
+          <TD BGCOLOR="#d5e5f6"><FONT COLOR="#12314f" POINT-SIZE="10">profile-history.html</FONT></TD>
+        </TR>
+        <TR>
+          <TD BGCOLOR="#d5e5f6" HEIGHT="30"><FONT COLOR="#12314f" POINT-SIZE="10">settings.html</FONT></TD>
+          <TD BGCOLOR="#d5e5f6"><FONT COLOR="#12314f" POINT-SIZE="10">logout.php</FONT></TD>
+          <TD BGCOLOR="#eef2f6"><FONT COLOR="#48586a" POINT-SIZE="10">css/style.css</FONT></TD>
+        </TR>
+      </TABLE>>];
+
+    script   [label="js/script.js\nshared: CSRF, theme, cards, curves",
+              fillcolor="#a9caea", fontcolor="#0d2740"];
+    adaptive [label="js/adaptiveTest.js\nruns the 10-question test, plays audio",
+              fillcolor="#a9caea", fontcolor="#0d2740"];
+  }
+
+  subgraph cluster_2 {
+    label=<<B>2 &#8226; PHP API</B>   checks who you are, owns your data>;
+    fontsize=13; labeljust=l; style="rounded,filled";
+    fillcolor="#edf6f1"; color="#aed0be"; margin=16;
+
+    auth [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="7">
+        <TR><TD COLSPAN="3" ALIGN="LEFT"><FONT COLOR="#2c5c44" POINT-SIZE="9.5"><B>api/auth/</B></FONT></TD></TR>
+        <TR>
+          <TD BGCOLOR="#c6e2d3" HEIGHT="28" WIDTH="104"><FONT COLOR="#0f3524" POINT-SIZE="10">register.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3" WIDTH="104"><FONT COLOR="#0f3524" POINT-SIZE="10">login.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3" WIDTH="104"><FONT COLOR="#0f3524" POINT-SIZE="10">me.php</FONT></TD>
+        </TR>
+        <TR>
+          <TD BGCOLOR="#c6e2d3" HEIGHT="28"><FONT COLOR="#0f3524" POINT-SIZE="10">logout.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3"><FONT COLOR="#0f3524" POINT-SIZE="10">request-reset.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3"><FONT COLOR="#0f3524" POINT-SIZE="10">reset-password.php</FONT></TD>
+        </TR>
+      </TABLE>>];
+
+    feat [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="7">
+        <TR>
+          <TD BGCOLOR="#c6e2d3" HEIGHT="28" WIDTH="118"><FONT COLOR="#0f3524" POINT-SIZE="10">api/profile.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3" WIDTH="140"><FONT COLOR="#0f3524" POINT-SIZE="10">api/profile/history.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3" WIDTH="142"><FONT COLOR="#0f3524" POINT-SIZE="10">api/profile/compare.php</FONT></TD>
+        </TR>
+        <TR>
+          <TD BGCOLOR="#c6e2d3" HEIGHT="28"><FONT COLOR="#0f3524" POINT-SIZE="10">api/settings.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3"><FONT COLOR="#0f3524" POINT-SIZE="10">api/upload-picture.php</FONT></TD>
+          <TD BGCOLOR="#c6e2d3"><FONT COLOR="#0f3524" POINT-SIZE="10">api/csrf-token.php</FONT></TD>
+        </TR>
+      </TABLE>>];
+
+    dsp [label="api/dsp.php\nTHE GATE — verifies session, injects your user id,\nthen forwards to Python. Browser never sees port 5001.",
+         fillcolor="#5fa580", fontcolor="#ffffff", fontsize=10.5];
+
+    core [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="6" BGCOLOR="#e2efe8">
+        <TR><TD COLSPAN="4" ALIGN="LEFT"><FONT COLOR="#2c5c44" POINT-SIZE="9.5"><B>shared plumbing — every endpoint above uses these</B></FONT></TD></TR>
+        <TR>
+          <TD BGCOLOR="#f0f6f3" HEIGHT="26" WIDTH="112"><FONT COLOR="#244634" POINT-SIZE="9.5">api/session.php</FONT></TD>
+          <TD BGCOLOR="#f0f6f3" WIDTH="102"><FONT COLOR="#244634" POINT-SIZE="9.5">api/csrf.php</FONT></TD>
+          <TD BGCOLOR="#f0f6f3" WIDTH="122"><FONT COLOR="#244634" POINT-SIZE="9.5">api/rate_limit.php</FONT></TD>
+          <TD BGCOLOR="#f0f6f3" WIDTH="92"><FONT COLOR="#244634" POINT-SIZE="9.5">api/db.php</FONT></TD>
+        </TR>
+        <TR>
+          <TD BGCOLOR="#f0f6f3" HEIGHT="26"><FONT COLOR="#244634" POINT-SIZE="9.5">api/config.php</FONT></TD>
+          <TD BGCOLOR="#f0f6f3"><FONT COLOR="#244634" POINT-SIZE="9.5">config.local.php</FONT></TD>
+          <TD BGCOLOR="#f0f6f3"><FONT COLOR="#244634" POINT-SIZE="9.5">password_policy.php</FONT></TD>
+          <TD BGCOLOR="#f0f6f3"><FONT COLOR="#244634" POINT-SIZE="9.5">api/mailer.php</FONT></TD>
+        </TR>
+      </TABLE>>];
+  }
+
+  subgraph cluster_3 {
+    label=<<B>3 &#8226; PYTHON SERVICE</B>   127.0.0.1:5001 &#8212; the maths>;
+    fontsize=13; labeljust=l; style="rounded,filled";
+    fillcolor="#fdf4e8"; color="#e3c79c"; margin=16;
+
+    ai [label="backend/ai_service.py\nFlask API + recommendation engine",
+        fillcolor="#e0ab52", fontcolor="#3b2703"];
+
+    pymods [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="7">
+        <TR>
+          <TD BGCOLOR="#f7e2c0" HEIGHT="30" WIDTH="150"><FONT COLOR="#5a3d07" POINT-SIZE="10">backend/pre_quiz.py<BR/><FONT POINT-SIZE="8.5">6 questions &#8594; seed</FONT></FONT></TD>
+          <TD BGCOLOR="#f7e2c0" WIDTH="150"><FONT COLOR="#5a3d07" POINT-SIZE="10">backend/adaptive_test.py<BR/><FONT POINT-SIZE="8.5">binary search</FONT></FONT></TD>
+          <TD BGCOLOR="#f7e2c0" WIDTH="150"><FONT COLOR="#5a3d07" POINT-SIZE="10">backend/interpreter.py<BR/><FONT POINT-SIZE="8.5">dB &#8594; English</FONT></FONT></TD>
+        </TR>
+        <TR>
+          <TD BGCOLOR="#f7e2c0" HEIGHT="30"><FONT COLOR="#5a3d07" POINT-SIZE="10">backend/camilla_dsp.py<BR/><FONT POINT-SIZE="8.5">fallback audio</FONT></FONT></TD>
+          <TD BGCOLOR="#f7e2c0"><FONT COLOR="#5a3d07" POINT-SIZE="10">backend/db_config.py<BR/><FONT POINT-SIZE="8.5">credentials</FONT></FONT></TD>
+          <TD BGCOLOR="#efe6d6"><FONT COLOR="#6b5426" POINT-SIZE="10">backend/camilladsp.exe</FONT></TD>
+        </TR>
+      </TABLE>>];
+  }
+
+  subgraph cluster_4 {
+    label=<<B>4 &#8226; STORAGE</B>>;
+    fontsize=13; labeljust=l; style="rounded,filled";
+    fillcolor="#f4eff8"; color="#c8b4da"; margin=16;
+
+    mysql [label="MySQL  ·  equalizeme\nusers · auditory_profiles · settings · password_resets · iems · retailers",
+           shape=cylinder, style=filled, fillcolor="#d6c5e6", fontcolor="#2f1b44", height=0.75];
+    audio [label="data/audio/samples/\nsample1–10 .mp3", shape=folder, style=filled,
+           fillcolor="#e8dff2", fontcolor="#3d2757"];
+    up    [label="uploads/", shape=folder, style=filled,
+           fillcolor="#e8dff2", fontcolor="#3d2757"];
+  }
+
+  pages -> script    [label="  every page loads", weight=20];
+  pages -> adaptive  [label="  test.html only"];
+
+  script   -> auth [label="  login / register / reset"];
+  script   -> feat [label="  profile · settings · history"];
+  adaptive -> dsp  [label="  quiz · start · play · answer", color="#2f7a55", penwidth=1.5, weight=20];
+  script   -> dsp  [label="  recommendations · curve", color="#2f7a55", penwidth=1.5];
+
+  auth -> core [style=dotted, arrowhead=none, color="#93b8a4"];
+  feat -> core [style=dotted, arrowhead=none, color="#93b8a4"];
+  dsp  -> core [style=dotted, arrowhead=none, color="#93b8a4"];
+
+  dsp -> ai [label="  HTTP to localhost, with a verified user id",
+             color="#2f7a55", penwidth=1.8, fontcolor="#2f7a55", weight=20];
+  ai -> pymods [style=dotted, arrowhead=none, color="#d8b878"];
+
+  core -> mysql [label="  prepared statements", color="#8d76a8"];
+  ai   -> mysql [label="  save profile · read catalogue", color="#8d76a8", weight=20];
+  adaptive -> audio [label="  fetch .mp3", color="#8d76a8", constraint=false];
+  feat -> up [label="  avatars", color="#8d76a8", constraint=false];
+
+  {rank=same; mysql; audio; up;}
+}

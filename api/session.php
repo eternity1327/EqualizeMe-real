@@ -45,6 +45,13 @@ function start_secure_session() {
     _session_rotate_id_periodically();
 }
 
+/**
+ * Options for session_set_cookie_params(), which is the only caller.
+ *
+ * Note the key is 'lifetime' here. setcookie() takes a similar-looking
+ * array but names that key 'expires' and rejects 'lifetime' outright, so
+ * the two are NOT interchangeable — see expired_cookie_options() below.
+ */
 function session_cookie_options() {
     return [
         'lifetime' => 0,
@@ -55,6 +62,28 @@ function session_cookie_options() {
     ];
 }
 
+/**
+ * The same cookie, described the way setcookie() expects, with an expiry
+ * already in the past so the browser discards it.
+ *
+ * Passing session_cookie_options() straight to setcookie() throws
+ * "ValueError: option \"lifetime\" is invalid" on PHP 8 — it was a silent
+ * warning on PHP 7, which is why this went unnoticed. 'lifetime' is
+ * dropped and 'expires' supplied in its place.
+ *
+ * Everything else must match how the cookie was originally set. Browsers
+ * identify a cookie by name + path + domain, so a mismatch means the
+ * deletion quietly targets a different cookie and the real one survives.
+ */
+function expired_cookie_options() {
+    $params = session_cookie_options();
+    unset($params['lifetime']);
+
+    $params['expires'] = time() - COOKIE_DELETE_OFFSET;
+
+    return $params;
+}
+
 function end_secure_session() {
     if (session_status() !== PHP_SESSION_ACTIVE) {
         start_secure_session();
@@ -63,9 +92,7 @@ function end_secure_session() {
     $_SESSION = [];
 
     if (ini_get('session.use_cookies')) {
-        $params = session_cookie_options();
-        $params['expires'] = time() - COOKIE_DELETE_OFFSET;
-        setcookie(session_name(), '', $params);
+        setcookie(session_name(), '', expired_cookie_options());
     }
 
     session_destroy();

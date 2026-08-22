@@ -1,0 +1,51 @@
+digraph Pipeline {
+  graph [rankdir=LR, splines=spline, bgcolor="white", fontname="Helvetica",
+         nodesep=0.4, ranksep=0.85, pad=0.45];
+  node  [shape=box, style="filled,rounded", fontname="Helvetica", fontsize=10.5,
+         height=0.42, margin="0.17,0.09", color="#00000000"];
+  edge  [fontname="Helvetica", fontsize=9, color="#8a6a74", arrowsize=0.7];
+
+  subgraph cluster_p {
+    label=<<B>OFFLINE PIPELINE</B>   run by hand to build the IEM catalogue &#8212; never runs while someone uses the site>;
+    fontsize=13; labeljust=l; style="rounded,filled";
+    fillcolor="#f8f0f2"; color="#dcb9c2"; margin=18;
+
+    squig [label="squig.link\n(external site)", shape=ellipse, style=filled,
+           fillcolor="#f0e0e5", fontcolor="#5b2333"];
+    fetch [label="backend/fetch_measurements.py\n1 request/sec, resumable, --dry-run",
+           fillcolor="#e3c2cc", fontcolor="#4d1d2a"];
+    meas  [label="measurements/*.txt\n554 files", shape=folder, style=filled,
+           fillcolor="#f4e7eb", fontcolor="#5b2333"];
+
+    book  [label="phone_book.json\nbrands, models, prices", shape=note, style=filled,
+           fillcolor="#f4e7eb", fontcolor="#5b2333"];
+    cat   [label="backend/catalog_parser.py\ncleans messy JSON",
+           fillcolor="#e3c2cc", fontcolor="#4d1d2a"];
+    mp    [label="backend/measurement_parser.py\ncomputes gains vs 500–2000 Hz",
+           fillcolor="#e3c2cc", fontcolor="#4d1d2a"];
+
+    calib [label="backend/calibrate_interpreter.py\npercentiles from the real catalogue",
+           fillcolor="#e3c2cc", fontcolor="#4d1d2a"];
+    interp[label="backend/interpreter.py\ndB → \"warm, full bass\"",
+           fillcolor="#eed3da", fontcolor="#4d1d2a"];
+
+    imp   [label="backend/import_to_db.py\nprints SQL by default, --live to write",
+           fillcolor="#c99daa", fontcolor="#3a1119"];
+  }
+
+  mysql [label="MySQL · iems table", shape=cylinder, style=filled,
+         fillcolor="#d6c5e6", fontcolor="#2f1b44", height=0.7];
+
+  squig -> fetch [label=" download"];
+  fetch -> meas;
+  book  -> cat;
+  meas  -> mp;
+  cat   -> imp [label=" brand, model,\n price, link"];
+  mp    -> imp [label=" bass / presence /\n treble gains"];
+  meas  -> calib [style=dashed, label=" analyse\n distribution"];
+  calib -> interp [style=dashed, label=" rewrites\n thresholds"];
+  interp -> imp [label=" description text"];
+  imp -> mysql [label="  upsert", color="#8d76a8", penwidth=1.5];
+
+  {rank=same; squig; book;}
+}

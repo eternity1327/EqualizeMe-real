@@ -457,22 +457,72 @@ async function saveSetting(key, checked) {
   }
 }
 
-function toggleNotifications(checked) {
-  if (checked && "Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission().then(updateNotifStatus);
-  }
+async function toggleNotifications(checked) {
   saveSetting("notifications", checked);
+
+  if (!checked || !("Notification" in window)) {
+    updateNotifStatus();
+    return;
+  }
+
+  // Ask only if the user hasn't already decided. Calling this when the
+  // answer is already "denied" does nothing — the browser will not re-prompt,
+  // which is why updateNotifStatus() has to explain that state instead.
+  if (Notification.permission === "default") {
+    try {
+      await Notification.requestPermission();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   updateNotifStatus();
+
+  // Fire one immediately on enabling. Without it the toggle gives no sign of
+  // working at all: the only other notification in the app happens at the end
+  // of a listening test, so the setting looks broken until you finish one.
+  if (Notification.permission === "granted") {
+    try {
+      new Notification("EqualizeME", {
+        body: "Notifications are on. You'll get one when your profile is ready.",
+      });
+    } catch (err) {
+      // Some browsers only allow notifications from a service worker. The
+      // setting is still saved; it just can't be demonstrated here.
+      console.error("Could not show a test notification:", err);
+    }
+  }
 }
 
 function updateNotifStatus() {
   const statusEl = document.getElementById("notif-status");
   if (!statusEl) return;
 
+  const box = document.querySelector('.setting-checkbox[data-key="notifications"]');
+  const wanted = box ? box.checked : false;
+
   if (!("Notification" in window)) {
-    statusEl.textContent = "Your browser doesn't support notifications.";
-  } else if (Notification.permission === "denied") {
-    statusEl.textContent = "Notifications are blocked in your browser settings — enable them there to use this.";
+    statusEl.textContent = "This browser doesn't support notifications.";
+    return;
+  }
+
+  // A secure context is required. http://localhost counts as one, but
+  // http://192.168.x.x does not — worth saying plainly, because the API is
+  // simply absent there rather than failing with an error.
+  if (!window.isSecureContext) {
+    statusEl.textContent =
+      "Notifications need HTTPS or localhost. On a plain http:// address the browser blocks them.";
+    return;
+  }
+
+  if (Notification.permission === "denied") {
+    statusEl.textContent =
+      "Blocked by your browser. Click the icon at the left of the address bar to allow them for this site.";
+  } else if (Notification.permission === "default" && wanted) {
+    statusEl.textContent =
+      "Waiting for permission — allow notifications when your browser asks.";
+  } else if (Notification.permission === "granted" && wanted) {
+    statusEl.textContent = "On. You'll be notified when a listening test finishes.";
   } else {
     statusEl.textContent = "";
   }
