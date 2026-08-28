@@ -1018,3 +1018,223 @@ footer {
 
 
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   RESULTS PAGE — preference profile, target, analysis, hearing
+   ══════════════════════════════════════════════════════════════════ */
+
+.result-block {
+    max-width: 1000px;
+    margin: 0 auto 56px;
+    text-align: left;
+}
+
+.result-heading {
+    font-size: 26px;
+    margin: 0 0 6px;
+}
+
+.result-sub {
+    color: var(--text-muted);
+    margin: 0 0 22px;
+    max-width: 70ch;
+}
+
+/* ── 1. Preference Profile ─────────────────────────────────────── */
+
+.band-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.band-card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 25px var(--shadow-color);
+    /* The left edge carries the direction, so the level is readable at a
+       glance without relying on the colour alone. */
+    border-left: 5px solid var(--border);
+}
+
+.band-card-name {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.band-card-level {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.band-card-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.band-card-range {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* Direction only — never a judgement. Green is not "good" here and red is
+   not "bad"; they are simply two ends of one axis. Blue-vs-amber keeps
+   that neutral and stays distinguishable for red-green colour blindness. */
+.band-card.tone-up-strong  { border-left-color: #d97706; }
+.band-card.tone-up         { border-left-color: #ea9a3e; }
+.band-card.tone-up-slight  { border-left-color: #f0bd7c; }
+.band-card.tone-neutral    { border-left-color: var(--text-muted); }
+.band-card.tone-down-slight{ border-left-color: #9dbbe6; }
+.band-card.tone-down       { border-left-color: #5b8def; }
+.band-card.tone-down-strong{ border-left-color: #3567c9; }
+
+/* ── 2. Preference Target ──────────────────────────────────────── */
+
+.target-chart-wrap {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 10px 25px var(--shadow-color);
+    height: 320px;
+}
+
+/* ── 3. Audio Analysis ─────────────────────────────────────────── */
+
+.analysis-row {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.analysis-row:last-child { border-bottom: none; }
+
+.analysis-band {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.analysis-level {
+    font-weight: 500;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    background: var(--pill-bg);
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.analysis-text {
+    margin: 0;
+    color: var(--text-muted);
+    max-width: 75ch;
+    line-height: 1.6;
+}
+
+/* ── 5. Hearing Preservation ───────────────────────────────────── */
+
+/* Set apart from the results above on purpose. This is guidance, not a
+   finding about the listener, and it should not read as one. */
+.hearing-section {
+    padding: 0 10% 80px;
+    text-align: left;
+}
+
+.hearing-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: var(--pill-bg);
+    border-radius: 24px;
+    padding: 34px 38px;
+    border-top: 4px solid var(--accent);
+}
+
+.hearing-title {
+    font-size: 24px;
+    margin: 0 0 6px;
+}
+
+.hearing-intro {
+    color: var(--text-muted);
+    margin: 0 0 24px;
+    max-width: 70ch;
+}
+
+.hearing-note {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+}
+
+.hearing-note h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+}
+
+.hearing-note p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 75ch;
+}
+
+.hearing-tips {
+    list-style: none;
+    padding: 0;
+    margin: 22px 0 0;
+    display: grid;
+    gap: 12px;
+}
+
+.hearing-tips li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 18px;
+    position: relative;
+    line-height: 1.6;
+}
+
+.hearing-tips li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+.hearing-tips span { color: var(--text-muted); }
+
+.hearing-standard {
+    margin: 24px 0 0;
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.hearing-disclaimer {
+    margin: 14px 0 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    opacity: .85;
+}
+
+@media (max-width: 700px) {
+    .result-block { margin-bottom: 40px; }
+    .target-chart-wrap { height: 260px; padding: 14px; }
+    .hearing-inner { padding: 24px 20px; }
+}

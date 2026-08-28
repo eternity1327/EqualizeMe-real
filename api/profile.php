@@ -17,9 +17,19 @@ try {
     $pictureStmt->execute([$_SESSION["user_id"]]);
     $profilePicture = $pictureStmt->fetchColumn();
 
+    // ORDER BY / LIMIT are load-bearing here. This query was written when
+    // auditory_profiles had a UNIQUE index on user_id and could only ever
+    // hold one row per person. That index is gone — the table is now an
+    // append-only history, one row per completed test — so without an
+    // explicit order this returned whichever row MySQL felt like handing
+    // back first, which in practice was the user's oldest test rather than
+    // their newest.
     $stmt = $pdo->prepare(
-        "SELECT bass_gain, treble_gain, presence_gain, confidence_score, updated_at " .
-        "FROM auditory_profiles WHERE user_id = ?"
+        "SELECT bass_gain, treble_gain, presence_gain, confidence_score, updated_at
+         FROM auditory_profiles
+         WHERE user_id = ?
+         ORDER BY created_at DESC
+         LIMIT 1"
     );
     $stmt->execute([$_SESSION["user_id"]]);
     $profile = $stmt->fetch();

@@ -50,14 +50,60 @@
     <section class="section">
 
       <h1 class="section-title">
-        Recommended IEMs
+        Your Results
       </h1>
 
-      <div class="iem-grid" id="iem-grid">
-        <p>Loading recommendations...</p>
+      <!-- The order is deliberate: what you prefer, the curve that
+           represents it, why it says that, what to buy, and only then how
+           to listen responsibly. Each block stays hidden until it has
+           content, so a partial failure shows fewer sections rather than
+           empty headings. -->
+
+      <!-- 1 -->
+      <div class="result-block" id="preference-block" hidden>
+        <h2 class="result-heading">Preference Profile</h2>
+        <p class="result-sub" id="preference-summary"></p>
+        <div class="band-cards" id="preference-bands"></div>
+      </div>
+
+      <!-- 2 -->
+      <div class="result-block" id="target-block" hidden>
+        <h2 class="result-heading">Preference Target</h2>
+        <p class="result-sub">
+          One curve, built from every listening test you have taken. This is
+          what the recommendations below are matched against.
+        </p>
+        <div class="target-chart-wrap">
+          <canvas id="target-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="result-block" id="analysis-block" hidden>
+        <h2 class="result-heading">Audio Analysis</h2>
+        <p class="result-sub">What the curve above is saying, in words.</p>
+        <div id="analysis-list"></div>
+      </div>
+
+      <!-- 4 -->
+      <!-- Not hidden at rest, unlike the blocks above: this one carries the
+           loading message, so something has to be on screen while the
+           request is in flight. -->
+      <div class="result-block" id="iem-block">
+        <h2 class="result-heading">IEM Recommendations</h2>
+        <p class="result-sub">
+          The closest matches to your target, then sorted by price.
+        </p>
+        <div class="iem-grid" id="iem-grid">
+          <p>Loading recommendations...</p>
+        </div>
       </div>
 
     </section>
+
+    <!-- 5. Deliberately outside the results section above. It is guidance
+         rather than a finding, and the visual separation is the point. -->
+    <section class="section hearing-section" id="hearing-block" hidden></section>
 
     <!-- Chart.js draws the frequency-response curve on each IEM card.
          Loaded before script.js so renderIemCurve() can see it; if the

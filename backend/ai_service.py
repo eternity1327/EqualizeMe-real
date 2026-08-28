@@ -9,6 +9,8 @@ import camilla_dsp
 import adaptive_test
 import pre_quiz
 import db_config
+import preference_profile
+import hearing_preservation
 
 app = Flask(__name__)
 
@@ -109,31 +111,64 @@ def _catalog_baseline(iems, bands):
 @app.route("/recommendations/<int:user_id>", methods=["GET"])
 def get_recommendations(user_id):
     with db_cursor(dictionary=True) as (conn, cur):
-        profile = fetch_latest_profile(cur, user_id)
-        if not profile:
+        assessments = fetch_assessments(cur, user_id)
+        if not assessments:
             return jsonify({"error": "No auditory profile found for this user"}), 404
 
         catalogue = fetch_iem_catalogue(cur)
 
+    # Aggregation layer. Every sitting on record folds into one target; the
+    # rows themselves are left alone. This replaced "most recent row wins",
+    # which threw away every assessment but the last.
+    aggregated = preference_profile.build(assessments)
+    target = aggregated["target"]
+
+    # Recommendation layer. Unchanged algorithm — it simply reads a better
+    # profile than it used to.
     scorable = [iem for iem in catalogue if has_complete_measurement(iem)]
     baseline = _catalog_baseline(scorable, BANDS)
-
-    scored = [score_iem(iem, profile, baseline) for iem in scorable]
+    scored = [score_iem(iem, target, baseline) for iem in scorable]
 
     return jsonify({
         "user_id": user_id,
-        "profile": {band: float(profile[band]) for band in BANDS},
+        # Kept under this key because the frontend curve drawing and the IEM
+        # cards already read it. It is now the aggregate rather than the
+        # last row, which is the only thing that changed for them.
+        "profile": {band: float(target[band]) for band in BANDS},
+        "preference": {
+            "target": target,
+            "spread": aggregated["spread"],
+            "regions": aggregated["regions"],
+            "analysis": aggregated["analysis"],
+            "assessment_count": aggregated["assessment_count"],
+            "dominant_share": aggregated["dominant_share"],
+        },
         "recommendations": rank_recommendations(scored),
+        # Read-only consumer of the target. Deliberately assembled after the
+        # ranking above, so it cannot influence it even by accident.
+        "hearing_preservation": hearing_preservation.build(aggregated),
     })
 
 
-def fetch_latest_profile(cur, user_id):
+def fetch_assessments(cur, user_id):
+    """Every assessment on record, newest first, with its age in days.
+
+    Age is computed in the query rather than in Python so that it is
+    measured against the database clock — the same clock that wrote
+    created_at — instead of whatever the service host thinks the time is.
+    """
     cur.execute(
-        "SELECT bass_gain, treble_gain, presence_gain FROM auditory_profiles "
-        "WHERE user_id = %s ORDER BY created_at DESC LIMIT 1",
+        """
+        SELECT bass_gain, treble_gain, presence_gain, confidence_score,
+               created_at,
+               TIMESTAMPDIFF(SECOND, created_at, NOW()) / 86400 AS age_days
+        FROM auditory_profiles
+        WHERE user_id = %s
+        ORDER BY created_at DESC
+        """,
         (user_id,),
     )
-    return cur.fetchone()
+    return cur.fetchall()
 
 
 def fetch_iem_catalogue(cur):

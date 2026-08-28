@@ -186,6 +186,26 @@ function renderCurves(grid, data) {
   });
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
+// The results page hides every block until there is something to put in it,
+// so a failure part-way through leaves empty headings rather than headings
+// with "undefined" underneath.
+function showBlock(id) {
+  const el = document.getElementById(id);
+  if (el) el.hidden = false;
+}
+
+function failResults(message) {
+  const grid = document.getElementById("iem-grid");
+  if (grid) grid.innerHTML = `<p>${escapeHtml(message)}</p>`;
+  showBlock("iem-block");
+}
+
 async function loadRecommendations() {
   const grid = document.getElementById("iem-grid");
   if (!grid) return;
@@ -196,29 +216,182 @@ async function loadRecommendations() {
     const res = await fetch(dspUrl("recommendations"));
 
     if (res.status === 401) {
-      grid.innerHTML = "<p>Please log in first.</p>";
+      failResults("Please log in first.");
       return;
     }
 
     const data = await res.json();
 
     if (data.error) {
-      grid.innerHTML =
-        `<p>${data.error}. Take the <a href="test.html">listening test</a> first.</p>`;
+      const p = document.createElement("p");
+      p.textContent = `${data.error}. Take the `;
+      p.insertAdjacentHTML("beforeend",
+        '<a href="test.html">listening test</a> first.');
+      grid.replaceChildren(p);
+      showBlock("iem-block");
       return;
     }
+
+    // Sections 1-3 come from the preference target. They are rendered even
+    // if the catalogue turns out to be empty, because they are about the
+    // listener rather than about the IEMs.
+    renderPreferenceProfile(data.preference);
+    renderPreferenceTarget(data.preference);
+    renderAudioAnalysis(data.preference);
 
     if (!data.recommendations || data.recommendations.length === 0) {
       grid.innerHTML = "<p>No matching IEMs found yet.</p>";
-      return;
+    } else {
+      grid.innerHTML = data.recommendations.map(buildIemCard).join("");
+      renderCurves(grid, data);
     }
+    showBlock("iem-block");
 
-    grid.innerHTML = data.recommendations.map(buildIemCard).join("");
-    renderCurves(grid, data);
+    // Section 5. Rendered last and reads nothing but the finished profile —
+    // it cannot affect the target or the ranking above it.
+    renderHearingPreservation(data.hearing_preservation);
   } catch (err) {
-    grid.innerHTML = "<p>Could not load recommendations.</p>";
+    failResults("Could not load recommendations.");
     console.error(err);
   }
+}
+
+/* ─────────────────────────── 1. Preference Profile ─────────────────── */
+
+// Which way a band leans, for colour only. The words come from the server.
+const LEVEL_TONE = {
+  strong_up: "up-strong", up: "up", slight_up: "up-slight",
+  neutral: "neutral",
+  slight_down: "down-slight", down: "down", strong_down: "down-strong",
+};
+
+function signed(db) {
+  const n = Number(db) || 0;
+  return `${n > 0 ? "+" : ""}${n.toFixed(1)} dB`;
+}
+
+function renderPreferenceProfile(preference) {
+  const wrap = document.getElementById("preference-bands");
+  if (!wrap || !preference) return;
+
+  const summary = document.getElementById("preference-summary");
+  if (summary) summary.textContent = preference.analysis?.summary || "";
+
+  wrap.innerHTML = preference.regions.map(region => `
+    <div class="band-card tone-${LEVEL_TONE[region.level] || "neutral"}">
+      <div class="band-card-name">${escapeHtml(region.label)}</div>
+      <div class="band-card-level">${escapeHtml(region.level_label)}</div>
+      <div class="band-card-value">${signed(region.value)}</div>
+      <div class="band-card-range">${escapeHtml(region.range)}</div>
+    </div>
+  `).join("");
+
+  showBlock("preference-block");
+}
+
+/* ─────────────────────────── 2. Preference Target ──────────────────── */
+
+const TARGET_MIN_HZ = 20;
+const TARGET_MAX_HZ = 20000;
+const TARGET_POINTS = 160;
+
+// Log-spaced sweep, so the low end gets as much of the chart as the top end
+// does. A linear sweep would spend half its points above 10 kHz.
+function targetFrequencies() {
+  const lo = Math.log10(TARGET_MIN_HZ);
+  const hi = Math.log10(TARGET_MAX_HZ);
+  const step = (hi - lo) / (TARGET_POINTS - 1);
+  return Array.from({ length: TARGET_POINTS },
+    (_, i) => Math.round(10 ** (lo + i * step)));
+}
+
+function renderPreferenceTarget(preference) {
+  const canvas = document.getElementById("target-chart");
+  if (!canvas || !preference || typeof Chart === "undefined") return;
+
+  const freqs = targetFrequencies();
+  const curve = buildPreferenceCurve(preference.target, freqs);
+  if (!curve) return;
+
+  const styles = getComputedStyle(document.documentElement);
+  const colour = styles.getPropertyValue("--accent-2").trim() || "#5b8def";
+
+  const options = curveChartOptions();
+  options.scales.y.title.text = "dB relative to midrange";
+  options.plugins.legend.display = false;
+
+  new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: {
+      labels: freqs,
+      datasets: [{
+        label: "Your preference target",
+        data: curve,
+        borderColor: colour,
+        borderWidth: CURVE_LINE_WIDTH,
+        borderDash: PREFERENCE_DASH,
+        pointRadius: 0,
+        tension: CURVE_TENSION,
+        fill: false,
+      }],
+    },
+    options,
+  });
+
+  showBlock("target-block");
+}
+
+/* ─────────────────────────── 3. Audio Analysis ─────────────────────── */
+
+function renderAudioAnalysis(preference) {
+  const list = document.getElementById("analysis-list");
+  if (!list || !preference?.analysis) return;
+
+  list.innerHTML = preference.analysis.regions.map(region => `
+    <div class="analysis-row">
+      <div class="analysis-band">
+        ${escapeHtml(region.label)}
+        <span class="analysis-level">${escapeHtml(region.level_label)}</span>
+      </div>
+      <p class="analysis-text">${escapeHtml(region.sentence)}</p>
+    </div>
+  `).join("");
+
+  showBlock("analysis-block");
+}
+
+/* ────────────────────── 5. Hearing Preservation ────────────────────── */
+
+function renderHearingPreservation(section) {
+  const block = document.getElementById("hearing-block");
+  if (!block || !section) return;
+
+  const notes = (section.notes || []).map(note => `
+    <div class="hearing-note">
+      <h3>${escapeHtml(note.title)}</h3>
+      <p>${escapeHtml(note.body)}</p>
+    </div>
+  `).join("");
+
+  const tips = (section.tips || []).map(tip => `
+    <li>
+      <strong>${escapeHtml(tip.title)}</strong>
+      <span>${escapeHtml(tip.body)}</span>
+    </li>
+  `).join("");
+
+  block.innerHTML = `
+    <div class="hearing-inner">
+      <h2 class="hearing-title">${escapeHtml(section.title)}</h2>
+      <p class="hearing-intro">${escapeHtml(section.intro)}</p>
+      ${notes}
+      <ul class="hearing-tips">${tips}</ul>
+      <p class="hearing-standard">${escapeHtml(section.standard_note)}</p>
+      <p class="hearing-disclaimer">${escapeHtml(section.disclaimer)}</p>
+    </div>
+  `;
+
+  block.hidden = false;
 }
 
 const EQ_BANDS = [
