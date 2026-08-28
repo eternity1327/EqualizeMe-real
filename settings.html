@@ -81,6 +81,41 @@
 
             </div>
 
+            <!-- Two-factor sits in its own box rather than as a fourth
+                 checkbox. It is a credential, not a preference: turning it
+                 on takes a phone and turning it off takes the password,
+                 neither of which fits a toggle that saves on change. -->
+            <div class="settings-box tfa-box" id="tfa-box" hidden>
+
+                <div class="setting">
+                    <p>Two-Factor Authentication</p>
+                    <span class="tfa-state" id="tfa-state">—</span>
+                </div>
+
+                <p class="tfa-note" id="tfa-note">
+                    Ask for a code from an authenticator app as well as your
+                    password. Optional — your password alone still works until
+                    you turn this on.
+                </p>
+
+                <button type="button" class="auth-submit tfa-action" id="tfa-action"
+                        onclick="handleTwoFactorAction()">Turn On</button>
+
+                <!-- Only shown when switching off. The password is what
+                     proves it is really you and not a borrowed session. -->
+                <div id="tfa-disable-form" hidden>
+                    <label for="tfa-password">Confirm your password to turn it off</label>
+                    <input id="tfa-password" type="password" autocomplete="current-password">
+                    <button type="button" class="auth-submit tfa-action"
+                            onclick="confirmTwoFactorOff()">Turn Off</button>
+                    <button type="button" class="tfa-cancel"
+                            onclick="cancelTwoFactorOff()">Cancel</button>
+                </div>
+
+                <p class="tfa-status" id="tfa-status"></p>
+
+            </div>
+
         </section>
 
         <script src="js/script.js"></script>

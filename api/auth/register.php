@@ -4,6 +4,7 @@ require_once __DIR__ . "/../db.php";
 require_once __DIR__ . "/../rate_limit.php";
 require_once __DIR__ . "/../password_policy.php";
 require_once __DIR__ . "/../csrf.php";
+require_once __DIR__ . "/../totp.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -62,8 +63,24 @@ try {
     )->execute([$userId]);
     $pdo->prepare("INSERT INTO settings (user_id) VALUES (?)")->execute([$userId]);
 
-    session_regenerate_id(true);
-    $_SESSION["user_id"] = $userId;
+    if (TWO_FACTOR_REQUIRED) {
+        // A new account is in exactly the position a returning user is in
+        // after a correct password: identified, but not yet holding a
+        // second factor. Granting a full session here would have made
+        // signing up the way to skip two-factor entirely.
+        begin_pending_login($userId);
+
+        http_response_code(201);
+        echo json_encode([
+            "status" => "2fa_required",
+            "name" => $name,
+            "next" => "enrol",
+            "redirect" => "two-factor.php",
+        ]);
+        exit;
+    }
+
+    complete_login($userId);
 
     http_response_code(201);
     echo json_encode(["id" => (int)$userId, "name" => $name, "email" => $email]);

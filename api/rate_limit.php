@@ -15,6 +15,20 @@ const RESET_REQUEST_WINDOW_SECONDS = 900;
 const RESET_SUBMIT_MAX_ATTEMPTS = 10;
 const RESET_SUBMIT_WINDOW_SECONDS = 900;
 
+// A six-digit code is one in a million, but the accepted window is three
+// steps wide, so a blind guess is really about 3 in a million per attempt.
+// That is only safe while the number of attempts stays small: at 10 tries
+// per 15 minutes an attacker needs centuries, at 10 per second they need an
+// afternoon. This limit is the entire security margin of the second factor,
+// which is why it is tighter than the password limit rather than looser.
+const TOTP_VERIFY_MAX_ATTEMPTS = 10;
+const TOTP_VERIFY_WINDOW_SECONDS = 900;
+
+// Recovery codes are 80 bits and unguessable, so the limit here is about
+// stopping someone hammering the endpoint rather than about the odds.
+const RECOVERY_VERIFY_MAX_ATTEMPTS = 5;
+const RECOVERY_VERIFY_WINDOW_SECONDS = 900;
+
 const RATE_LIMIT_RETENTION_SECONDS = 3600;
 
 const RATE_LIMIT_KEY_LENGTH = 32;

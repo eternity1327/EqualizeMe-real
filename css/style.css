@@ -1238,3 +1238,85 @@ footer {
     .target-chart-wrap { height: 260px; padding: 14px; }
     .hearing-inner { padding: 24px 20px; }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   TWO-FACTOR — the Settings block
+   ══════════════════════════════════════════════════════════════════ */
+
+.tfa-box { margin-top: 24px; text-align: left; }
+
+.tfa-state {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: var(--pill-bg);
+    color: var(--text-muted);
+}
+
+.tfa-state.on {
+    background: #e6f0e9;
+    color: #2f7a55;
+}
+
+[data-theme="dark"] .tfa-state.on { background: #1e3d2c; color: #6ee7a8; }
+
+.tfa-note {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin: -4px 0 16px;
+    max-width: 60ch;
+}
+
+.tfa-action { width: auto; padding-left: 28px; padding-right: 28px; }
+
+#tfa-disable-form { margin-top: 8px; }
+
+#tfa-disable-form label {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+}
+
+#tfa-disable-form input {
+    width: 100%;
+    max-width: 320px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+    margin-bottom: 12px;
+}
+
+.tfa-cancel {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+    margin-left: 12px;
+}
+
+.tfa-cancel:hover { color: var(--text); }
+
+.tfa-status {
+    margin: 12px 0 0;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    min-height: 1.2em;
+}
+
+.tfa-status.error { color: var(--danger); }
+.tfa-status.success { color: #2f7a55; }
+
+[data-theme="dark"] .tfa-status.success { color: #6ee7a8; }

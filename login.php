@@ -120,6 +120,14 @@ function setStatus(message, kind) {
   el.className = 'auth-status' + (kind ? ' ' + kind : '');
 }
 
+// The second-factor page needs to know where the user was originally
+// headed, so the detour does not lose the destination.
+function goToSecondFactor(redirect) {
+  const next = new URL(redirect || 'two-factor.php', window.location.href);
+  next.searchParams.set('redirect', REDIRECT_TARGET);
+  window.location.href = next.toString();
+}
+
 async function handleLogin(event) {
   event.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -140,6 +148,15 @@ async function handleLogin(event) {
     if (!res.ok) {
       setStatus(data.error || 'Something went wrong.', 'error');
       btn.disabled = false;
+      return false;
+    }
+
+    // Two possible outcomes. Either the password was enough and a session
+    // already exists, or this account has two-factor on and the server is
+    // waiting for a code. The server decides; this just follows.
+    if (data.status === '2fa_required') {
+      setStatus(`Welcome back, ${data.name}. One more step...`, 'success');
+      goToSecondFactor(data.redirect);
       return false;
     }
 
@@ -174,6 +191,12 @@ async function handleRegister(event) {
     if (!res.ok) {
       setStatus(data.error || 'Something went wrong.', 'error');
       btn.disabled = false;
+      return false;
+    }
+
+    if (data.status === '2fa_required') {
+      setStatus(`Account created — welcome, ${data.name}. One more step...`, 'success');
+      goToSecondFactor(data.redirect);
       return false;
     }
 

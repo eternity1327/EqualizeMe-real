@@ -3,6 +3,7 @@ require_once __DIR__ . "/../session.php";
 require_once __DIR__ . "/../db.php";
 require_once __DIR__ . "/../rate_limit.php";
 require_once __DIR__ . "/../csrf.php";
+require_once __DIR__ . "/../totp.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -46,7 +47,10 @@ if (!rate_limit_check(
 
 try {
     $pdo = get_pdo();
-    $stmt = $pdo->prepare("SELECT id, name, email, password_hash FROM users WHERE email = ?");
+    $stmt = $pdo->prepare(
+        "SELECT id, name, email, password_hash, totp_confirmed_at
+         FROM users WHERE email = ?"
+    );
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
@@ -63,13 +67,37 @@ try {
 
     rate_limit_clear("login_account", $accountKey);
 
-    session_regenerate_id(true);
-    $_SESSION["user_id"] = $user["id"];
+    $enrolled = $user["totp_confirmed_at"] !== null;
 
+    // Being enrolled always means being asked, whatever the policy says.
+    // Someone who turned two-factor on for themselves does not lose it
+    // because the app-wide default is opt-in.
+    if (!$enrolled && !TWO_FACTOR_REQUIRED) {
+        complete_login($user["id"]);
+
+        echo json_encode([
+            "id" => (int)$user["id"],
+            "name" => $user["name"],
+            "email" => $user["email"],
+        ]);
+        exit;
+    }
+
+    // Second factor still to come. begin_pending_login() records who got
+    // this far WITHOUT setting user_id, so every authenticated endpoint
+    // turns this person away until the code lands.
+    begin_pending_login($user["id"]);
+
+    // Only the name is echoed, so the next page can greet them. No id, no
+    // email: nothing that a half-finished login should be handing out.
     echo json_encode([
-        "id" => (int)$user["id"],
+        "status" => "2fa_required",
         "name" => $user["name"],
-        "email" => $user["email"],
+        // Which of the two things happens next. Not a permission — the
+        // server re-derives this from the database on every 2FA request
+        // rather than trusting whatever the client does with it.
+        "next" => $enrolled ? "verify" : "enrol",
+        "redirect" => "two-factor.php",
     ]);
 } catch (PDOException $e) {
     error_log("auth/login.php: " . $e->getMessage());

@@ -611,6 +611,132 @@ async function loadSettings() {
   updateNotifStatus();
 }
 
+/* ─────────────────────── two-factor, from Settings ───────────────────── */
+
+// Posts JSON with a CSRF token, retrying once on 403. Sessions rotate their
+// id every 30 minutes, so a token can go stale while a settings page sits
+// open — the retry turns that from a confusing failure into nothing at all.
+async function postWithCsrf(url, payload) {
+  const send = async token => fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...payload, csrf_token: token || "" }),
+  });
+
+  let res = await send(await getCsrfToken());
+
+  if (res.status === 403) {
+    invalidateCsrfToken();
+    res = await send(await getCsrfToken());
+  }
+
+  return { res, data: await res.json() };
+}
+
+function tfaStatus(message, kind) {
+  const el = document.getElementById("tfa-status");
+  if (!el) return;
+  el.textContent = message || "";
+  el.className = "tfa-status" + (kind ? " " + kind : "");
+}
+
+let twoFactorEnabled = false;
+
+async function loadTwoFactorState() {
+  const box = document.getElementById("tfa-box");
+  if (!box) return;
+
+  try {
+    const res = await fetch("api/auth/2fa-status.php");
+    if (!res.ok) return;
+
+    const data = await res.json();
+    twoFactorEnabled = !!data.enabled;
+
+    const state = document.getElementById("tfa-state");
+    const note = document.getElementById("tfa-note");
+    const action = document.getElementById("tfa-action");
+
+    state.textContent = twoFactorEnabled ? "On" : "Off";
+    state.classList.toggle("on", twoFactorEnabled);
+
+    if (twoFactorEnabled) {
+      const left = data.recoveryCodesRemaining;
+      note.textContent =
+        `You'll be asked for a code from your authenticator app each time you ` +
+        `log in. ${left} recovery ${left === 1 ? "code" : "codes"} left.`;
+      action.textContent = "Turn Off";
+      // When the policy makes it compulsory the server refuses to switch it
+      // off, so the button is not offered at all.
+      action.hidden = !!data.required;
+      if (data.required) {
+        note.textContent += " Required on this site, so it can't be switched off.";
+      }
+    } else {
+      note.textContent =
+        "Ask for a code from an authenticator app as well as your password. " +
+        "Optional — your password alone still works until you turn this on.";
+      action.textContent = "Turn On";
+      action.hidden = false;
+    }
+
+    box.hidden = false;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function handleTwoFactorAction() {
+  if (!twoFactorEnabled) {
+    // Enrolment needs the QR, the code entry and the recovery codes — a
+    // whole page, not a button. two-factor.php already does exactly that
+    // and works the same whether you arrive mid-login or from here.
+    window.location.href = "two-factor.php?setup=1&redirect=settings.html";
+    return;
+  }
+
+  document.getElementById("tfa-action").hidden = true;
+  document.getElementById("tfa-disable-form").hidden = false;
+  document.getElementById("tfa-password").focus();
+  tfaStatus("");
+}
+
+function cancelTwoFactorOff() {
+  document.getElementById("tfa-disable-form").hidden = true;
+  document.getElementById("tfa-action").hidden = false;
+  document.getElementById("tfa-password").value = "";
+  tfaStatus("");
+}
+
+async function confirmTwoFactorOff() {
+  const input = document.getElementById("tfa-password");
+  const password = input.value;
+
+  if (!password) {
+    tfaStatus("Enter your password to confirm.", "error");
+    return;
+  }
+
+  tfaStatus("Checking...");
+
+  try {
+    const { res, data } = await postWithCsrf("api/auth/2fa-disable.php", { password });
+
+    if (!res.ok) {
+      tfaStatus(data.error || "Something went wrong.", "error");
+      return;
+    }
+
+    input.value = "";
+    document.getElementById("tfa-disable-form").hidden = true;
+    document.getElementById("tfa-action").hidden = false;
+    tfaStatus("Two-factor is off. Your password alone now logs you in.", "success");
+    await loadTwoFactorState();
+  } catch (err) {
+    tfaStatus("Could not reach the server.", "error");
+  }
+}
+
 async function saveSetting(key, checked) {
   try {
     const token = await getCsrfToken();
@@ -737,4 +863,5 @@ document.addEventListener("DOMContentLoaded", () => {
   loadRecommendations();
   loadProfile();
   loadSettings();
+  loadTwoFactorState();
 });

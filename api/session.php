@@ -98,6 +98,97 @@ function end_secure_session() {
     session_destroy();
 }
 
+/* ─────────────────────── the half-logged-in state ────────────────────── */
+
+/**
+ * Two-factor splits logging in across two requests, so there has to be a
+ * way to remember "this person proved the password but not the second
+ * factor" in between.
+ *
+ * The single most important property of that state is what it is NOT: it is
+ * not $_SESSION['user_id']. Every authenticated endpoint in this codebase
+ * gates on user_id, so as long as the pending key is a different key, a
+ * half-finished login has exactly zero authority — no profile, no settings,
+ * no recommendations, no uploads. Nothing had to be changed endpoint by
+ * endpoint to make that true, and nothing can accidentally opt out of it.
+ */
+const PENDING_LOGIN_KEY = '_pending_login';
+
+// A password that has been accepted but not yet completed is a standing
+// invitation. Ten minutes is long enough to find your phone and short
+// enough that walking away from a shared machine does not leave one open.
+const PENDING_LOGIN_TTL = 600;
+
+/**
+ * Record that the password was right, without granting anything.
+ */
+function begin_pending_login($userId) {
+    // Rotate here as well as on completion. The password step is where a
+    // fixated session id would be planted, so the id the browser arrived
+    // with must not survive it.
+    session_regenerate_id(true);
+    $_SESSION['_id_issued_at'] = time();
+
+    unset($_SESSION['user_id']);
+
+    $_SESSION[PENDING_LOGIN_KEY] = [
+        'user_id' => (int)$userId,
+        'started_at' => time(),
+    ];
+}
+
+/**
+ * Who is half-way through logging in, or null. Expired states clear
+ * themselves rather than lingering.
+ */
+function pending_login_user_id() {
+    $pending = $_SESSION[PENDING_LOGIN_KEY] ?? null;
+    if (!is_array($pending) || !isset($pending['user_id'], $pending['started_at'])) {
+        return null;
+    }
+
+    if ((time() - (int)$pending['started_at']) > PENDING_LOGIN_TTL) {
+        clear_pending_login();
+        return null;
+    }
+
+    return (int)$pending['user_id'];
+}
+
+function clear_pending_login() {
+    unset($_SESSION[PENDING_LOGIN_KEY]);
+}
+
+/**
+ * Whoever this request belongs to, fully logged in or half-way there.
+ *
+ * Only for the two-factor enrolment endpoints, which legitimately serve
+ * both: someone mid-login who has to enrol before they can continue, and
+ * someone already signed in who is switching it on from Settings.
+ *
+ * Nothing else should use this. For every other endpoint "logged in" means
+ * $_SESSION['user_id'] and nothing less, and blurring that is exactly the
+ * mistake this function looks like.
+ */
+function current_or_pending_user_id() {
+    if (isset($_SESSION['user_id'])) {
+        return (int)$_SESSION['user_id'];
+    }
+    return pending_login_user_id();
+}
+
+/**
+ * Both factors are in. This is the only place in the codebase that grants
+ * user_id, which makes it the only place worth auditing for that.
+ */
+function complete_login($userId) {
+    clear_pending_login();
+
+    session_regenerate_id(true);
+    $_SESSION['_id_issued_at'] = time();
+    $_SESSION['user_id'] = (int)$userId;
+}
+
 function _session_enforce_idle_timeout() {
     $now = time();
     $lastSeen = $_SESSION['_last_activity'] ?? null;
