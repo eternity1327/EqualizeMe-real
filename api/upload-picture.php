@@ -2,6 +2,7 @@
 require_once __DIR__ . "/session.php";
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/csrf.php";
+require_once __DIR__ . "/rate_limit.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -12,6 +13,34 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 csrf_verify_or_fail();
+
+// This was the only write path in the app with no ceiling on it. Being
+// logged in raised the cost of abusing it but did not cap it: a script
+// posting 5 MB images in a loop would fill the disk, and each upload also
+// deletes the previous file, so nothing reclaims the space.
+//
+// Keyed by account rather than by IP — a shared network should not mean
+// housemates exhausting each other's uploads.
+$uploadKey = rate_limit_key("user:" . $_SESSION["user_id"]);
+
+if (!rate_limit_check(
+    "upload_picture",
+    UPLOAD_PICTURE_MAX_ATTEMPTS,
+    UPLOAD_PICTURE_WINDOW_SECONDS,
+    $uploadKey
+)) {
+    http_response_code(429);
+    echo json_encode([
+        "error" => "You've changed your picture a few times just now. "
+            . "Please wait a few minutes before trying again.",
+    ]);
+    exit;
+}
+
+// Recorded before the file is examined, so sending deliberate rubbish
+// costs an attempt just as a real upload does — the same reasoning as
+// register.php.
+rate_limit_record("upload_picture", $uploadKey);
 
 if (!isset($_FILES["photo"]) || $_FILES["photo"]["error"] !== UPLOAD_ERR_OK) {
     http_response_code(400);

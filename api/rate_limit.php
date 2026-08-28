@@ -29,6 +29,12 @@ const TOTP_VERIFY_WINDOW_SECONDS = 900;
 const RECOVERY_VERIFY_MAX_ATTEMPTS = 5;
 const RECOVERY_VERIFY_WINDOW_SECONDS = 900;
 
+// Avatar uploads. Generous enough that nobody picking a photo will notice,
+// tight enough that a loop cannot fill the disk: 10 uploads at the 5 MB
+// ceiling is 50 MB per 10 minutes, and each new file replaces the last.
+const UPLOAD_PICTURE_MAX_ATTEMPTS = 10;
+const UPLOAD_PICTURE_WINDOW_SECONDS = 600;
+
 const RATE_LIMIT_RETENTION_SECONDS = 3600;
 
 const RATE_LIMIT_KEY_LENGTH = 32;
@@ -76,24 +82,62 @@ function rate_limit_check(
 
 function rate_limit_record($bucket, $key = null) {
     $key = $key ?? client_ip();
-    $data = _rate_limit_read($bucket);
 
-    $data[$key] = _since($data[$key] ?? [], RATE_LIMIT_RETENTION_SECONDS);
-    $data[$key][] = time();
-
-    _rate_limit_write($bucket, $data);
+    _rate_limit_update($bucket, function ($data) use ($key) {
+        $data[$key] = _since($data[$key] ?? [], RATE_LIMIT_RETENTION_SECONDS);
+        $data[$key][] = time();
+        return $data;
+    });
 }
 
 function rate_limit_clear($bucket, $key = null) {
     $key = $key ?? client_ip();
-    $data = _rate_limit_read($bucket);
 
-    if (!isset($data[$key])) {
+    _rate_limit_update($bucket, function ($data) use ($key) {
+        unset($data[$key]);
+        return $data;
+    });
+}
+
+/**
+ * Read, change and write the counter file without letting go of the lock.
+ *
+ * The previous version read with file_get_contents and wrote with LOCK_EX,
+ * which locks the wrong half. Two requests arriving together both read the
+ * same count, both add one, and the second write overwrites the first — so
+ * an attacker firing requests in parallel got more attempts than the limit
+ * claims. The lock has to span the read as well, which means one handle
+ * held open across both.
+ */
+function _rate_limit_update($bucket, callable $mutate) {
+    $path = _rate_limit_path($bucket);
+
+    // 'c+' opens for read and write, creates if missing, and does NOT
+    // truncate — truncating before the lock would be the same bug again.
+    $handle = @fopen($path, "c+");
+    if ($handle === false) {
         return;
     }
 
-    unset($data[$key]);
-    _rate_limit_write($bucket, $data);
+    try {
+        if (!flock($handle, LOCK_EX)) {
+            return;
+        }
+
+        $size = filesize($path);
+        $raw = $size > 0 ? fread($handle, $size) : "";
+        $decoded = json_decode($raw, true);
+
+        $data = $mutate(is_array($decoded) ? $decoded : []);
+
+        rewind($handle);
+        ftruncate($handle, 0);
+        fwrite($handle, json_encode($data));
+        fflush($handle);
+        flock($handle, LOCK_UN);
+    } finally {
+        fclose($handle);
+    }
 }
 
 function _since($timestamps, $seconds) {
@@ -121,6 +165,10 @@ function _rate_limit_read($bucket) {
     return is_array($decoded) ? $decoded : [];
 }
 
-function _rate_limit_write($bucket, $data) {
-    file_put_contents(_rate_limit_path($bucket), json_encode($data), LOCK_EX);
-}
+// Kept for rate_limit_check(), which only reads. A stale read there is
+// harmless: the worst case is one extra attempt getting through, and the
+// recording side is what actually has to be exact.
+//
+// _rate_limit_write() is gone deliberately. Writing outside
+// _rate_limit_update() is how the race got in, so there is no longer a
+// function that makes it easy to do.

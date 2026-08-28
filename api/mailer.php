@@ -83,7 +83,18 @@ function send_email($to, $subject, $bodyText) {
 
         $mail->send();
         return ['sent' => true, 'logged' => false, 'reason' => 'ok'];
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
+        // Throwable rather than Exception. Since PHP 7, engine failures are
+        // Errors, and an Error does not extend Exception — so a TypeError
+        // or an ArgumentCountError raised inside PHPMailer would sail past
+        // a `catch (Exception)` untouched.
+        //
+        // That matters here more than it looks. This whole block exists so
+        // that a broken mail setup degrades to writing the message into a
+        // log file instead of taking the request down. Catching only half
+        // the failures meant the fallback quietly did not cover the case
+        // most likely to happen: a misconfigured SMTP block passing a
+        // wrong-typed value into the library.
         $logged = _mailer_write_to_log($to, $subject, $bodyText, 'SMTP send failed: ' . $e->getMessage());
         return ['sent' => false, 'logged' => $logged, 'reason' => 'send_failed'];
     }

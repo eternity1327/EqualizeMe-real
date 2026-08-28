@@ -1,0 +1,81 @@
+# Security response headers for every request, including the plain .html
+# pages. PHP's header() would only cover the .php files, and half this app
+# is static — hence Apache rather than PHP.
+#
+# Needs mod_headers. It ships enabled with XAMPP; if this file ever causes
+# a 500, that is the first thing to check:
+#
+#     httpd -M | findstr headers
+
+<IfModule mod_headers.c>
+
+    # Stop the browser second-guessing a Content-Type. Without it, a file
+    # served as text/plain that happens to look like HTML can be treated as
+    # HTML — which matters directly here, because users upload files.
+    Header always set X-Content-Type-Options "nosniff"
+
+    # No framing, so the interface cannot be loaded invisibly over another
+    # page and clicked through. frame-ancestors in the CSP below says the
+    # same thing to newer browsers; this covers the older ones.
+    Header always set X-Frame-Options "DENY"
+
+    # Send the full URL only to ourselves. Reset links live in URLs, and a
+    # referrer header is an easy way for one to leak to a third party.
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Nothing here needs a camera, a microphone or a location, so none of
+    # them get asked for. Note the listening test does not record — it only
+    # plays — so no microphone permission is required.
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+
+    # ── Content Security Policy ────────────────────────────────────────
+    #
+    # Honest about what this is worth here: 'unsafe-inline' has to stay in
+    # script-src because the pages use onclick/onsubmit/onchange handlers
+    # in 26 places, and CSP cannot tell those apart from an injected one.
+    # So this is NOT the fix for cross-site scripting — escaping the
+    # catalogue values in buildIemCard() is. What it does buy:
+    #
+    #   * script-src pins remote scripts to cdnjs, so an injection cannot
+    #     pull in code from anywhere else
+    #   * object-src 'none' kills Flash/embed vectors outright
+    #   * base-uri 'self' stops an injected <base> silently repointing
+    #     every relative URL on the page
+    #   * form-action 'self' stops an injected form posting your input to
+    #     somebody else's server
+    #
+    # img-src has to allow https: generally — IEM artwork is hosted by the
+    # retailers, not by us. data: is there for the QR code, which is drawn
+    # into a canvas and read back as a data URI.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+    # Only meaningful over HTTPS, and deliberately not set here. Turning on
+    # HSTS while developing over http://localhost pins the browser to a
+    # scheme this install does not serve, and undoing that means clearing
+    # site data by hand. Enable it alongside 'force_https' in config, on a
+    # host that actually has a certificate:
+    #
+    #   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+</IfModule>
+
+# Directory listings off, so a URL with no index file shows nothing rather
+# than the contents of the folder.
+Options -Indexes
+
+# Config, logs, SQL and the Python service are not web content. Apache
+# should not serve them even if someone guesses the path.
+#
+# Checked before adding this: the frontend fetches nothing static except
+# the .mp3 samples under data/audio/samples/, so none of these extensions
+# is load-bearing. backend/config.local.json is covered by the json rule as
+# well as by .gitignore, which is worth having twice.
+<FilesMatch "\.(sql|log|json|md|py|ini|cfg)$">
+    Require all denied
+</FilesMatch>
+
+# The self-test refuses to run outside the command line anyway. Denying it
+# here as well means the refusal never has to be relied on.
+<Files "totp_selftest.php">
+    Require all denied
+</Files>

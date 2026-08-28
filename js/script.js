@@ -128,30 +128,66 @@ function buildBandMatch(bandMatch) {
   };
 
   const rows = Object.keys(labels).map(band => {
-    const pct = bandMatch[band];
-    if (pct === undefined) return "";
+    // Coerced to a number and clamped rather than interpolated as-is. This
+    // value lands inside a style attribute, which is the one place where a
+    // string that merely looks numeric can still do damage.
+    const pct = Number(bandMatch[band]);
+    if (!Number.isFinite(pct)) return "";
+
+    const width = Math.max(0, Math.min(100, pct));
     return `
       <div class="band-row">
         <span class="band-name">${labels[band]}</span>
-        <span class="band-bar"><span class="band-fill" style="width:${pct}%"></span></span>
-        <span class="band-pct">${Math.round(pct)}%</span>
+        <span class="band-bar"><span class="band-fill" style="width:${width}%"></span></span>
+        <span class="band-pct">${Math.round(width)}%</span>
       </div>`;
   }).join("");
 
   return `<div class="band-match">${rows}</div>`;
 }
 
+// Only http and https survive. Everything here — image sources, retailer
+// links — arrives from the IEM catalogue, which is imported from squig.link
+// rather than written by us. A "javascript:..." address in one of those
+// fields would otherwise become a working script the moment someone clicked
+// a Buy link.
+function safeUrl(value, fallback = "") {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+
+  try {
+    // Parsed with no base on purpose, so only absolute URLs get through.
+    //
+    // An earlier version resolved against window.location, which meant a
+    // mangled value like `x" onerror="...` came back as a real same-origin
+    // URL with the quotes percent-encoded. Inert, but wrong: the browser
+    // then fired a 404 at our own server instead of the placeholder being
+    // used. Both fields this guards — a retailer's product page and a
+    // retailer's image — are external and absolute anyway, so anything
+    // relative is malformed by definition.
+    const url = new URL(raw);
+    return (url.protocol === "http:" || url.protocol === "https:")
+      ? url.href
+      : fallback;
+  } catch (err) {
+    return fallback;
+  }
+}
+
 function buildBuyLinks(item) {
   const links = [];
 
-  if (item.product_url) {
-    const label = item.retailer_name ? `Buy at ${item.retailer_name}` : "Buy from shop";
+  const productUrl = safeUrl(item.product_url);
+  if (productUrl) {
+    const label = item.retailer_name
+      ? `Buy at ${escapeHtml(item.retailer_name)}`
+      : "Buy from shop";
     links.push(
-      `<a href="${item.product_url}" target="_blank" rel="noopener noreferrer">${label}</a>`
+      `<a href="${escapeHtml(productUrl)}" target="_blank" rel="noopener noreferrer">${label}</a>`
     );
   }
 
-  const query = encodeURIComponent(`${item.brand} ${item.name}`.trim());
+  const query = encodeURIComponent(`${item.brand ?? ""} ${item.name ?? ""}`.trim());
   links.push(
     `<a href="https://shopee.ph/search?keyword=${query}" target="_blank" rel="noopener noreferrer">Search on Shopee</a>`
   );
@@ -159,15 +195,24 @@ function buildBuyLinks(item) {
   return `<div class="iem-links">${links.join("")}</div>`;
 }
 
+const IEM_PLACEHOLDER = "images/iem-placeholder.svg";
+
 function buildIemCard(item) {
+  // Every value below comes out of the catalogue table. None of it is
+  // written by us, so none of it is trusted: text is escaped and URLs are
+  // filtered by scheme first. Without that, a model name containing
+  // `"><script>` — or an image_url of `x" onerror="...` — would run.
+  const name = escapeHtml(`${item.brand ?? ""} ${item.name ?? ""}`.trim());
+  const image = escapeHtml(safeUrl(item.image_url, IEM_PLACEHOLDER));
+
   return `
-      <div class="iem-card" data-iem-id="${item.iem_id}">
-        <img class="iem-card-img" src="${item.image_url || 'images/iem-placeholder.svg'}"
-          alt="${item.brand} ${item.name}"
-          onerror="this.onerror=null; this.src='images/iem-placeholder.svg';">
-        <h3>${item.brand} ${item.name}</h3>
-        <p>${item.sound_signature ?? ""}</p>
-        <p class="iem-match">Match: ${item.match_score}%</p>
+      <div class="iem-card" data-iem-id="${escapeHtml(item.iem_id)}">
+        <img class="iem-card-img" src="${image}"
+          alt="${name}"
+          onerror="this.onerror=null; this.src='${IEM_PLACEHOLDER}';">
+        <h3>${name}</h3>
+        <p>${escapeHtml(item.sound_signature ?? "")}</p>
+        <p class="iem-match">Match: ${escapeHtml(item.match_score)}%</p>
         <p class="price">${formatPrice(item.price)}</p>
         ${buildBandMatch(item.band_match)}
         <div class="iem-curve-wrap" hidden>
