@@ -305,9 +305,20 @@ function targetFrequencies() {
     (_, i) => Math.round(10 ** (lo + i * step)));
 }
 
+// Chart.js refuses to draw onto a canvas that already holds a chart, and
+// throws rather than replacing it. Keeping the handle means a second render
+// — a re-fetch, a theme change, anything — tears the old one down instead
+// of blowing up the whole results page.
+let targetChart = null;
+
 function renderPreferenceTarget(preference) {
   const canvas = document.getElementById("target-chart");
   if (!canvas || !preference || typeof Chart === "undefined") return;
+
+  if (targetChart) {
+    targetChart.destroy();
+    targetChart = null;
+  }
 
   const freqs = targetFrequencies();
   const curve = buildPreferenceCurve(preference.target, freqs);
@@ -320,7 +331,7 @@ function renderPreferenceTarget(preference) {
   options.scales.y.title.text = "dB relative to midrange";
   options.plugins.legend.display = false;
 
-  new Chart(canvas.getContext("2d"), {
+  targetChart = new Chart(canvas.getContext("2d"), {
     type: "line",
     data: {
       labels: freqs,

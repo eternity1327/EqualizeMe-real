@@ -110,9 +110,10 @@
          CDN is unreachable the cards still render, just without charts. -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <script src="js/script.js"></script>
-    <script>
-  loadRecommendations();
-</script>
+    <!-- No loadRecommendations() call here. script.js already runs it from
+         its DOMContentLoaded handler, and an inline call fires earlier, so
+         having both ran the whole page load twice. -->
+
 
   </body>
 </html>
