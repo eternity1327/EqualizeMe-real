@@ -11,3 +11,10 @@ logs/
 
 # Local secrets for the Python service — same role as api/config.local.php.
 backend/config.local.json
+
+# Working copies of screenshots used for write-ups. Kept out of the repo
+# because they are documentation source material rather than part of the
+# app, and because some screenshots of a project like this one show
+# credentials, tokens or database contents. Easier to keep the whole folder
+# out than to check each image every time.
+screenshots/
