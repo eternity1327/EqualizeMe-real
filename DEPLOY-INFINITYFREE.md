@@ -35,13 +35,13 @@ InfinityFree is not the place to find out why.
 
 1. Sign up at [infinityfree.com](https://www.infinityfree.com/) — email only
 2. Create an account, take the free subdomain
-   (`something.infinityfree.me`) or point your own
+   (`equalizeme.freehosting.dev`) or point your own
 3. Note the four things the control panel gives you:
    - FTP hostname, username, password
    - MySQL hostname — something like `sql123.infinityfree.com`, **not**
      `localhost`
-   - MySQL database name — prefixed, like `if0_12345678_equalizeme`
-   - MySQL username — usually the same prefix
+   - MySQL database name — prefixed, like `if0_42796255_equalizeme`
+   - MySQL username — `if0_42796255`
 
 ## 2. Database
 
@@ -76,8 +76,8 @@ Create `api/config.local.php` with the control panel's file manager:
 return [
     'database' => [
         'host'     => 'sql123.infinityfree.com',
-        'name'     => 'if0_12345678_equalizeme',
-        'user'     => 'if0_12345678',
+        'name'     => 'if0_42796255_equalizeme',
+        'user'     => 'if0_42796255',
         'password' => 'the password you set',
     ],
 
@@ -93,7 +93,7 @@ return [
     ],
 
     'environment' => 'production',
-    'base_url'    => 'https://yoursite.infinityfree.me',
+    'base_url'    => 'https://equalizeme.freehosting.dev',
     'force_https' => true,
 
     'require_email_verification' => true,
@@ -176,8 +176,8 @@ You cannot read a log here, so check from outside.
 as a fallback, but only on `.php` responses:
 
 ```
-curl -I https://yoursite.infinityfree.me/           | findstr /i "content-security x-frame"
-curl -I https://yoursite.infinityfree.me/login.php  | findstr /i "content-security x-frame"
+curl -I https://equalizeme.freehosting.dev/           | findstr /i "content-security x-frame"
+curl -I https://equalizeme.freehosting.dev/login.php  | findstr /i "content-security x-frame"
 ```
 
 If the first is empty and the second is not, `.htaccess` is being ignored
@@ -187,9 +187,9 @@ making the HTML pages PHP.
 **Nothing sensitive is served:**
 
 ```
-https://yoursite.infinityfree.me/api/config.local.php   -> blank or 403, never your password
-https://yoursite.infinityfree.me/logs/sent-mail.log     -> 403
-https://yoursite.infinityfree.me/api/totp_selftest.php  -> 403 or 404
+https://equalizeme.freehosting.dev/api/config.local.php   -> blank or 403, never your password
+https://equalizeme.freehosting.dev/logs/sent-mail.log     -> 403
+https://equalizeme.freehosting.dev/api/totp_selftest.php  -> 403 or 404
 ```
 
 **And the app itself:** register a new account, confirm the email arrives
