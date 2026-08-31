@@ -4,6 +4,7 @@ require_once __DIR__ . "/../db.php";
 require_once __DIR__ . "/../rate_limit.php";
 require_once __DIR__ . "/../csrf.php";
 require_once __DIR__ . "/../totp.php";
+require_once __DIR__ . "/../config.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -48,7 +49,8 @@ if (!rate_limit_check(
 try {
     $pdo = get_pdo();
     $stmt = $pdo->prepare(
-        "SELECT id, name, email, password_hash, totp_confirmed_at
+        "SELECT id, name, email, password_hash, totp_confirmed_at,
+                email_verified_at
          FROM users WHERE email = ?"
     );
     $stmt->execute([$email]);
@@ -66,6 +68,20 @@ try {
     }
 
     rate_limit_clear("login_account", $accountKey);
+
+    // Checked after the password, never before. Answering "confirm your
+    // email" to a wrong password would confirm the address exists — the
+    // exact thing the identical error message above is there to prevent.
+    if (require_email_verification() && $user["email_verified_at"] === null) {
+        http_response_code(403);
+        echo json_encode([
+            "status" => "verify_email",
+            "error" => "Confirm your email address before logging in. "
+                . "Check your inbox for the link we sent when you signed up.",
+            "canResend" => true,
+        ]);
+        exit;
+    }
 
     $enrolled = $user["totp_confirmed_at"] !== null;
 

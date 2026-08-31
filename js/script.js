@@ -47,19 +47,25 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// All DSP traffic goes through api/dsp.php, which checks the session and
-// injects the user id server-side. The Python service itself is bound to
-// 127.0.0.1 and is no longer reachable from the browser — see api/dsp.php
-// for why.
-const DSP_PROXY = "api/dsp.php";
+// The listening test and the recommendation engine used to live in a
+// Flask service that PHP proxied to. They are PHP now, so these are
+// ordinary endpoints and there is no proxy left to name.
+//
+// One consequence worth recording: the old service took whatever user id
+// it was handed, and a proxy existed purely to overwrite that with the
+// session's. These endpoints read the session directly, so there is no id
+// in the request for anyone to tamper with — the bug that proxy guarded
+// against is now unreachable rather than merely guarded.
+const API = {
+  quizQuestions: "api/quiz.php",
+  testStart: "api/test-start.php",
+  testAnswer: "api/test-answer.php",
+  recommendations: "api/recommendations.php",
+  iemCurve: "api/iem-curve.php",
+};
 
-function dspUrl(route, params = {}) {
-  const query = new URLSearchParams({ route, ...params });
-  return `${DSP_PROXY}?${query}`;
-}
-
-async function dspPost(route, payload = {}) {
-  const send = async (token) => fetch(dspUrl(route), {
+async function apiPost(url, payload = {}) {
+  const send = async (token) => fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, csrf_token: token || "" }),
@@ -68,7 +74,9 @@ async function dspPost(route, payload = {}) {
   let res = await send(await getCsrfToken());
 
   // A 403 means the token was stale — most likely the session rotated its
-  // id, which happens every 30 minutes. Fetch a fresh one and retry once.
+  // id, which happens every 30 minutes. A listening test takes several
+  // minutes, so without this retry a rotation part-way through would
+  // silently break the next answer.
   if (res.status === 403) {
     invalidateCsrfToken();
     res = await send(await getCsrfToken());
@@ -256,9 +264,9 @@ async function loadRecommendations() {
   if (!grid) return;
 
   try {
-    // No user id in the URL any more — api/dsp.php takes it from the
-    // session, so there is nothing here for a caller to tamper with.
-    const res = await fetch(dspUrl("recommendations"));
+    // No user id in the URL — the endpoint takes it from the session, so
+    // there is nothing here for a caller to tamper with.
+    const res = await fetch(API.recommendations);
 
     if (res.status === 401) {
       failResults("Please log in first.");
@@ -572,7 +580,7 @@ async function renderIemCurve(iemId, cardEl, profile) {
   if (!wrap) return;
 
   try {
-    const res = await fetch(dspUrl("iem-curve", { id: iemId }));
+    const res = await fetch(`${API.iemCurve}?id=${encodeURIComponent(iemId)}`);
     if (!res.ok) return;
 
     const { curve, description } = await res.json();

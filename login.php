@@ -120,6 +120,41 @@ function setStatus(message, kind) {
   el.className = 'auth-status' + (kind ? ' ' + kind : '');
 }
 
+// Shown only after a correct password on an unconfirmed account, so it
+// never appears in response to a guess.
+function showResendLink(email) {
+  if (document.getElementById('resend-inline')) return;
+
+  const wrap = document.createElement('p');
+  wrap.className = 'auth-hint';
+  wrap.id = 'resend-inline';
+
+  const link = document.createElement('a');
+  link.href = '#';
+  link.textContent = 'Send me the confirmation link again';
+  link.onclick = async (e) => {
+    e.preventDefault();
+    link.textContent = 'Sending...';
+    try {
+      const res = await fetch('api/auth/resend-verification.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, csrf_token: CSRF_TOKEN }),
+      });
+      const data = await res.json();
+      setStatus(data.message || data.error || 'Done.',
+                res.ok ? 'success' : 'error');
+    } catch (err) {
+      setStatus('Could not reach the server.', 'error');
+    }
+    link.textContent = 'Send it again';
+    return false;
+  };
+
+  wrap.appendChild(link);
+  document.getElementById('auth-status').insertAdjacentElement('beforebegin', wrap);
+}
+
 // The second-factor page needs to know where the user was originally
 // headed, so the detour does not lose the destination.
 function goToSecondFactor(redirect) {
@@ -147,6 +182,11 @@ async function handleLogin(event) {
 
     if (!res.ok) {
       setStatus(data.error || 'Something went wrong.', 'error');
+      // Password was right but the address is unconfirmed. Offer the way
+      // out rather than leaving them stuck on an error.
+      if (data.status === 'verify_email' && data.canResend) {
+        showResendLink(email);
+      }
       btn.disabled = false;
       return false;
     }
@@ -191,6 +231,13 @@ async function handleRegister(event) {
     if (!res.ok) {
       setStatus(data.error || 'Something went wrong.', 'error');
       btn.disabled = false;
+      return false;
+    }
+
+    // Account exists but is not usable until the address is confirmed. No
+    // session was granted, so there is nowhere to redirect to.
+    if (data.status === 'verify_email') {
+      setStatus(data.message, data.sent ? 'success' : 'error');
       return false;
     }
 

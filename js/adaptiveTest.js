@@ -3,8 +3,6 @@ let hasPlayedB = false;
 let currentUserId = null;
 let autoPlayEnabled = false;
 
-const SAMPLE_PLAYBACK_MS = 10000;
-
 const paramLabels = {
   bassGain: 'Bass',
   trebleGain: 'Treble',
@@ -163,7 +161,7 @@ async function beginQuiz() {
   const container = document.getElementById('quiz-questions');
 
   try {
-    const res = await fetch(dspUrl('quiz-questions'));
+    const res = await fetch(API.quizQuestions);
     const data = await res.json();
 
     if (!res.ok || !data.questions || !data.questions.length) {
@@ -216,14 +214,14 @@ async function beginTest(quizAnswers) {
 
 async function startTest(quizAnswers) {
   try {
-    // user_id is deliberately not sent — api/dsp.php injects it from the
-    // session, so the test can only ever be started as yourself.
+    // No user id here, and nowhere to put one. The endpoint reads the
+    // session, so a test can only ever be started as yourself.
     const payload = {};
     if (quizAnswers && Object.keys(quizAnswers).length) {
       payload.quiz = quizAnswers;
     }
 
-    const res = await dspPost('adaptive-start', payload);
+    const res = await apiPost(API.testStart, payload);
     const pair = await res.json();
 
     if (!res.ok) {
@@ -236,9 +234,9 @@ async function startTest(quizAnswers) {
     renderPair(pair);
   } catch (err) {
     document.getElementById('status').textContent =
-      'Could not reach the audio service. Is ai_service.py running?';
+      'Could not reach the server. Check your connection and try again.';
     document.getElementById('progress').innerHTML =
-      '<span class="dot"></span><span>Could not reach the DSP service</span>';
+      '<span class="dot"></span><span>Could not reach the server</span>';
   }
 }
 
@@ -314,26 +312,27 @@ async function playLocally(side) {
     setStatus('Play both, then pick which you prefer.');
     return true;
   } catch (err) {
-    console.error('Browser playback failed, falling back to server:', err);
+    console.error('Browser playback failed:', err);
     return false;
   }
 }
 
-async function playOnServer(side) {
-  try {
-    const res = await dspPost('adaptive-play', { side });
-    const data = await res.json();
-
-    if (res.ok) {
-      markSidePlayed(side);
-    } else {
-      setStatus(data.error || 'Something went wrong.');
-    }
-  } catch (err) {
-    setStatus('Could not play the audio. Is ai_service.py running?');
-  }
-
-  await new Promise(resolve => setTimeout(resolve, SAMPLE_PLAYBACK_MS));
+/**
+ * There is no longer a fallback, and there was never a sensible one.
+ *
+ * The old path asked the server to play the clip through CamillaDSP — its
+ * own sound card. That only ever made sense while the server and the
+ * listener were the same laptop. Hosted anywhere else it plays audio into
+ * an empty room in a data centre, and the test still cannot be answered.
+ *
+ * So the honest behaviour is to say the browser could not do it, rather
+ * than to appear to play something the user cannot hear.
+ */
+function reportPlaybackFailure() {
+  setStatus(
+    "Your browser couldn't play the audio. Try Chrome, Edge or Firefox, "
+    + "check the tab isn't muted, and make sure something is plugged in."
+  );
 }
 
 async function playSide(side) {
@@ -348,7 +347,7 @@ async function playSide(side) {
   optionCard.classList.add('playing');
 
   if (!await playLocally(side)) {
-    await playOnServer(side);
+    reportPlaybackFailure();
   }
 
   optionCard.classList.remove('playing');
@@ -361,7 +360,7 @@ async function playSide(side) {
 async function chooseSide(side) {
   document.getElementById('status').textContent = 'Saving your answer...';
 
-  const res = await dspPost('adaptive-answer', { preferred: side });
+  const res = await apiPost(API.testAnswer, { preferred: side });
   const data = await res.json();
 
   if (data.error) {

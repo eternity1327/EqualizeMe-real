@@ -1,0 +1,1709 @@
+{
+ "_weights": [
+  {
+   "age_days": 0,
+   "confidence": 100,
+   "weight": 1.0
+  },
+  {
+   "age_days": 180.0,
+   "confidence": 100,
+   "weight": 0.5
+  },
+  {
+   "age_days": 360.0,
+   "confidence": 100,
+   "weight": 0.25
+  },
+  {
+   "age_days": 0,
+   "confidence": 50,
+   "weight": 0.5
+  },
+  {
+   "age_days": 0,
+   "confidence": 0,
+   "weight": 0.1
+  },
+  {
+   "age_days": null,
+   "confidence": null,
+   "weight": 1.0
+  },
+  {
+   "age_days": 90,
+   "confidence": 95,
+   "weight": 0.6717514421272202
+  },
+  {
+   "age_days": 180,
+   "confidence": 90,
+   "weight": 0.45
+  },
+  {
+   "age_days": -5,
+   "confidence": 100,
+   "weight": 1.0
+  },
+  {
+   "age_days": 0,
+   "confidence": 150,
+   "weight": 1.0
+  }
+ ],
+ "consistent": {
+  "assessment_count": 3,
+  "dominant_share": 0.37,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 1,
+    "bass_gain": 2.4,
+    "confidence_score": 94.8,
+    "presence_gain": -0.2,
+    "treble_gain": -3.0
+   },
+   {
+    "age_days": 20,
+    "bass_gain": 2.6,
+    "confidence_score": 92.0,
+    "presence_gain": -0.4,
+    "treble_gain": -3.3
+   },
+   {
+    "age_days": 45,
+    "bass_gain": 2.5,
+    "confidence_score": 89.6,
+    "presence_gain": 0.1,
+    "treble_gain": -2.8
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "consistent",
+    "direction": "up",
+    "label": "Bass",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.08,
+    "value": 2.5
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "consistent",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.2,
+    "value": -0.18
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "consistent",
+    "direction": "down",
+    "label": "Treble",
+    "level": "down",
+    "level_label": "Reduced",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.2,
+    "value": -3.04
+   }
+  ],
+  "sentences": [
+   "Your assessments consistently favour more energy below ~250 Hz.",
+   "Your assessments consistently sit close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Your assessments consistently favour less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.08,
+   "presence_gain": 0.2,
+   "treble_gain": 0.2
+  },
+  "summary": "This profile combines 3 listening tests, weighted towards your more recent and more decisive ones.",
+  "target": {
+   "bass_gain": 2.5,
+   "presence_gain": -0.18,
+   "treble_gain": -3.04
+  },
+  "total_weight": 2.55
+ },
+ "dominated": {
+  "assessment_count": 2,
+  "dominant_share": 0.941,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 720.0,
+    "bass_gain": 6.0,
+    "confidence_score": 95.0,
+    "presence_gain": 0.0,
+    "treble_gain": -5.0
+   },
+   {
+    "age_days": 0,
+    "bass_gain": 1.0,
+    "confidence_score": 95.0,
+    "presence_gain": 0.0,
+    "treble_gain": -0.5
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "dominated",
+    "direction": "up",
+    "label": "Bass",
+    "level": "slight_up",
+    "level_label": "Slightly elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 1.18,
+    "value": 1.29
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "dominated",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 0.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "dominated",
+    "direction": "down",
+    "label": "Treble",
+    "level": "slight_down",
+    "level_label": "Slightly relaxed",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 1.06,
+    "value": -0.76
+   }
+  ],
+  "sentences": [
+   "Weighted towards your most recent test, your answers lean towards a little more energy below ~250 Hz.",
+   "Weighted towards your most recent test, your answers sit close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Weighted towards your most recent test, your answers lean towards a little less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 1.18,
+   "presence_gain": 0.0,
+   "treble_gain": 1.06
+  },
+  "summary": "This profile combines 2 listening tests, weighted towards your more recent and more decisive ones.",
+  "target": {
+   "bass_gain": 1.29,
+   "presence_gain": 0.0,
+   "treble_gain": -0.76
+  },
+  "total_weight": 1.009
+ },
+ "down": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": -2.0,
+    "confidence_score": 95.0,
+    "presence_gain": -3.0,
+    "treble_gain": -3.99
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Bass",
+    "level": "down",
+    "level_label": "Reduced",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": -2.0
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Upper midrange",
+    "level": "down",
+    "level_label": "Reduced",
+    "meaningful": true,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": -3.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Treble",
+    "level": "down",
+    "level_label": "Reduced",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": -3.99
+   }
+  ],
+  "sentences": [
+   "Your assessment so far favours less energy below ~250 Hz.",
+   "Your assessment so far favours less energy ~2-5 kHz.",
+   "Your assessment so far favours less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": -2.0,
+   "presence_gain": -3.0,
+   "treble_gain": -3.99
+  },
+  "total_weight": 0.95
+ },
+ "fairly_consistent": {
+  "assessment_count": 2,
+  "dominant_share": 0.51,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 3.0,
+    "confidence_score": 95.0,
+    "presence_gain": 0.0,
+    "treble_gain": -2.0
+   },
+   {
+    "age_days": 10,
+    "bass_gain": 1.8,
+    "confidence_score": 95.0,
+    "presence_gain": 0.0,
+    "treble_gain": -3.2
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "consistent",
+    "direction": "up",
+    "label": "Bass",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.6,
+    "value": 2.41
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "consistent",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 0.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "consistent",
+    "direction": "down",
+    "label": "Treble",
+    "level": "down",
+    "level_label": "Reduced",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.6,
+    "value": -2.59
+   }
+  ],
+  "sentences": [
+   "Your assessments consistently favour more energy below ~250 Hz.",
+   "Your assessments consistently sit close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Your assessments consistently favour less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.6,
+   "presence_gain": 0.0,
+   "treble_gain": 0.6
+  },
+  "summary": "This profile combines 2 listening tests, weighted towards your more recent and more decisive ones.",
+  "target": {
+   "bass_gain": 2.41,
+   "presence_gain": 0.0,
+   "treble_gain": -2.59
+  },
+  "total_weight": 1.864
+ },
+ "five_assessments": {
+  "assessment_count": 5,
+  "dominant_share": 0.244,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 2.0,
+    "confidence_score": 90,
+    "presence_gain": -0.5,
+    "treble_gain": -2.0
+   },
+   {
+    "age_days": 30,
+    "bass_gain": 2.3,
+    "confidence_score": 91,
+    "presence_gain": -0.5,
+    "treble_gain": -2.2
+   },
+   {
+    "age_days": 60,
+    "bass_gain": 2.6,
+    "confidence_score": 92,
+    "presence_gain": -0.5,
+    "treble_gain": -2.4
+   },
+   {
+    "age_days": 90,
+    "bass_gain": 2.9,
+    "confidence_score": 93,
+    "presence_gain": -0.5,
+    "treble_gain": -2.6
+   },
+   {
+    "age_days": 120,
+    "bass_gain": 3.2,
+    "confidence_score": 94,
+    "presence_gain": -0.5,
+    "treble_gain": -2.8
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "consistent",
+    "direction": "up",
+    "label": "Bass",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.42,
+    "value": 2.54
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "consistent",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": -0.5
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "consistent",
+    "direction": "down",
+    "label": "Treble",
+    "level": "down",
+    "level_label": "Reduced",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.28,
+    "value": -2.36
+   }
+  ],
+  "sentences": [
+   "Your assessments consistently favour more energy below ~250 Hz.",
+   "Your assessments consistently sit close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Your assessments consistently favour less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.42,
+   "presence_gain": 0.0,
+   "treble_gain": 0.28
+  },
+  "summary": "This profile combines 5 listening tests, weighted towards your more recent and more decisive ones.",
+  "target": {
+   "bass_gain": 2.54,
+   "presence_gain": -0.5,
+   "treble_gain": -2.36
+  },
+  "total_weight": 3.691
+ },
+ "neutral": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "treble_gain",
+     "body": "Your treble preference sits close to the reference, so there is nothing specific to flag here. The general reminders below are the same ones that apply to any listener.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 0.74,
+    "confidence_score": 95.0,
+    "presence_gain": 0.0,
+    "treble_gain": -0.74
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Bass",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": 0.74
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 0.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Treble",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": -0.74
+   }
+  ],
+  "sentences": [
+   "Your assessment so far sits close to the reference below ~250 Hz, with no clear lean either way.",
+   "Your assessment so far sits close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Your assessment so far sits close to the reference above ~6 kHz, with no clear lean either way."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": 0.74,
+   "presence_gain": 0.0,
+   "treble_gain": -0.74
+  },
+  "total_weight": 0.95
+ },
+ "null_confidence": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "treble_gain",
+     "body": "Your treble preference sits close to the reference, so there is nothing specific to flag here. The general reminders below are the same ones that apply to any listener.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": null,
+    "bass_gain": 1.0,
+    "confidence_score": null,
+    "presence_gain": 0.0,
+    "treble_gain": 0.0
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Bass",
+    "level": "slight_up",
+    "level_label": "Slightly elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": 1.0
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 0.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Treble",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": 0.0
+   }
+  ],
+  "sentences": [
+   "Your assessment so far leans towards a little more energy below ~250 Hz.",
+   "Your assessment so far sits close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Your assessment so far sits close to the reference above ~6 kHz, with no clear lean either way."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": 1.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "total_weight": 1.0
+ },
+ "single": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 2.5,
+    "confidence_score": 94.8,
+    "presence_gain": -0.3,
+    "treble_gain": -3.1
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Bass",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": 2.5
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": -0.3
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Treble",
+    "level": "down",
+    "level_label": "Reduced",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": -3.1
+   }
+  ],
+  "sentences": [
+   "Your assessment so far favours more energy below ~250 Hz.",
+   "Your assessment so far sits close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Your assessment so far favours less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": 2.5,
+   "presence_gain": -0.3,
+   "treble_gain": -3.1
+  },
+  "total_weight": 0.948
+ },
+ "slight_down": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": -0.75,
+    "confidence_score": 95.0,
+    "presence_gain": -1.0,
+    "treble_gain": -1.99
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Bass",
+    "level": "slight_down",
+    "level_label": "Slightly relaxed",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": -0.75
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Upper midrange",
+    "level": "slight_down",
+    "level_label": "Slightly relaxed",
+    "meaningful": true,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": -1.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Treble",
+    "level": "slight_down",
+    "level_label": "Slightly relaxed",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": -1.99
+   }
+  ],
+  "sentences": [
+   "Your assessment so far leans towards a little less energy below ~250 Hz.",
+   "Your assessment so far leans towards a little less energy ~2-5 kHz.",
+   "Your assessment so far leans towards a little less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": -0.75,
+   "presence_gain": -1.0,
+   "treble_gain": -1.99
+  },
+  "total_weight": 0.95
+ },
+ "slight_up": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "treble_gain",
+     "body": "Your profile shows a preference for more energy in the treble. A brighter top end can make music feel more detailed and open, and it is simply an audio preference \u2014 it says nothing about your hearing. Worth knowing, though: when people want more detail, the volume knob is usually closer to hand than the EQ. You already have the EQ. Let it do that work, and keep the overall level where it is comfortable.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 1.5,
+    "confidence_score": 95.0,
+    "presence_gain": 1.0,
+    "treble_gain": 0.75
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Bass",
+    "level": "slight_up",
+    "level_label": "Slightly elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": 1.5
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Upper midrange",
+    "level": "slight_up",
+    "level_label": "Slightly elevated",
+    "meaningful": true,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 1.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Treble",
+    "level": "slight_up",
+    "level_label": "Slightly elevated",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": 0.75
+   }
+  ],
+  "sentences": [
+   "Your assessment so far leans towards a little more energy below ~250 Hz.",
+   "Your assessment so far leans towards a little more energy ~2-5 kHz.",
+   "Your assessment so far leans towards a little more energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": 1.5,
+   "presence_gain": 1.0,
+   "treble_gain": 0.75
+  },
+  "total_weight": 0.95
+ },
+ "strong_down": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": -4.0,
+    "confidence_score": 95.0,
+    "presence_gain": -5.0,
+    "treble_gain": -6.0
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Bass",
+    "level": "strong_down",
+    "level_label": "Strongly reduced",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": -4.0
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Upper midrange",
+    "level": "strong_down",
+    "level_label": "Strongly reduced",
+    "meaningful": true,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": -5.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "down",
+    "label": "Treble",
+    "level": "strong_down",
+    "level_label": "Strongly reduced",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": -6.0
+   }
+  ],
+  "sentences": [
+   "Your assessment so far favours clearly less energy below ~250 Hz.",
+   "Your assessment so far favours clearly less energy ~2-5 kHz.",
+   "Your assessment so far favours clearly less energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": -4.0,
+   "presence_gain": -5.0,
+   "treble_gain": -6.0
+  },
+  "total_weight": 0.95
+ },
+ "strong_up": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your profile shows a preference for more energy in the treble. A brighter top end can make music feel more detailed and open, and it is simply an audio preference \u2014 it says nothing about your hearing. Worth knowing, though: when people want more detail, the volume knob is usually closer to hand than the EQ. You already have the EQ. Let it do that work, and keep the overall level where it is comfortable.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 5.0,
+    "confidence_score": 95.0,
+    "presence_gain": 4.5,
+    "treble_gain": 4.0
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Bass",
+    "level": "strong_up",
+    "level_label": "Strongly elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": 5.0
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Upper midrange",
+    "level": "strong_up",
+    "level_label": "Strongly elevated",
+    "meaningful": true,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 4.5
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Treble",
+    "level": "strong_up",
+    "level_label": "Strongly elevated",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": 4.0
+   }
+  ],
+  "sentences": [
+   "Your assessment so far favours clearly more energy below ~250 Hz.",
+   "Your assessment so far favours clearly more energy ~2-5 kHz.",
+   "Your assessment so far favours clearly more energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": 5.0,
+   "presence_gain": 4.5,
+   "treble_gain": 4.0
+  },
+  "total_weight": 0.95
+ },
+ "up": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your profile shows a preference for more energy in the treble. A brighter top end can make music feel more detailed and open, and it is simply an audio preference \u2014 it says nothing about your hearing. Worth knowing, though: when people want more detail, the volume knob is usually closer to hand than the EQ. You already have the EQ. Let it do that work, and keep the overall level where it is comfortable.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 3.0,
+    "confidence_score": 95.0,
+    "presence_gain": 2.5,
+    "treble_gain": 2.0
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Bass",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": 3.0
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Upper midrange",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 2.5
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Treble",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": 2.0
+   }
+  ],
+  "sentences": [
+   "Your assessment so far favours more energy below ~250 Hz.",
+   "Your assessment so far favours more energy ~2-5 kHz.",
+   "Your assessment so far favours more energy above ~6 kHz."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": 3.0,
+   "presence_gain": 2.5,
+   "treble_gain": 2.0
+  },
+  "total_weight": 0.95
+ },
+ "varied": {
+  "assessment_count": 3,
+  "dominant_share": 0.37,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your profile leans towards a smoother top end. That is a common preference and a perfectly ordinary one to have. One practical note: a smoother presentation takes the edge off, which can make a loud playback level feel gentler than it measures. Since it is the level rather than the tuning that adds up over time, it is still worth keeping an eye on the volume and taking breaks.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 1,
+    "bass_gain": 2.4,
+    "confidence_score": 94.8,
+    "presence_gain": -0.2,
+    "treble_gain": -4.0
+   },
+   {
+    "age_days": 20,
+    "bass_gain": 2.6,
+    "confidence_score": 92.0,
+    "presence_gain": -0.4,
+    "treble_gain": 1.5
+   },
+   {
+    "age_days": 45,
+    "bass_gain": 2.5,
+    "confidence_score": 89.6,
+    "presence_gain": 0.1,
+    "treble_gain": -1.0
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "consistent",
+    "direction": "up",
+    "label": "Bass",
+    "level": "up",
+    "level_label": "Elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.08,
+    "value": 2.5
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "consistent",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.2,
+    "value": -0.18
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "varied",
+    "direction": "down",
+    "label": "Treble",
+    "level": "slight_down",
+    "level_label": "Slightly relaxed",
+    "meaningful": true,
+    "range": "above ~6 kHz",
+    "spread": 2.31,
+    "value": -1.28
+   }
+  ],
+  "sentences": [
+   "Your assessments consistently favour more energy below ~250 Hz.",
+   "Your assessments consistently sit close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Averaged across your assessments, your answers lean towards a little less energy above ~6 kHz. Your answers here have moved around between sittings, so this one is worth re-checking."
+  ],
+  "spread": {
+   "bass_gain": 0.08,
+   "presence_gain": 0.2,
+   "treble_gain": 2.31
+  },
+  "summary": "This profile combines 3 listening tests, weighted towards your more recent and more decisive ones. Your answers for treble have varied between sittings.",
+  "target": {
+   "bass_gain": 2.5,
+   "presence_gain": -0.18,
+   "treble_gain": -1.28
+  },
+  "total_weight": 2.55
+ },
+ "zero_confidence": {
+  "assessment_count": 1,
+  "dominant_share": 1.0,
+  "hearing": {
+   "disclaimer": "This section is general listening guidance, not medical advice. EqualizeME measures what you prefer, not how you hear \u2014 nothing in your profile is a hearing test or an indication of a hearing condition. If you have concerns about your hearing, a qualified audiologist or doctor is the right place to take them.",
+   "intro": "Everything above is about what you like. This last part is about listening to it comfortably over the long run.",
+   "notes": [
+    {
+     "band": "bass_gain",
+     "body": "Your profile favours extra low-end energy. Bass carries a lot of acoustic energy without necessarily sounding loud, so a bass-forward setting can be running at a higher overall level than it feels like. Nothing wrong with the preference \u2014 just a reason to let comfortable volume and regular breaks do their job.",
+     "title": "About your bass preference"
+    },
+    {
+     "band": "treble_gain",
+     "body": "Your treble preference sits close to the reference, so there is nothing specific to flag here. The general reminders below are the same ones that apply to any listener.",
+     "title": "About your treble preference"
+    }
+   ],
+   "standard_note": "As a general reference point, the WHO/ITU safe-listening standard (ITU-T H.870) suggests adults keep to about 80 dB over a 40-hour week, and 75 dB for children and more sensitive listeners. Most phones can show you your own listening level if you go looking for it.",
+   "tips": [
+    {
+     "body": "If you want more detail, shape it rather than turning everything up. That is what the profile above is for.",
+     "title": "Reach for the EQ before the volume"
+    },
+    {
+     "body": "Exposure accumulates over a day, not just over a track. Stepping away for a few minutes now and then gives your ears a rest.",
+     "title": "Take breaks on long sessions"
+    },
+    {
+     "body": "Most people turn up to compete with background noise. Well-fitting IEMs block a lot of it, which means you can hear everything at a lower level.",
+     "title": "Quiet surroundings let you listen quieter"
+    },
+    {
+     "body": "Sirens, power tools, air brakes and the like are loud and unannounced. Worth being ready for, headphones or not.",
+     "title": "Be careful around sudden loud sounds"
+    },
+    {
+     "body": "Discomfort or pain is a reason to stop or reduce, not something to push through or compensate for with more volume.",
+     "title": "If it hurts, turn it down"
+    }
+   ],
+   "title": "Hearing Preservation"
+  },
+  "input": [
+   {
+    "age_days": 0,
+    "bass_gain": 4.0,
+    "confidence_score": 0,
+    "presence_gain": 0.0,
+    "treble_gain": 0.0
+   }
+  ],
+  "regions": [
+   {
+    "band": "bass_gain",
+    "consistency": "single",
+    "direction": "up",
+    "label": "Bass",
+    "level": "strong_up",
+    "level_label": "Strongly elevated",
+    "meaningful": true,
+    "range": "below ~250 Hz",
+    "spread": 0.0,
+    "value": 4.0
+   },
+   {
+    "band": "presence_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Upper midrange",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "~2-5 kHz",
+    "spread": 0.0,
+    "value": 0.0
+   },
+   {
+    "band": "treble_gain",
+    "consistency": "single",
+    "direction": "neutral",
+    "label": "Treble",
+    "level": "neutral",
+    "level_label": "Near reference",
+    "meaningful": false,
+    "range": "above ~6 kHz",
+    "spread": 0.0,
+    "value": 0.0
+   }
+  ],
+  "sentences": [
+   "Your assessment so far favours clearly more energy below ~250 Hz.",
+   "Your assessment so far sits close to the reference ~2-5 kHz, with no clear lean either way.",
+   "Your assessment so far sits close to the reference above ~6 kHz, with no clear lean either way."
+  ],
+  "spread": {
+   "bass_gain": 0.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "summary": "This profile is based on one listening test. It will get sharper each time you take another.",
+  "target": {
+   "bass_gain": 4.0,
+   "presence_gain": 0.0,
+   "treble_gain": 0.0
+  },
+  "total_weight": 0.1
+ }
+}

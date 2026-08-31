@@ -15,7 +15,15 @@ function request_is_https() {
 
 function enforce_https_if_configured() {
     $config = function_exists('app_config') ? app_config() : [];
-    if (empty($config['force_https'])) {
+
+    // Production implies HTTPS whether or not force_https was set. Session
+    // cookies only get the Secure flag when the request is already
+    // encrypted, so a production site served over plain HTTP hands its
+    // cookies to anyone on the path.
+    $force = !empty($config['force_https'])
+        || (function_exists('is_production') && is_production());
+
+    if (!$force) {
         return;
     }
 
@@ -34,6 +42,12 @@ function enforce_https_if_configured() {
 function start_secure_session() {
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
+    }
+
+    // Before anything else, so an error thrown further down is already
+    // subject to the production display rules rather than printing itself.
+    if (function_exists('apply_environment')) {
+        apply_environment();
     }
 
     enforce_https_if_configured();

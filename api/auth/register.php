@@ -5,6 +5,7 @@ require_once __DIR__ . "/../rate_limit.php";
 require_once __DIR__ . "/../password_policy.php";
 require_once __DIR__ . "/../csrf.php";
 require_once __DIR__ . "/../totp.php";
+require_once __DIR__ . "/../email_verification.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -62,6 +63,34 @@ try {
          VALUES (?, 0, 0, 0)"
     )->execute([$userId]);
     $pdo->prepare("INSERT INTO settings (user_id) VALUES (?)")->execute([$userId]);
+
+    // Sent outside the account-creation path deliberately. A mail failure
+    // must not undo a signup that already succeeded — the user can ask for
+    // another link, but they cannot ask for their account back.
+    $verificationSent = false;
+    if (require_email_verification()) {
+        try {
+            $result = send_verification_email($pdo, $userId, $name, $email);
+            $verificationSent = $result["sent"] ?? false;
+        } catch (Throwable $e) {
+            error_log("auth/register.php: verification email failed: " . $e->getMessage());
+        }
+
+        // The account exists but cannot be used yet, so no session is
+        // granted — not even a pending one.
+        http_response_code(201);
+        echo json_encode([
+            "status" => "verify_email",
+            "name" => $name,
+            "email" => $email,
+            "sent" => $verificationSent,
+            "message" => $verificationSent
+                ? "Check your email for a link to confirm your address."
+                : "Your account was created, but the confirmation email could "
+                    . "not be sent. Try requesting another one in a moment.",
+        ]);
+        exit;
+    }
 
     if (TWO_FACTOR_REQUIRED) {
         // A new account is in exactly the position a returning user is in

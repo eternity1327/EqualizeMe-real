@@ -148,10 +148,55 @@ function _since($timestamps, $seconds) {
     }));
 }
 
+/**
+ * Where the counters live.
+ *
+ * The system temp directory is the right default on a machine you control,
+ * but shared hosting does not always give PHP a writable one — and if this
+ * silently fails, every limit in the app stops working while the site
+ * carries on looking healthy. That is the worst kind of breakage: invisible
+ * and security-relevant.
+ *
+ * So the location is configurable, and the fallback is a directory inside
+ * the project. logs/ already exists and is already written to.
+ *
+ * A .htaccess in that directory denies web access, and the filenames are
+ * unguessable anyway, but the counters are not secret — knowing how many
+ * times an IP has tried to log in helps nobody.
+ */
+function _rate_limit_dir() {
+    static $dir = null;
+    if ($dir !== null) {
+        return $dir;
+    }
+
+    $configured = function_exists('app_config')
+        ? trim(app_config()['rate_limit_dir'] ?? '')
+        : '';
+
+    if ($configured !== '' && is_dir($configured) && is_writable($configured)) {
+        return $dir = rtrim($configured, '/\\');
+    }
+
+    $temp = sys_get_temp_dir();
+    if ($temp && is_dir($temp) && is_writable($temp)) {
+        return $dir = $temp;
+    }
+
+    // Last resort, and the one shared hosting usually lands on.
+    $local = __DIR__ . '/../logs';
+    if (!is_dir($local)) {
+        @mkdir($local, 0775, true);
+    }
+
+    return $dir = $local;
+}
+
+
 function _rate_limit_path($bucket) {
     $safeName = preg_replace('/[^a-z0-9_-]/i', '', $bucket);
 
-    return sys_get_temp_dir() . "/equalizeme_ratelimit_{$safeName}.json";
+    return _rate_limit_dir() . "/equalizeme_ratelimit_{$safeName}.json";
 }
 
 function _rate_limit_read($bucket) {

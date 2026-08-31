@@ -1,0 +1,1561 @@
+{
+ "quiz": {
+  "all_bright": {
+   "bassGain": -1,
+   "presenceGain": -2,
+   "trebleGain": 4
+  },
+  "all_warm": {
+   "bassGain": 6,
+   "presenceGain": 2,
+   "trebleGain": -3
+  },
+  "clamped": {
+   "bassGain": 6,
+   "presenceGain": 0,
+   "trebleGain": -1
+  },
+  "empty": {
+   "bassGain": 0,
+   "presenceGain": 0,
+   "trebleGain": 0
+  },
+  "partial": {
+   "bassGain": 1,
+   "presenceGain": 0,
+   "trebleGain": 0
+  },
+  "unknown_keys": {
+   "bassGain": 3,
+   "presenceGain": 0,
+   "trebleGain": -1
+  },
+  "vshape": {
+   "bassGain": 3,
+   "presenceGain": 0,
+   "trebleGain": 2
+  }
+ },
+ "runs": [
+  {
+   "answers": [
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A"
+   ],
+   "confidence": 89.6,
+   "pattern": "all_A",
+   "precision": {
+    "bassGain": 0.4,
+    "presenceGain": 0.8,
+    "trebleGain": 0.8
+   },
+   "profile": {
+    "bassGain": -5.6,
+    "presenceGain": -5.2,
+    "trebleGain": -5.2
+   },
+   "questions_used": 10,
+   "seed": "noseed",
+   "steps": [
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 0.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": -3.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": -4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": -5.6,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": -5.6,
+      "presenceGain": 0,
+      "trebleGain": 6
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": -5.6,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": -5.6,
+      "presenceGain": 0,
+      "trebleGain": 0.0
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": -5.6,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": -5.6,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": -5.6,
+      "presenceGain": -6,
+      "trebleGain": -5.2
+     },
+     "B": {
+      "bassGain": -5.6,
+      "presenceGain": 6,
+      "trebleGain": -5.2
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": -5.6,
+      "presenceGain": -6,
+      "trebleGain": -5.2
+     },
+     "B": {
+      "bassGain": -5.6,
+      "presenceGain": 0.0,
+      "trebleGain": -5.2
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": -5.6,
+      "presenceGain": -6,
+      "trebleGain": -5.2
+     },
+     "B": {
+      "bassGain": -5.6,
+      "presenceGain": -3.0,
+      "trebleGain": -5.2
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  },
+  {
+   "answers": [
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B"
+   ],
+   "confidence": 89.6,
+   "pattern": "all_B",
+   "precision": {
+    "bassGain": 0.4,
+    "presenceGain": 0.8,
+    "trebleGain": 0.8
+   },
+   "profile": {
+    "bassGain": 5.6,
+    "presenceGain": 5.2,
+    "trebleGain": 5.2
+   },
+   "questions_used": 10,
+   "seed": "noseed",
+   "steps": [
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": 0.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.6,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 5.6,
+      "presenceGain": 0,
+      "trebleGain": 6
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.6,
+      "presenceGain": 0,
+      "trebleGain": 0.0
+     },
+     "B": {
+      "bassGain": 5.6,
+      "presenceGain": 0,
+      "trebleGain": 6
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.6,
+      "presenceGain": 0,
+      "trebleGain": 3.0
+     },
+     "B": {
+      "bassGain": 5.6,
+      "presenceGain": 0,
+      "trebleGain": 6
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.6,
+      "presenceGain": -6,
+      "trebleGain": 5.2
+     },
+     "B": {
+      "bassGain": 5.6,
+      "presenceGain": 6,
+      "trebleGain": 5.2
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.6,
+      "presenceGain": 0.0,
+      "trebleGain": 5.2
+     },
+     "B": {
+      "bassGain": 5.6,
+      "presenceGain": 6,
+      "trebleGain": 5.2
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.6,
+      "presenceGain": 3.0,
+      "trebleGain": 5.2
+     },
+     "B": {
+      "bassGain": 5.6,
+      "presenceGain": 6,
+      "trebleGain": 5.2
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  },
+  {
+   "answers": [
+    "A",
+    "B",
+    "A",
+    "B",
+    "A",
+    "B",
+    "A",
+    "B",
+    "A",
+    "B"
+   ],
+   "confidence": 89.6,
+   "pattern": "alternating",
+   "precision": {
+    "bassGain": 0.4,
+    "presenceGain": 0.8,
+    "trebleGain": 0.8
+   },
+   "profile": {
+    "bassGain": -1.9,
+    "presenceGain": 2.2,
+    "trebleGain": -2.2
+   },
+   "questions_used": 10,
+   "seed": "noseed",
+   "steps": [
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 0.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": -3.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 0.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": -3.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": -1.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": -1.9,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": -1.9,
+      "presenceGain": 0,
+      "trebleGain": 6
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": -1.9,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": -1.9,
+      "presenceGain": 0,
+      "trebleGain": 0.0
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": -1.9,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "B": {
+      "bassGain": -1.9,
+      "presenceGain": 0,
+      "trebleGain": 0.0
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": -1.9,
+      "presenceGain": -6,
+      "trebleGain": -2.2
+     },
+     "B": {
+      "bassGain": -1.9,
+      "presenceGain": 6,
+      "trebleGain": -2.2
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": -1.9,
+      "presenceGain": 0.0,
+      "trebleGain": -2.2
+     },
+     "B": {
+      "bassGain": -1.9,
+      "presenceGain": 6,
+      "trebleGain": -2.2
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": -1.9,
+      "presenceGain": 0.0,
+      "trebleGain": -2.2
+     },
+     "B": {
+      "bassGain": -1.9,
+      "presenceGain": 3.0,
+      "trebleGain": -2.2
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  },
+  {
+   "answers": [
+    "B",
+    "B",
+    "A",
+    "B",
+    "A",
+    "A",
+    "B",
+    "A",
+    "A",
+    "B"
+   ],
+   "confidence": 89.6,
+   "pattern": "mixed",
+   "precision": {
+    "bassGain": 0.4,
+    "presenceGain": 0.8,
+    "trebleGain": 0.8
+   },
+   "profile": {
+    "bassGain": 4.1,
+    "presenceGain": -3.8,
+    "trebleGain": -3.8
+   },
+   "questions_used": 10,
+   "seed": "noseed",
+   "steps": [
+    {
+     "A": {
+      "bassGain": -6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": 0.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.1,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 4.1,
+      "presenceGain": 0,
+      "trebleGain": 6
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.1,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 4.1,
+      "presenceGain": 0,
+      "trebleGain": 0.0
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.1,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 4.1,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.1,
+      "presenceGain": -6,
+      "trebleGain": -3.8
+     },
+     "B": {
+      "bassGain": 4.1,
+      "presenceGain": 6,
+      "trebleGain": -3.8
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.1,
+      "presenceGain": -6,
+      "trebleGain": -3.8
+     },
+     "B": {
+      "bassGain": 4.1,
+      "presenceGain": 0.0,
+      "trebleGain": -3.8
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.1,
+      "presenceGain": -6,
+      "trebleGain": -3.8
+     },
+     "B": {
+      "bassGain": 4.1,
+      "presenceGain": -3.0,
+      "trebleGain": -3.8
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  },
+  {
+   "answers": [
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A",
+    "A"
+   ],
+   "confidence": 95.3,
+   "pattern": "all_A",
+   "precision": {
+    "bassGain": 0.1,
+    "presenceGain": 0.4,
+    "trebleGain": 0.4
+   },
+   "profile": {
+    "bassGain": 3.1,
+    "presenceGain": -0.6,
+    "trebleGain": -5.6
+   },
+   "questions_used": 10,
+   "seed": "warm",
+   "steps": [
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 3.75,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 3.375,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.1,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 3.1,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.1,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 3.1,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.1,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 3.1,
+      "presenceGain": 0,
+      "trebleGain": -4.5
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.1,
+      "presenceGain": -1,
+      "trebleGain": -5.6
+     },
+     "B": {
+      "bassGain": 3.1,
+      "presenceGain": 5,
+      "trebleGain": -5.6
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.1,
+      "presenceGain": -1,
+      "trebleGain": -5.6
+     },
+     "B": {
+      "bassGain": 3.1,
+      "presenceGain": 2.0,
+      "trebleGain": -5.6
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.1,
+      "presenceGain": -1,
+      "trebleGain": -5.6
+     },
+     "B": {
+      "bassGain": 3.1,
+      "presenceGain": 0.5,
+      "trebleGain": -5.6
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  },
+  {
+   "answers": [
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B",
+    "B"
+   ],
+   "confidence": 95.3,
+   "pattern": "all_B",
+   "precision": {
+    "bassGain": 0.1,
+    "presenceGain": 0.4,
+    "trebleGain": 0.4
+   },
+   "profile": {
+    "bassGain": 5.9,
+    "presenceGain": 4.6,
+    "trebleGain": -0.4
+   },
+   "questions_used": 10,
+   "seed": "warm",
+   "steps": [
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.25,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.625,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.9,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 5.9,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.9,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "B": {
+      "bassGain": 5.9,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.9,
+      "presenceGain": 0,
+      "trebleGain": -1.5
+     },
+     "B": {
+      "bassGain": 5.9,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.9,
+      "presenceGain": -1,
+      "trebleGain": -0.4
+     },
+     "B": {
+      "bassGain": 5.9,
+      "presenceGain": 5,
+      "trebleGain": -0.4
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.9,
+      "presenceGain": 2.0,
+      "trebleGain": -0.4
+     },
+     "B": {
+      "bassGain": 5.9,
+      "presenceGain": 5,
+      "trebleGain": -0.4
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.9,
+      "presenceGain": 3.5,
+      "trebleGain": -0.4
+     },
+     "B": {
+      "bassGain": 5.9,
+      "presenceGain": 5,
+      "trebleGain": -0.4
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  },
+  {
+   "answers": [
+    "A",
+    "B",
+    "A",
+    "B",
+    "A",
+    "B",
+    "A",
+    "B",
+    "A",
+    "B"
+   ],
+   "confidence": 95.3,
+   "pattern": "alternating",
+   "precision": {
+    "bassGain": 0.1,
+    "presenceGain": 0.4,
+    "trebleGain": 0.4
+   },
+   "profile": {
+    "bassGain": 4.0,
+    "presenceGain": 3.1,
+    "trebleGain": -4.1
+   },
+   "questions_used": 10,
+   "seed": "warm",
+   "steps": [
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.75,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": 3.75,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 4.125,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.0,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 4.0,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.0,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 4.0,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.0,
+      "presenceGain": 0,
+      "trebleGain": -4.5
+     },
+     "B": {
+      "bassGain": 4.0,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.0,
+      "presenceGain": -1,
+      "trebleGain": -4.1
+     },
+     "B": {
+      "bassGain": 4.0,
+      "presenceGain": 5,
+      "trebleGain": -4.1
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.0,
+      "presenceGain": 2.0,
+      "trebleGain": -4.1
+     },
+     "B": {
+      "bassGain": 4.0,
+      "presenceGain": 5,
+      "trebleGain": -4.1
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.0,
+      "presenceGain": 2.0,
+      "trebleGain": -4.1
+     },
+     "B": {
+      "bassGain": 4.0,
+      "presenceGain": 3.5,
+      "trebleGain": -4.1
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  },
+  {
+   "answers": [
+    "B",
+    "B",
+    "A",
+    "B",
+    "A",
+    "A",
+    "B",
+    "A",
+    "A",
+    "B"
+   ],
+   "confidence": 95.3,
+   "pattern": "mixed",
+   "precision": {
+    "bassGain": 0.1,
+    "presenceGain": 0.4,
+    "trebleGain": 0.4
+   },
+   "profile": {
+    "bassGain": 5.5,
+    "presenceGain": 0.1,
+    "trebleGain": -4.9
+   },
+   "questions_used": 10,
+   "seed": "warm",
+   "steps": [
+    {
+     "A": {
+      "bassGain": 3,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 1,
+     "round": 1,
+     "sample": "sample1.wav"
+    },
+    {
+     "A": {
+      "bassGain": 4.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 2,
+     "round": 2,
+     "sample": "sample2.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.25,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 6,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 3,
+     "round": 3,
+     "sample": "sample3.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.25,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "B": {
+      "bassGain": 5.625,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "bassGain",
+     "question": 4,
+     "round": 4,
+     "sample": "sample4.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.5,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 5.5,
+      "presenceGain": 0,
+      "trebleGain": 0
+     },
+     "param": "trebleGain",
+     "question": 5,
+     "round": 1,
+     "sample": "sample5.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.5,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 5.5,
+      "presenceGain": 0,
+      "trebleGain": -3.0
+     },
+     "param": "trebleGain",
+     "question": 6,
+     "round": 2,
+     "sample": "sample6.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.5,
+      "presenceGain": 0,
+      "trebleGain": -6
+     },
+     "B": {
+      "bassGain": 5.5,
+      "presenceGain": 0,
+      "trebleGain": -4.5
+     },
+     "param": "trebleGain",
+     "question": 7,
+     "round": 3,
+     "sample": "sample7.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.5,
+      "presenceGain": -1,
+      "trebleGain": -4.9
+     },
+     "B": {
+      "bassGain": 5.5,
+      "presenceGain": 5,
+      "trebleGain": -4.9
+     },
+     "param": "presenceGain",
+     "question": 8,
+     "round": 1,
+     "sample": "sample8.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.5,
+      "presenceGain": -1,
+      "trebleGain": -4.9
+     },
+     "B": {
+      "bassGain": 5.5,
+      "presenceGain": 2.0,
+      "trebleGain": -4.9
+     },
+     "param": "presenceGain",
+     "question": 9,
+     "round": 2,
+     "sample": "sample9.wav"
+    },
+    {
+     "A": {
+      "bassGain": 5.5,
+      "presenceGain": -1,
+      "trebleGain": -4.9
+     },
+     "B": {
+      "bassGain": 5.5,
+      "presenceGain": 0.5,
+      "trebleGain": -4.9
+     },
+     "param": "presenceGain",
+     "question": 10,
+     "round": 3,
+     "sample": "sample10.wav"
+    }
+   ]
+  }
+ ]
+}
