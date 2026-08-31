@@ -46,6 +46,49 @@ function _mailer_load_phpmailer() {
     return class_exists('PHPMailer\\PHPMailer\\PHPMailer');
 }
 
+/**
+ * Tidy an SMTP password before it goes on the wire.
+ *
+ * Google shows app passwords in four groups of four — "abcd efgh ijkl
+ * mnop" — and people copy them exactly as displayed. The spaces are
+ * presentation; the credential is the sixteen letters. PHPMailer passes
+ * whatever it is handed straight into SMTP AUTH, so a copied-with-spaces
+ * password fails with nothing more helpful than "Could not authenticate",
+ * which sends you looking for a problem that is not there.
+ *
+ * Internal spaces are only removed on a Google host, and only when the
+ * result is the exact shape Google generates: sixteen lowercase letters,
+ * no digits. Elsewhere a space may be a real character in a passphrase,
+ * and silently deleting part of somebody's password would be a far worse
+ * bug than the one this fixes.
+ *
+ * That test is tight but not perfect. A Gmail passphrase of four lowercase
+ * words totalling sixteen letters — "my long pass phrase" — would match
+ * the pattern and be mangled. It is accepted because Gmail SMTP has not
+ * taken account passwords since 2022: on this host a value of that shape
+ * is an app password in all but the most contrived case. api/smtp_test.php
+ * says out loud when it has stripped, so the behaviour is visible rather
+ * than magic.
+ *
+ * Leading and trailing whitespace is always dropped, on every host. Nobody
+ * has ever meant to include that.
+ */
+function _mailer_clean_password($password, $host) {
+    $password = trim((string)$password);
+
+    $isGoogle = stripos((string)$host, 'gmail.com') !== false
+        || stripos((string)$host, 'googlemail.com') !== false;
+
+    if (!$isGoogle) {
+        return $password;
+    }
+
+    $stripped = preg_replace('/\s+/', '', $password);
+
+    return preg_match('/^[a-z]{16}$/', $stripped) ? $stripped : $password;
+}
+
+
 function send_email($to, $subject, $bodyText) {
     $config = app_config();
     $smtp = $config['smtp'];
@@ -67,13 +110,21 @@ function send_email($to, $subject, $bodyText) {
         $mail->Host = $smtp['host'];
         $mail->Port = (int)$smtp['port'];
         $mail->SMTPAuth = true;
-        $mail->Username = $smtp['username'];
-        $mail->Password = $smtp['password'];
+        $mail->Username = trim($smtp['username']);
+        $mail->Password = _mailer_clean_password($smtp['password'], $smtp['host']);
         $mail->SMTPSecure = $smtp['secure'] === 'ssl'
             ? PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
             : PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         $mail->CharSet = 'UTF-8';
         $mail->Timeout = 15;
+
+        // Only ever set by api/smtp_test.php, which is CLI-only. Prints the
+        // full SMTP exchange, which is the fastest way to see what a server
+        // is actually objecting to — and far too chatty for a web request.
+        if (!empty($GLOBALS['MAILER_DEBUG']) && PHP_SAPI === 'cli') {
+            $mail->SMTPDebug = 2;
+            $mail->Debugoutput = 'echo';
+        }
 
         $mail->setFrom($smtp['from_email'], $smtp['from_name']);
         $mail->addAddress($to);

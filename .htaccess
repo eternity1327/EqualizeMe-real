@@ -74,8 +74,8 @@ Options -Indexes
     Require all denied
 </FilesMatch>
 
-# The self-test refuses to run outside the command line anyway. Denying it
-# here as well means the refusal never has to be relied on.
-<Files "totp_selftest.php">
+# The self-tests refuse to run outside the command line anyway. Denying
+# them here as well means that refusal never has to be relied on.
+<FilesMatch "^(totp_selftest|smtp_test)\.php$">
     Require all denied
-</Files>
+</FilesMatch>
