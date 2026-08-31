@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . "/session.php";
 require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/errors.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -52,7 +53,5 @@ try {
         "profilePicture" => $profilePicture ?: null,
     ]);
 } catch (PDOException $e) {
-    error_log("profile.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(["error" => "Something went wrong"]);
+    fail_json(500, "Something went wrong", $e, "profile.php");
 }

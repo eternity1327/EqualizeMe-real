@@ -21,6 +21,7 @@ require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/preference_profile.php";
 require_once __DIR__ . "/hearing_preservation.php";
 require_once __DIR__ . "/recommend.php";
+require_once __DIR__ . "/errors.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -96,7 +97,5 @@ try {
         "hearing_preservation" => hp_build($aggregated),
     ]);
 } catch (PDOException $e) {
-    error_log("recommendations.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(["error" => "Something went wrong loading recommendations."]);
+    fail_json(500, "Something went wrong loading recommendations.", $e, "recommendations.php");
 }

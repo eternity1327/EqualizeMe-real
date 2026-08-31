@@ -6,6 +6,7 @@ require_once __DIR__ . "/../password_policy.php";
 require_once __DIR__ . "/../csrf.php";
 require_once __DIR__ . "/../totp.php";
 require_once __DIR__ . "/../email_verification.php";
+require_once __DIR__ . "/../errors.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -114,7 +115,5 @@ try {
     http_response_code(201);
     echo json_encode(["id" => (int)$userId, "name" => $name, "email" => $email]);
 } catch (PDOException $e) {
-    error_log("auth/register.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(["error" => "Something went wrong creating your account"]);
+    fail_json(500, "Something went wrong creating your account", $e, "auth/register.php");
 }

@@ -5,6 +5,7 @@ require_once __DIR__ . "/../rate_limit.php";
 require_once __DIR__ . "/../csrf.php";
 require_once __DIR__ . "/../totp.php";
 require_once __DIR__ . "/../config.php";
+require_once __DIR__ . "/../errors.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -116,7 +117,5 @@ try {
         "redirect" => "two-factor.php",
     ]);
 } catch (PDOException $e) {
-    error_log("auth/login.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(["error" => "Something went wrong logging in"]);
+    fail_json(500, "Something went wrong logging in", $e, "auth/login.php");
 }
