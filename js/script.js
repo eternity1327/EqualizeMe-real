@@ -631,10 +631,19 @@ async function loadProfile() {
     if (profile.error) {
       soundEl.textContent = "No profile yet — take the sound test";
     } else {
+      // These are the aggregate across every test, the same numbers the
+      // recommendations are matched against. Saying how many tests it is
+      // built from stops it reading as a single measurement — and stops
+      // it looking wrong when it does not equal the last test taken.
+      const n = profile.assessmentCount || 1;
+      const from = n === 1
+        ? "from 1 listening test"
+        : `averaged over ${n} listening tests`;
+
       soundEl.textContent =
-        `Bass ${profile.bassGain > 0 ? "+" : ""}${profile.bassGain}dB, ` +
-        `Treble ${profile.trebleGain > 0 ? "+" : ""}${profile.trebleGain}dB, ` +
-        `Presence ${profile.presenceGain > 0 ? "+" : ""}${profile.presenceGain}dB`;
+        `${signed(profile.bassGain)} bass, ` +
+        `${signed(profile.trebleGain)} treble, ` +
+        `${signed(profile.presenceGain)} presence  —  ${from}`;
     }
 
     if (typeof setProfilePicture === "function") {

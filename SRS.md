@@ -63,17 +63,27 @@ audiological assessment.
 
 ### 2.1 Product Perspective
 
-EqualizeME is a self-contained web application with three tiers:
+EqualizeME is a self-contained web application with two tiers:
 
 ```
      Browser (HTML / CSS / JavaScript)
         │  audio playback + EQ, charts, UI
-        ├──────────────► PHP / Apache
-        │                auth, sessions, security
-        │                      │
-        └──────────────► Python / Flask ──── MySQL
+        │
+        └──────────────► PHP / Apache ──── MySQL
+                         auth, sessions, security,
                          test logic, matching
 ```
+
+An earlier revision ran the test logic and matching in a separate
+Python / Flask service, with a PHP proxy in front of it. Both were
+removed when the application was deployed to shared hosting, which
+cannot run a long-lived process. The logic was ported to PHP and
+verified against the original by replaying fixed inputs through both
+implementations (2,081 checks, 0 failures).
+
+Python is still used, but only offline: the scripts in `backend/` fetch
+measurements and import the catalogue into MySQL. They run on a
+maintainer's machine and are not part of the deployed application.
 
 The listening test's EQ is applied **in the browser** via the Web Audio
 API, so each participant hears it through their own headphones.
@@ -89,7 +99,9 @@ API, so each participant hears it through their own headphones.
 
 - **Client:** any modern browser supporting the Web Audio API
   (Chrome, Firefox, Edge, Safari); headphones or IEMs required
-- **Server:** Apache + PHP 8, Python 3 + Flask, MySQL 8 / MariaDB
+- **Server:** Apache + PHP 8, MySQL 8 / MariaDB
+- **Maintenance only:** Python 3 for the catalogue import scripts,
+  run offline and not required by the deployed application
 - **Development:** XAMPP on Windows
 
 ### 2.4 Constraints
@@ -319,11 +331,10 @@ Shared navigation, logo, theme toggle and profile menu across all pages.
 
 | Interface | Purpose |
 |---|---|
-| PHP ↔ MySQL (PDO) | Accounts, sessions, settings |
-| Python ↔ MySQL | Profiles, IEM catalogue |
-| Browser ↔ PHP (JSON) | Authentication, settings |
-| Browser ↔ Flask (JSON) | Test flow, recommendations, curves |
-| Importer ↔ squig.link (HTTPS) | Catalogue and measurement retrieval |
+| PHP ↔ MySQL (PDO) | Accounts, sessions, settings, profiles, catalogue |
+| Browser ↔ PHP (JSON) | Everything: auth, settings, test flow, recommendations |
+| Importer ↔ squig.link (HTTPS) | Catalogue and measurement retrieval (offline) |
+| Importer ↔ MySQL | Writing the IEM catalogue (offline) |
 | Mailer ↔ SMTP | Password reset delivery |
 
 ### 6.3 API Endpoints
@@ -343,17 +354,25 @@ Shared navigation, logo, theme toggle and profile menu across all pages.
 | GET | `/api/profile.php` | Auditory profile |
 | POST | `/api/upload-picture.php` | Profile picture |
 
-**Flask**
+**Listening test and recommendations**
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/quiz/questions` | Questionnaire |
-| POST | `/api/dsp/adaptive/start` | Begin test |
-| POST | `/api/dsp/adaptive/answer` | Submit choice |
-| POST | `/api/dsp/adaptive/play` | Server-side playback (fallback) |
-| GET | `/api/dsp/adaptive/samples` | Clip list |
-| GET | `/recommendations/<user_id>` | Ranked recommendations |
-| GET | `/api/iems/<iem_id>/curve` | Measured curve and description |
+| GET | `/api/quiz.php` | Questionnaire, without scoring weights |
+| POST | `/api/test-start.php` | Begin test |
+| POST | `/api/test-answer.php` | Submit choice, save profile on the last one |
+| GET | `/api/recommendations.php` | Preference target, analysis, ranked IEMs |
+| GET | `/api/iem-curve.php?id=` | Measured curve and description |
+
+No endpoint takes a user id. Every one reads it from the session, so
+there is nothing in a request for a caller to tamper with. The previous
+revision needed a proxy (`api/dsp.php`) to overwrite a client-supplied
+id before passing it to Flask; that whole class of bug is now
+unreachable rather than guarded against.
+
+Server-side audio playback was removed. It rendered through the server's
+own sound card, which was only meaningful while the server and the
+listener were the same machine.
 
 ---
 

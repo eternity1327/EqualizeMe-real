@@ -28,11 +28,17 @@ csrf_verify_or_fail($body["csrf_token"] ?? null);
 
 $result = at_record_answer($body["preferred"] ?? null);
 
+// An error with no result is a real rejection: no session, or a side that
+// is neither A nor B.
 if (isset($result["error"]) && empty($result["done"])) {
     http_response_code(400);
     echo json_encode($result);
     exit;
 }
+
+// An error WITH a finished result means "you already finished this" —
+// which happens when the save below failed and the user tried again. That
+// is a retry, not a failure, so it carries on to the save.
 
 if (!empty($result["done"]) && isset($result["profile"])) {
     try {
@@ -57,12 +63,19 @@ if (!empty($result["done"]) && isset($result["profile"])) {
         // The test is over; leaving its state behind would let a refresh
         // save the same result twice.
         at_clear_session();
+
+        // On a retry this still says "Test already complete", which was
+        // true a moment ago and is not any more — the save just succeeded.
+        // Leaving it would send the browser down its error branch and the
+        // user would never see their results, having actually got them.
+        unset($result["error"]);
     } catch (PDOException $e) {
         error_log("test-answer.php: " . $e->getMessage());
         http_response_code(500);
         echo json_encode([
             "error" => "Your answers were fine, but the profile could not be "
-                . "saved. Please try the test again.",
+                . "saved. Try answering once more — your place in the test is "
+                . "kept, so nothing is lost.",
         ]);
         exit;
     }

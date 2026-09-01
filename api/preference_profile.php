@@ -430,6 +430,30 @@ function pp_describe($profile, $regions = null) {
 
 
 /**
+ * Load the rows pp_build() consumes.
+ *
+ * Kept here rather than written out at each call site. Two endpoints need
+ * this — the results page and the profile page — and when the same query
+ * is typed twice it eventually stops being the same query. In particular
+ * the age calculation has to stay exactly as it is: measured in the
+ * database, against the clock that wrote created_at, rather than against
+ * whatever the web server thinks the time is.
+ */
+function pp_fetch_assessments($pdo, $userId) {
+    $stmt = $pdo->prepare(
+        "SELECT bass_gain, treble_gain, presence_gain, confidence_score,
+                created_at,
+                TIMESTAMPDIFF(SECOND, created_at, NOW()) / 86400 AS age_days
+         FROM auditory_profiles
+         WHERE user_id = ?
+         ORDER BY created_at DESC"
+    );
+    $stmt->execute([$userId]);
+    return $stmt->fetchAll();
+}
+
+
+/**
  * Everything the results page needs, from raw assessment rows.
  */
 function pp_build($assessments) {

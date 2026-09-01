@@ -36,19 +36,9 @@ $userId = (int)$_SESSION["user_id"];
 try {
     $pdo = get_pdo();
 
-    // Every assessment on record, with its age measured against the
-    // database clock — the same clock that wrote created_at, rather than
-    // whatever the web server thinks the time is.
-    $stmt = $pdo->prepare(
-        "SELECT bass_gain, treble_gain, presence_gain, confidence_score,
-                created_at,
-                TIMESTAMPDIFF(SECOND, created_at, NOW()) / 86400 AS age_days
-         FROM auditory_profiles
-         WHERE user_id = ?
-         ORDER BY created_at DESC"
-    );
-    $stmt->execute([$userId]);
-    $assessments = $stmt->fetchAll();
+    // Shared with api/profile.php, so the two pages cannot end up loading
+    // different inputs and reporting different profiles.
+    $assessments = pp_fetch_assessments($pdo, $userId);
 
     if (!$assessments) {
         http_response_code(404);

@@ -75,15 +75,6 @@ function at_sample_labels() {
 const AT_SESSION_KEY = "_adaptive_test";
 
 
-function at_list_samples() {
-    $labels = at_sample_labels();
-    $out = [];
-    for ($i = 1; $i <= AT_NUM_SAMPLES; $i++) {
-        $name = "sample{$i}.wav";
-        $out[] = ["file" => $name, "label" => $labels[$name] ?? $name];
-    }
-    return $out;
-}
 
 
 /**
@@ -236,6 +227,22 @@ function at_finalize_param(&$session, $param) {
 }
 
 
+/**
+ * How far each band could still be out, rounded for display.
+ *
+ * Pulled out because both the normal completion and the retry-after-a-
+ * failed-save path need it, and having two copies is how they came to
+ * disagree in the first place.
+ */
+function at_precision($session) {
+    $precision = [];
+    foreach (($session["uncertainty"] ?? []) as $band => $value) {
+        $precision[$band] = py_round($value, AT_GAIN_DECIMALS);
+    }
+    return $precision;
+}
+
+
 function at_confidence_score($session) {
     $uncertainty = $session["uncertainty"] ?? [];
     if (!$uncertainty) {
@@ -259,10 +266,22 @@ function at_record_answer($preferred) {
         return ["error" => 'preferred must be "A" or "B"'];
     }
     if ($session["paramIndex"] >= count(at_param_rounds())) {
+        // The test is over but the session is still here, which means the
+        // caller is retrying — almost always because saving the profile
+        // failed and they had another go.
+        //
+        // So this returns the complete result, not just the profile. The
+        // original returned profile alone, with no confidence and no
+        // precision, and the retry then wrote a row with a NULL confidence
+        // score. Returning everything makes the retry save exactly what
+        // the first attempt would have.
         return [
             "error" => "Test already complete",
             "done" => true,
             "profile" => (object)$session["finalized"],
+            "confidence" => at_confidence_score($session),
+            "precision" => (object)at_precision($session),
+            "history" => $session["history"],
         ];
     }
 
@@ -291,16 +310,11 @@ function at_record_answer($preferred) {
     $_SESSION[AT_SESSION_KEY] = $session;
 
     if (at_is_complete($session)) {
-        $precision = [];
-        foreach ($session["uncertainty"] as $band => $value) {
-            $precision[$band] = py_round($value, AT_GAIN_DECIMALS);
-        }
-
         return [
             "done" => true,
             "profile" => (object)$session["finalized"],
             "confidence" => at_confidence_score($session),
-            "precision" => (object)$precision,
+            "precision" => (object)at_precision($session),
             "history" => $session["history"],
         ];
     }
@@ -310,13 +324,3 @@ function at_record_answer($preferred) {
     return ["done" => false, "next" => at_current_pair()];
 }
 
-
-function at_current_side_params($side) {
-    $pair = at_current_pair();
-    if ($pair === null) {
-        return null;
-    }
-    $params = (array)($side === "A" ? $pair["A"] : $pair["B"]);
-    $params["sample"] = $pair["sample"];
-    return $params;
-}
