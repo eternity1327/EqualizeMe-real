@@ -18,3 +18,7 @@ backend/config.local.json
 # credentials, tokens or database contents. Easier to keep the whole folder
 # out than to check each image every time.
 screenshots/
+
+# Staging copy of the site for FTP upload. Generated, not source — it is
+# the same files with the local-only ones stripped out.
+_upload-to-server/
