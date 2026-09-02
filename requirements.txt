@@ -1,4 +1,8 @@
-# Python dependencies for ai_service.py
+# Python dependencies for the catalogue import pipeline in backend/.
+#
+# These scripts are maintenance tooling, not part of the deployed
+# application. The web app is PHP and MySQL only — it does not run Python
+# at all, which is what lets it live on shared hosting.
 #
 # Install with:
 #   pip install -r requirements.txt
@@ -6,8 +10,24 @@
 # If you're using the bundled .venv, activate it first:
 #   .\.venv\Scripts\Activate.ps1
 
-flask
-flask-cors
-mysql-connector-python
-pyyaml
-websocket-client
+# Used only by import_to_db.py, to write the IEM catalogue into MySQL.
+pymysql
+
+# Everything else in backend/ runs on the standard library alone:
+#   fetch_measurements.py     urllib
+#   catalog_parser.py         json
+#   measurement_parser.py     text parsing
+#   calibrate_interpreter.py  arithmetic
+#   interpreter.py            string formatting
+#   db_config.py              os, json
+
+# REMOVED, and why:
+#
+#   flask, flask-cors    the DSP service they served was ported to PHP.
+#                        See api/adaptive_test.php and api/recommend.php.
+#   mysql-connector      only ai_service.py used it; import_to_db.py has
+#                        always used pymysql instead.
+#   websocket-client     only camilla_dsp.py used it, to drive CamillaDSP
+#                        for server-side audio playback. That path was
+#                        removed: it could only ever work when the server
+#                        and the listener were the same machine.
