@@ -516,17 +516,29 @@ const PREFERENCE_DASH = [6, 4];
 const CURVE_X_TICK_LIMIT = 7;
 
 // Minimum gap, in pixels, between two labels on the frequency axis.
-//
-// The axis is logarithmic, so Chart.js places ticks at ratios rather than at
-// even distances, and the decade labels bunch up at the right-hand end. In a
-// card-width chart "5,000" and "10,000" ended up touching and read as one
-// number: "5,00010,000". maxTicksLimit alone does not help, because the
-// crowding is between two ticks it has already decided to keep.
-//
-// autoSkipPadding makes Chart.js drop a label rather than print it against
-// its neighbour. Losing a gridline label is better than printing a number
-// that does not exist.
 const CURVE_X_TICK_PADDING = 12;
+
+// Shorten frequencies to the kHz form used on every published frequency
+// response graph: 5,000 becomes 5k, 10,000 becomes 10k.
+//
+// This is the actual fix for labels colliding. The axis is logarithmic, so
+// ticks sit at ratios rather than even distances and the decades bunch up at
+// the right-hand end; on a card-width chart "5,000" and "10,000" printed
+// touching and read as one number, "5,00010,000". Neither maxTicksLimit nor
+// autoSkipPadding reliably prevents that -- Chart.js's auto-skipping is
+// approximate on log scales -- but "5k" and "10k" are less than half the
+// width, so they no longer meet. autoSkipPadding stays as a backstop.
+//
+// Below 1 kHz the plain number is clearer, so 500 stays 500 rather than
+// becoming 0.5k.
+function formatFrequencyTick(value) {
+  const hz = Number(value);
+  if (!Number.isFinite(hz)) return value;
+  if (hz < 1000) return String(Math.round(hz));
+  const k = hz / 1000;
+  // 1.5k reads fine; 1.0k does not, so drop a trailing zero.
+  return (Number.isInteger(k) ? k : k.toFixed(1)) + "k";
+}
 const LEGEND_BOX_WIDTH = 24;
 const LEGEND_FONT_SIZE = 11;
 
@@ -601,6 +613,7 @@ function curveChartOptions({ clampY = false } = {}) {
           maxTicksLimit: CURVE_X_TICK_LIMIT,
           autoSkip: true,
           autoSkipPadding: CURVE_X_TICK_PADDING,
+          callback: (value) => formatFrequencyTick(value),
         },
       },
       y: {
