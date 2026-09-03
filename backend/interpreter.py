@@ -21,6 +21,19 @@ TREBLE_THRESHOLDS = [
 
 NO_DATA_MESSAGE = "No measurement data available for this IEM."
 
+# The short label shown on the card, above the sentence describe_curve()
+# produces. It is derived from the SAME cutoffs, so the two cannot contradict
+# each other -- a card cannot say "V-Shaped" over a sentence that reads
+# "bass-light". Only the top and bottom tiers of each band count as "boosted"
+# or "reduced"; the middle tiers are treated as neither.
+
+_BASS_BOOSTED = 5.57      # "warm, full bass" and above
+_BASS_REDUCED = 3.3       # below this is "bass-light"
+_PRESENCE_FORWARD = 5.22  # "forward, present vocals/mids"
+_PRESENCE_RECESSED = 3.5  # below this is "recessed, distant vocals/mids"
+_TREBLE_BRIGHT = 0.68     # "bright, energetic treble"
+_TREBLE_SMOOTH = -1.5     # below this is "smooth, rolled-off treble"
+
 
 def _classify(gain_db, thresholds):
     if gain_db is None:
@@ -51,6 +64,43 @@ def describe_curve(bass_gain, presence_gain, treble_gain):
         return NO_DATA_MESSAGE
 
     return f"This IEM has {_join_phrases(described)}."
+
+
+def signature_label(bass_gain, presence_gain, treble_gain):
+    """The short signature name for the card, or None without measurements.
+
+    These are the terms the audio community actually uses, so a reader who
+    knows the hobby recognises them and a reader who does not still has the
+    full sentence underneath. The order of the checks matters: "V-Shaped"
+    means both ends lifted, so it has to be tested before either end alone.
+    """
+    if bass_gain is None or presence_gain is None or treble_gain is None:
+        return None
+
+    bass_up = bass_gain >= _BASS_BOOSTED
+    bass_down = bass_gain < _BASS_REDUCED
+    treble_up = treble_gain >= _TREBLE_BRIGHT
+    treble_down = treble_gain < _TREBLE_SMOOTH
+    mids_up = presence_gain >= _PRESENCE_FORWARD
+    mids_down = presence_gain < _PRESENCE_RECESSED
+
+    if bass_up and treble_up:
+        return "V-Shaped"
+    if bass_up and treble_down:
+        return "Dark"
+    if bass_up:
+        return "Warm"
+    if bass_down and treble_up:
+        return "Bright"
+    if treble_up:
+        return "Bright"
+    if treble_down:
+        return "Smooth"
+    if mids_up:
+        return "Mid-Forward"
+    if bass_down and mids_down:
+        return "Neutral"
+    return "Balanced"
 
 
 if __name__ == "__main__":

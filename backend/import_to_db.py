@@ -7,7 +7,7 @@ from pathlib import Path
 import db_config
 from catalog_parser import load_catalog
 from measurement_parser import parse_rew_file, compute_gains, serialize_curve
-from interpreter import describe_curve
+from interpreter import describe_curve, signature_label
 
 # Shared with ai_service.py so both read the same credentials. Note the old
 # code here looked for DB_PASS while ai_service.py used DB_PASSWORD, so
@@ -34,10 +34,12 @@ IEMS_TABLE_COLUMNS = {
     "treble_gain": "treble_gain",
     "fr_curve_json": "fr_curve_json",
     "description": "description",
+    "sound_signature": "sound_signature",
 }
 
 INSERT_KEYS = ["brand", "model", "price", "shop_link", "bass_gain",
-               "presence_gain", "treble_gain", "fr_curve_json", "description"]
+               "presence_gain", "treble_gain", "fr_curve_json", "description",
+               "sound_signature"]
 
 
 def _find_exact(measurements_dir, name):
@@ -131,6 +133,14 @@ def _row_from(entry, points, gains):
         "treble_gain": gains["treble_gain"],
         "fr_curve_json": json.dumps(serialize_curve(points)),
         "description": describe_curve(
+            gains["bass_gain"],
+            gains["presence_gain"],
+            gains["treble_gain"],
+        ),
+        # The short label above the sentence. Derived from the same cutoffs
+        # inside interpreter.py, so the card cannot label an IEM "V-Shaped"
+        # over a description that reads "bass-light".
+        "sound_signature": signature_label(
             gains["bass_gain"],
             gains["presence_gain"],
             gains["treble_gain"],
