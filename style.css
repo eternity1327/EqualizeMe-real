@@ -1,0 +1,1364 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Inter", Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    transition: background-color .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+
+:root {
+    --bg: #f8fafc;
+    --text: #111827;
+    --text-muted: #64748b;
+    --card-bg: #ffffff;
+    --border: rgba(0, 0, 0, .08);
+    --shadow-color: rgba(0, 0, 0, .08);
+    --accent: #f2a93b;
+    --accent-2: #e08e1f;
+    --pill-bg: #f1f5f9;
+    --pill-bg-hover: #f2a93b;
+    --danger: #ef4444;
+}
+
+[data-theme="dark"] {
+    --bg: #0f172a;
+    --text: #e5e7eb;
+    --text-muted: #94a3b8;
+    --card-bg: #1e293b;
+    --border: rgba(255, 255, 255, .08);
+    --shadow-color: rgba(0, 0, 0, .35);
+    --accent: #f2a93b;
+    --accent-2: #f7c369;
+    --pill-bg: #273449;
+    --pill-bg-hover: #f2a93b;
+    --danger: #f87171;
+}
+
+html {
+    background: var(--bg);
+}
+
+body {
+
+    background: var(--bg);
+    color: var(--text);
+    transition: background .25s ease, color .25s ease;
+
+}
+
+
+
+.navbar {
+    width: 90%;
+    margin: 20px auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 35px;
+    background: var(--card-bg);
+    border-radius: 25px;
+    box-shadow: 0 10px 30px var(--shadow-color);
+    transition: background .25s ease;
+    position: relative;
+}
+
+
+.logo {
+
+    display: flex;
+    align-items: center;
+
+}
+
+
+.logo-light,
+.logo-dark {
+
+    height: 42px;
+    width: auto;
+    display: block;
+
+}
+
+.logo-dark {
+    display: none;
+}
+
+[data-theme="dark"] .logo-light {
+    display: none;
+}
+
+[data-theme="dark"] .logo-dark {
+    display: block;
+}
+
+
+.nav-links {
+
+    display: flex;
+    gap: 30px;
+    align-items: center;
+
+    list-style: none;
+
+}
+
+
+.nav-links a {
+
+    text-decoration: none;
+
+    color: var(--text-muted);
+
+    font-weight: 500;
+
+}
+
+
+.nav-links a:hover {
+
+    color: var(--accent);
+
+}
+
+
+/* --- Profile menu, top right --- */
+
+.nav-right {
+
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+}
+
+
+.profile-menu {
+
+    position: relative;
+
+}
+
+
+.profile-avatar {
+
+    width: 44px;
+    height: 44px;
+
+    border-radius: 50%;
+
+    border: none;
+    padding: 0;
+
+    background: var(--pill-bg);
+
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    transition: box-shadow .15s ease;
+
+}
+
+
+.profile-avatar:hover,
+.profile-avatar[aria-expanded="true"] {
+
+    box-shadow: 0 0 0 3px var(--accent);
+
+}
+
+
+.profile-avatar img {
+
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+
+}
+
+
+.dropdown {
+
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+
+    min-width: 190px;
+
+    background: var(--card-bg);
+
+    border-radius: 16px;
+
+    box-shadow: 0 15px 35px var(--shadow-color);
+
+    padding: 8px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    opacity: 0;
+    transform: translateY(-8px) scale(.97);
+    pointer-events: none;
+
+    transition: opacity .18s ease, transform .18s ease;
+
+    z-index: 50;
+
+}
+
+
+.dropdown.open {
+
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+
+}
+
+
+.dropdown a,
+.dropdown button {
+
+    display: block;
+
+    width: 100%;
+
+    text-align: left;
+
+    padding: 10px 14px;
+
+    border-radius: 10px;
+
+    border: none;
+    background: none;
+
+    color: var(--text);
+
+    font-size: 15px;
+    font-weight: 500;
+    font-family: inherit;
+
+    text-decoration: none;
+
+    cursor: pointer;
+
+    transition: background .15s ease;
+
+}
+
+
+.dropdown a:hover,
+.dropdown button:hover {
+
+    background: var(--pill-bg);
+
+}
+
+
+.dropdown-logout {
+
+    color: #ef4444 !important;
+
+}
+
+
+/* --- Floating dark mode toggle --- */
+
+.theme-toggle {
+
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+
+    width: 54px;
+    height: 54px;
+
+    border-radius: 50%;
+
+    border: none;
+
+    background: var(--card-bg);
+
+    box-shadow: 0 10px 30px var(--shadow-color);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 22px;
+
+    cursor: pointer;
+
+    z-index: 100;
+
+    transition: transform .15s ease, background .25s ease;
+
+}
+
+
+.theme-toggle:hover {
+
+    transform: scale(1.08);
+
+}
+
+
+.theme-toggle:active {
+
+    transform: scale(.94);
+
+}
+
+
+
+.hero {
+
+    min-height: 80vh;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    gap: 80px;
+
+    padding: 80px;
+
+}
+
+
+.hero-text {
+
+    width: 500px;
+
+}
+
+
+.hero-text h1 {
+
+    font-size: 60px;
+
+    line-height: 1.1;
+
+}
+
+
+.hero-text p {
+
+    margin-top: 20px;
+
+    color: var(--text-muted);
+
+    font-size: 20px;
+
+}
+
+
+
+
+.hero-card {
+
+    width: 350px;
+
+    padding: 45px;
+
+    background: var(--card-bg);
+
+    border-radius: 35px;
+
+    box-shadow:
+        0 20px 50px var(--shadow-color);
+
+    transition: background .25s ease;
+
+}
+
+
+
+
+
+.btn {
+
+    display: inline-block;
+
+    margin-top: 30px;
+
+    padding: 15px 35px;
+
+
+    background:
+        linear-gradient(135deg,
+            var(--accent),
+            var(--accent-2));
+
+
+    color: white;
+
+    text-decoration: none;
+
+    border-radius: 20px;
+
+}
+
+
+
+
+
+.section {
+
+    padding: 80px 10%;
+
+    text-align: center;
+
+}
+
+
+.section-title {
+
+    font-size: 40px;
+
+    margin-bottom: 50px;
+
+}
+
+
+
+
+
+.card-container {
+
+    display: flex;
+
+    justify-content: center;
+
+    gap: 30px;
+
+}
+
+
+.card {
+
+    background: var(--card-bg);
+
+    width: 300px;
+
+    padding: 35px;
+
+    border-radius: 30px;
+
+    box-shadow:
+        0 15px 35px var(--shadow-color);
+
+
+    transition: .3s;
+
+}
+
+
+.card:hover {
+
+    transform: translateY(-8px);
+
+}
+
+
+/* Two per row rather than three. Each card now carries a comparison
+   chart with a legend and axis labels, which needs real width to stay
+   readable — at three across the plot was too cramped to read. Drops to
+   one per row on narrow screens for the same reason. */
+.iem-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(2, 1fr);
+
+    gap: 30px;
+
+}
+
+
+@media (max-width: 900px) {
+
+    .iem-grid {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+.iem-card {
+
+    background: var(--card-bg);
+
+    padding: 35px;
+
+    border-radius: 30px;
+
+
+    box-shadow:
+        0 15px 35px var(--shadow-color);
+
+}
+
+
+.iem-card-img {
+
+    display: block;
+    width: 100%;
+    height: 90px;
+    object-fit: contain;
+    background: var(--pill-bg);
+    border-radius: 14px;
+    margin: 0 auto 16px;
+    padding: 8px;
+
+}
+
+
+.iem-card h3 {
+
+    color: var(--accent);
+
+}
+
+
+/* Measured frequency-response chart + the plain-language description
+   generated from it. Hidden until a curve actually loads, so IEMs
+   without an imported measurement show no empty gap. */
+.iem-curve-wrap {
+
+    margin: 18px 0;
+    padding: 14px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+
+}
+
+
+.iem-curve-wrap[hidden] {
+
+    display: none;
+
+}
+
+
+.iem-curve-chart {
+
+    width: 100% !important;
+    height: 260px !important;
+
+}
+
+
+/* Per-band agreement bars, between the price and the chart. */
+.band-match {
+
+    margin: 16px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+
+}
+
+
+.band-row {
+
+    display: grid;
+    grid-template-columns: 68px 1fr 42px;
+    align-items: center;
+    gap: 10px;
+
+}
+
+
+.band-name {
+
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-align: left;
+
+}
+
+
+.band-bar {
+
+    display: block;
+    height: 7px;
+    border-radius: 4px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+
+}
+
+
+.band-fill {
+
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+
+}
+
+
+.band-pct {
+
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: right;
+
+}
+
+
+.iem-description {
+
+    margin: 10px 0 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+
+}
+
+
+/* The original USD figure, shown quieter than the peso conversion it
+   sits beside — it's reference information, not the headline. */
+.price-usd {
+
+    font-size: 0.82em;
+    font-weight: normal;
+    color: var(--text-muted);
+
+}
+
+
+/* Buy / search links. Every card gets at least the Shopee search, so
+   this row is always present and shouldn't look like an afterthought. */
+.iem-links {
+
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 14px;
+
+}
+
+
+.iem-links a {
+
+    display: inline-block;
+    padding: 7px 14px;
+    border-radius: 20px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    color: var(--accent-2);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+
+}
+
+
+.iem-links a:hover {
+
+    border-color: var(--accent);
+    background: var(--pill-bg-hover);
+
+}
+
+
+.iem-card .price {
+
+    margin-top: 10px;
+    font-weight: 600;
+
+}
+
+
+
+
+.profile-card {
+
+    width: 400px;
+
+    margin: auto;
+
+    background: var(--card-bg);
+
+    padding: 40px;
+
+    border-radius: 35px;
+
+    box-shadow:
+        0 15px 40px var(--shadow-color);
+
+}
+
+
+.profile-image {
+
+    width: 120px;
+
+    height: 120px;
+
+    background: var(--pill-bg);
+
+    border-radius: 50%;
+
+    margin: auto auto 20px;
+
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 42px;
+
+}
+
+
+.profile-image img {
+
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+
+}
+
+
+.tuning-label {
+
+    margin-top: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+
+}
+
+
+.tuning-stats {
+
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 12px;
+
+}
+
+
+.tuning-stat {
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+}
+
+
+.tuning-value {
+
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+
+}
+
+
+.tuning-key {
+
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+
+}
+
+
+.tuning-note {
+
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+
+}
+
+
+
+
+
+
+
+.settings-box {
+
+    width: 500px;
+
+    margin: auto;
+
+    background: var(--card-bg);
+
+    padding: 40px;
+
+    border-radius: 35px;
+
+    box-shadow:
+        0 15px 40px var(--shadow-color);
+
+}
+
+
+.setting {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    padding: 20px 0;
+
+}
+
+
+footer {
+
+    margin-top: 60px;
+
+    padding: 30px;
+
+    text-align: center;
+
+    background: var(--card-bg);
+
+    color: var(--text-muted);
+
+}
+
+
+/* ---------------------------------------------------------------
+   Auth page (login / register) — uses the same theme variables as
+   the rest of the site so it never looks like a bolted-on page.
+--------------------------------------------------------------- */
+
+.auth-wrap {
+
+    max-width: 420px;
+    margin: 60px auto;
+    padding: 0 20px;
+
+}
+
+.auth-panel {
+
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px 36px 44px;
+    box-shadow: 0 20px 50px -20px var(--shadow-color);
+
+}
+
+.auth-tabs {
+
+    display: flex;
+    background: var(--pill-bg);
+    border-radius: 14px;
+    padding: 4px;
+    margin-bottom: 28px;
+
+}
+
+.auth-tab {
+
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    border: none;
+    background: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    cursor: pointer;
+
+}
+
+.auth-tab.active {
+
+    background: var(--card-bg);
+    color: var(--text);
+    box-shadow: 0 4px 12px var(--shadow-color);
+
+}
+
+.auth-form {
+
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+
+}
+
+.auth-form.active {
+
+    display: flex;
+
+}
+
+.auth-form label {
+
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 12px 0 6px;
+
+}
+
+.auth-form input {
+
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--pill-bg);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: inherit;
+
+}
+
+.auth-form input:focus {
+
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+
+}
+
+.auth-submit {
+
+    margin-top: 24px;
+    padding: 13px 16px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #161a23;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+
+}
+
+.auth-submit:disabled {
+
+    opacity: 0.6;
+    cursor: not-allowed;
+
+}
+
+.auth-status {
+
+    margin-top: 16px;
+    font-size: 0.85rem;
+    text-align: center;
+    min-height: 18px;
+
+}
+
+.auth-status.error {
+    color: var(--danger);
+}
+
+.auth-status.success {
+    color: var(--accent);
+}
+
+.auth-hint {
+
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 8px;
+
+}
+
+
+@media(max-width:900px) {
+
+
+    .hero {
+
+        flex-direction: column;
+
+        padding: 40px;
+
+    }
+
+
+    .hero-text {
+
+        width: 100%;
+
+    }
+
+
+    .hero-text h1 {
+
+        font-size: 40px;
+
+    }
+
+
+
+    .card-container {
+
+        flex-direction: column;
+
+        align-items: center;
+
+    }
+
+
+
+    .iem-grid {
+
+        grid-template-columns: 1fr;
+
+    }
+
+
+
+    .navbar {
+
+        flex-direction: column;
+
+        gap: 20px;
+
+    }
+
+    .theme-toggle {
+
+        bottom: 18px;
+        right: 18px;
+
+    }
+
+
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RESULTS PAGE — preference profile, target, analysis, hearing
+   ══════════════════════════════════════════════════════════════════ */
+
+.result-block {
+    max-width: 1000px;
+    margin: 0 auto 56px;
+    text-align: left;
+}
+
+.result-heading {
+    font-size: 26px;
+    margin: 0 0 6px;
+}
+
+.result-sub {
+    color: var(--text-muted);
+    margin: 0 0 22px;
+    max-width: 70ch;
+}
+
+/* ── 1. Preference Profile ─────────────────────────────────────── */
+
+.band-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.band-card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 10px 25px var(--shadow-color);
+    /* The left edge carries the direction, so the level is readable at a
+       glance without relying on the colour alone. */
+    border-left: 5px solid var(--border);
+}
+
+.band-card-name {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.band-card-level {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.band-card-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.band-card-range {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* Direction only — never a judgement. Green is not "good" here and red is
+   not "bad"; they are simply two ends of one axis. Blue-vs-amber keeps
+   that neutral and stays distinguishable for red-green colour blindness. */
+.band-card.tone-up-strong  { border-left-color: #d97706; }
+.band-card.tone-up         { border-left-color: #ea9a3e; }
+.band-card.tone-up-slight  { border-left-color: #f0bd7c; }
+.band-card.tone-neutral    { border-left-color: var(--text-muted); }
+.band-card.tone-down-slight{ border-left-color: #9dbbe6; }
+.band-card.tone-down       { border-left-color: #5b8def; }
+.band-card.tone-down-strong{ border-left-color: #3567c9; }
+
+/* ── 2. Preference Target ──────────────────────────────────────── */
+
+.target-chart-wrap {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 10px 25px var(--shadow-color);
+    height: 320px;
+}
+
+/* ── 3. Audio Analysis ─────────────────────────────────────────── */
+
+.analysis-row {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.analysis-row:last-child { border-bottom: none; }
+
+.analysis-band {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.analysis-level {
+    font-weight: 500;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    background: var(--pill-bg);
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.analysis-text {
+    margin: 0;
+    color: var(--text-muted);
+    max-width: 75ch;
+    line-height: 1.6;
+}
+
+/* ── 5. Hearing Preservation ───────────────────────────────────── */
+
+/* Set apart from the results above on purpose. This is guidance, not a
+   finding about the listener, and it should not read as one. */
+.hearing-section {
+    padding: 0 10% 80px;
+    text-align: left;
+}
+
+.hearing-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    background: var(--pill-bg);
+    border-radius: 24px;
+    padding: 34px 38px;
+    border-top: 4px solid var(--accent);
+}
+
+.hearing-title {
+    font-size: 24px;
+    margin: 0 0 6px;
+}
+
+.hearing-intro {
+    color: var(--text-muted);
+    margin: 0 0 24px;
+    max-width: 70ch;
+}
+
+.hearing-note {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+}
+
+.hearing-note h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+}
+
+.hearing-note p {
+    margin: 0;
+    color: var(--text-muted);
+    line-height: 1.65;
+    max-width: 75ch;
+}
+
+.hearing-tips {
+    list-style: none;
+    padding: 0;
+    margin: 22px 0 0;
+    display: grid;
+    gap: 12px;
+}
+
+.hearing-tips li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 18px;
+    position: relative;
+    line-height: 1.6;
+}
+
+.hearing-tips li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+.hearing-tips span { color: var(--text-muted); }
+
+.hearing-standard {
+    margin: 24px 0 0;
+    padding: 14px 16px;
+    background: var(--card-bg);
+    border-radius: 14px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.hearing-disclaimer {
+    margin: 14px 0 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    opacity: .85;
+}
+
+@media (max-width: 700px) {
+    .result-block { margin-bottom: 40px; }
+    .target-chart-wrap { height: 260px; padding: 14px; }
+    .hearing-inner { padding: 24px 20px; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   TWO-FACTOR — the Settings block
+   ══════════════════════════════════════════════════════════════════ */
+
+.tfa-box { margin-top: 24px; text-align: left; }
+
+.tfa-state {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: var(--pill-bg);
+    color: var(--text-muted);
+}
+
+.tfa-state.on {
+    background: #e6f0e9;
+    color: #2f7a55;
+}
+
+[data-theme="dark"] .tfa-state.on { background: #1e3d2c; color: #6ee7a8; }
+
+.tfa-note {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin: -4px 0 16px;
+    max-width: 60ch;
+}
+
+.tfa-action { width: auto; padding-left: 28px; padding-right: 28px; }
+
+#tfa-disable-form { margin-top: 8px; }
+
+#tfa-disable-form label {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+}
+
+#tfa-disable-form input {
+    width: 100%;
+    max-width: 320px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card-bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+    margin-bottom: 12px;
+}
+
+.tfa-cancel {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.9rem;
+    margin-left: 12px;
+}
+
+.tfa-cancel:hover { color: var(--text); }
+
+.tfa-status {
+    margin: 12px 0 0;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    min-height: 1.2em;
+}
+
+.tfa-status.error { color: var(--danger); }
+.tfa-status.success { color: #2f7a55; }
+
+[data-theme="dark"] .tfa-status.success { color: #6ee7a8; }

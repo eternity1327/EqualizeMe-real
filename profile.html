@@ -73,6 +73,7 @@
           </button>
           <div class="dropdown" id="profileDropdown">
             <a href="profile.html" id="nav-profile">Profile</a>
+            <a href="profile-history.html" id="nav-history" style="display:none;">History</a>
             <a href="login.php" id="nav-login">Login</a>
             <a href="login.php?tab=register" id="nav-register">Register</a>
             <a href="logout.php" id="nav-logout" class="dropdown-logout"
@@ -118,10 +119,22 @@
           User
         </h2>
 
-        <p>
-          Preferred Tuning:
-          <span id="profile-sound">-</span>
-        </p>
+        <div class="tuning-label">Preferred Tuning</div>
+        <div class="tuning-stats" id="profile-sound-stats">
+          <div class="tuning-stat">
+            <span class="tuning-value" id="profile-bass">-</span>
+            <span class="tuning-key">Bass</span>
+          </div>
+          <div class="tuning-stat">
+            <span class="tuning-value" id="profile-treble">-</span>
+            <span class="tuning-key">Treble</span>
+          </div>
+          <div class="tuning-stat">
+            <span class="tuning-value" id="profile-presence">-</span>
+            <span class="tuning-key">Presence</span>
+          </div>
+        </div>
+        <p class="tuning-note" id="profile-sound-note"></p>
 
       </div>
 
@@ -129,7 +142,9 @@
 
     <script src="js/script.js"></script>
     <script>
-      loadProfile();
+      // No loadProfile() call here — script.js runs it from its
+      // DOMContentLoaded handler. Calling it inline as well loaded the
+      // page twice, doubling the requests to me.php and profile.php.
 
       // ===== Profile picture upload =====
       (function () {
@@ -149,6 +164,9 @@
 
           const formData = new FormData();
           formData.append('photo', file);
+          // Multipart request, so the CSRF token travels as a form field
+          // rather than a header (getCsrfToken lives in js/script.js).
+          formData.append('csrf_token', (await getCsrfToken()) || '');
 
           try {
             const res = await fetch('api/upload-picture.php', {
