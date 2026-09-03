@@ -517,6 +517,23 @@ const CURVE_X_TICK_LIMIT = 7;
 const LEGEND_BOX_WIDTH = 24;
 const LEGEND_FONT_SIZE = 11;
 
+// Fixed vertical range for the curve charts, in dB relative to midrange.
+//
+// Left to itself, Chart.js scales to the data, and the data includes the
+// ultrasonic roll-off above ~19 kHz where measurements dive to -35 dB and
+// beyond. That is inaudible, it varies wildly between units, and letting it
+// set the scale squashes everything else flat -- the preference curve spans
+// about a decibel and a half, so against a -60 dB axis it renders as a
+// straight line at zero and the comparison the card exists to show
+// disappears.
+//
+// +/-15 dB covers the range IEMs actually differ over. Curves that exceed it
+// are clipped at the edge rather than rescaling the chart, which is the
+// deliberate trade: a little detail lost at the extremes, in exchange for the
+// part anyone can hear being legible at all.
+const CURVE_Y_MIN_DB = -15;
+const CURVE_Y_MAX_DB = 15;
+
 function curveDatasets(shaped, preference) {
   const styles = getComputedStyle(document.documentElement);
   const iemColour = styles.getPropertyValue("--accent").trim() || "#e8a33d";
@@ -546,7 +563,18 @@ function curveDatasets(shaped, preference) {
   return datasets;
 }
 
-function curveChartOptions() {
+// clampY: fix the vertical axis to CURVE_Y_MIN_DB..CURVE_Y_MAX_DB.
+//
+// Only the IEM comparison charts want this. They plot a measured curve and
+// the listener's preference on the same axes, and the measurement's
+// ultrasonic tail would otherwise set the scale and flatten the preference
+// into a straight line.
+//
+// The Preference Target chart on its own is the opposite case: it plots one
+// curve spanning about a decibel and a half, and auto-scaling is exactly what
+// makes its shape readable. Clamping that one to +/-15 dB would flatten the
+// very thing it exists to show, so it keeps the default.
+function curveChartOptions({ clampY = false } = {}) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -560,6 +588,7 @@ function curveChartOptions() {
       },
       y: {
         title: { display: true, text: "dB (relative to midrange)" },
+        ...(clampY ? { min: CURVE_Y_MIN_DB, max: CURVE_Y_MAX_DB } : {}),
       },
     },
     plugins: {
@@ -602,7 +631,7 @@ async function renderIemCurve(iemId, cardEl, profile) {
         labels: freqs,
         datasets: curveDatasets(shaped, buildPreferenceCurve(profile, freqs)),
       },
-      options: curveChartOptions(),
+      options: curveChartOptions({ clampY: true }),
     });
 
     wrap.hidden = false;
