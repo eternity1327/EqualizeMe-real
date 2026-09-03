@@ -94,7 +94,7 @@ try {
     document.documentElement.setAttribute("data-theme", "dark");
   }
 </script>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260903">
 <style>
   .tfa-step { display: none; }
   .tfa-step.active { display: block; }
@@ -514,6 +514,6 @@ async function handleRecoveryLogin(event) {
 if (MODE === 'enrol') loadSetup();
 </script>
 
-<script src="js/script.js"></script>
+<script src="js/script.js?v=20260903"></script>
 </body>
 </html>

@@ -24,7 +24,7 @@ $token = $_GET["token"] ?? "";
     document.documentElement.setAttribute("data-theme", "dark");
   }
 </script>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20260903">
 </head>
 <body>
 
@@ -70,7 +70,7 @@ $token = $_GET["token"] ?? "";
   </div>
 </div>
 
-<script src="js/script.js"></script>
+<script src="js/script.js?v=20260903"></script>
 <script>
 const CSRF_TOKEN = <?php echo json_encode($csrfToken); ?>;
 const RESET_TOKEN = <?php echo json_encode($token); ?>;
