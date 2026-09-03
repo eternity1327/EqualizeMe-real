@@ -514,6 +514,19 @@ const CURVE_LINE_WIDTH = 2;
 const CURVE_TENSION = 0.1;
 const PREFERENCE_DASH = [6, 4];
 const CURVE_X_TICK_LIMIT = 7;
+
+// Minimum gap, in pixels, between two labels on the frequency axis.
+//
+// The axis is logarithmic, so Chart.js places ticks at ratios rather than at
+// even distances, and the decade labels bunch up at the right-hand end. In a
+// card-width chart "5,000" and "10,000" ended up touching and read as one
+// number: "5,00010,000". maxTicksLimit alone does not help, because the
+// crowding is between two ticks it has already decided to keep.
+//
+// autoSkipPadding makes Chart.js drop a label rather than print it against
+// its neighbour. Losing a gridline label is better than printing a number
+// that does not exist.
+const CURVE_X_TICK_PADDING = 12;
 const LEGEND_BOX_WIDTH = 24;
 const LEGEND_FONT_SIZE = 11;
 
@@ -584,7 +597,11 @@ function curveChartOptions({ clampY = false } = {}) {
       x: {
         type: "logarithmic",
         title: { display: true, text: "Frequency (Hz)" },
-        ticks: { maxTicksLimit: CURVE_X_TICK_LIMIT },
+        ticks: {
+          maxTicksLimit: CURVE_X_TICK_LIMIT,
+          autoSkip: true,
+          autoSkipPadding: CURVE_X_TICK_PADDING,
+        },
       },
       y: {
         title: { display: true, text: "dB (relative to midrange)" },
