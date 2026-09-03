@@ -7,7 +7,7 @@
     <title>Profile</title>
 
     <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
-    <link rel="stylesheet" href="css/style.css?v=20260903">
+    <link rel="stylesheet" href="css/style.css?v=20260904">
     <style>
       .profile-image-outer {
         cursor: pointer;
@@ -119,16 +119,28 @@
           User
         </h2>
 
-        <p>
-          Preferred Tuning:
-          <span id="profile-sound">-</span>
-        </p>
+        <div class="tuning-label">Preferred Tuning</div>
+        <div class="tuning-stats" id="profile-sound-stats">
+          <div class="tuning-stat">
+            <span class="tuning-value" id="profile-bass">-</span>
+            <span class="tuning-key">Bass</span>
+          </div>
+          <div class="tuning-stat">
+            <span class="tuning-value" id="profile-treble">-</span>
+            <span class="tuning-key">Treble</span>
+          </div>
+          <div class="tuning-stat">
+            <span class="tuning-value" id="profile-presence">-</span>
+            <span class="tuning-key">Presence</span>
+          </div>
+        </div>
+        <p class="tuning-note" id="profile-sound-note"></p>
 
       </div>
 
     </section>
 
-    <script src="js/script.js?v=20260903"></script>
+    <script src="js/script.js?v=20260904"></script>
     <script>
       // No loadProfile() call here — script.js runs it from its
       // DOMContentLoaded handler. Calling it inline as well loaded the

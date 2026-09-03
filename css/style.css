@@ -744,6 +744,59 @@ body {
 }
 
 
+/* Preferred tuning, as three figures rather than one sentence.
+   The three bands are the whole profile, so giving each a column lets
+   them be compared at a glance instead of read out of prose. */
+.tuning-label {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.tuning-stats {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 12px;
+}
+
+.tuning-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tuning-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    /* Tabular figures, so +1.1 and -12.4 take the same width and the
+       three columns stay aligned as the numbers change. */
+    font-variant-numeric: tabular-nums;
+}
+
+.tuning-key {
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.tuning-note {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* A failure says so, rather than leaving three dashes sitting there
+   looking like a real reading. */
+.tuning-note.error {
+    color: var(--danger);
+}
+
+
 .profile-card p {
 
     margin-top: 10px;

@@ -672,8 +672,22 @@ async function renderIemCurve(iemId, cardEl, profile) {
 
 async function loadProfile() {
   const nameEl = document.getElementById("profile-name");
-  const soundEl = document.getElementById("profile-sound");
   if (!nameEl) return;
+
+  // The three bands each get their own figure. They used to be one
+  // sentence; three columns lets them be compared at a glance, which is
+  // the only thing anyone does with them.
+  const statsEl = document.getElementById("profile-sound-stats");
+  const noteEl = document.getElementById("profile-sound-note");
+  const bassEl = document.getElementById("profile-bass");
+  const trebleEl = document.getElementById("profile-treble");
+  const presenceEl = document.getElementById("profile-presence");
+
+  const note = (text, isError = false) => {
+    if (!noteEl) return;
+    noteEl.textContent = text;
+    noteEl.classList.toggle("error", isError);
+  };
 
   try {
     const meRes = await fetch("api/auth/me.php");
@@ -688,7 +702,8 @@ async function loadProfile() {
     const profile = await res.json();
 
     if (profile.error) {
-      soundEl.textContent = "No profile yet — take the sound test";
+      if (statsEl) statsEl.style.display = "none";
+      note("No profile yet — take the sound test");
     } else {
       // These are the aggregate across every test, the same numbers the
       // recommendations are matched against. Saying how many tests it is
@@ -699,16 +714,24 @@ async function loadProfile() {
         ? "from 1 listening test"
         : `averaged over ${n} listening tests`;
 
-      soundEl.textContent =
-        `${signed(profile.bassGain)} bass, ` +
-        `${signed(profile.trebleGain)} treble, ` +
-        `${signed(profile.presenceGain)} presence  —  ${from}`;
+      if (bassEl) bassEl.textContent = signed(profile.bassGain);
+      if (trebleEl) trebleEl.textContent = signed(profile.trebleGain);
+      if (presenceEl) presenceEl.textContent = signed(profile.presenceGain);
+      note(from);
     }
 
     if (typeof setProfilePicture === "function") {
       setProfilePicture(profile.profilePicture || null);
     }
   } catch (err) {
+    // fetch() throws, rather than returning a status, when the request
+    // never reaches a server at all -- the page opened straight off disk
+    // as file://, or Apache not running. That used to land here and do
+    // nothing but log, so the card sat showing its three placeholder
+    // dashes: indistinguishable from a real profile that happened to read
+    // zero, and with no hint that anything had failed. Say so instead.
+    note("Could not load your profile. Check you are signed in and the "
+      + "site is open through localhost rather than the file itself.", true);
     console.error(err);
   }
 }
