@@ -141,13 +141,44 @@ function quiz_clamp($value) {
  * is skipped. There is no path from submitted data into anything but a
  * string comparison.
  */
+/**
+ * The option this question defines for the submitted value, or null.
+ *
+ * The lookup direction is the security property, so it lives in its own
+ * function where it cannot be lost in a later edit: the submitted string is
+ * only ever compared against values this file declares. An unrecognised one
+ * matches nothing and returns null.
+ */
+function quiz_find_option($question, $submitted) {
+    foreach ($question["options"] as $option) {
+        if ($option["value"] === $submitted) {
+            return $option;
+        }
+    }
+    return null;
+}
+
+
+/**
+ * Add one option's effect to the running seed.
+ *
+ * Bands the seed does not already know about are ignored rather than added,
+ * so a typo in a question definition cannot invent a fourth band downstream.
+ */
+function quiz_apply_impact(array $seed, $option) {
+    foreach (($option["impact"] ?? []) as $band => $delta) {
+        if (array_key_exists($band, $seed)) {
+            $seed[$band] += $delta;
+        }
+    }
+    return $seed;
+}
+
+
 function quiz_score_answers($answers) {
     $answers = is_array($answers) ? $answers : [];
 
-    $seed = [];
-    foreach (QUIZ_BANDS as $band) {
-        $seed[$band] = 0;
-    }
+    $seed = array_fill_keys(QUIZ_BANDS, 0);
 
     foreach (quiz_questions() as $question) {
         $submitted = $answers[$question["id"]] ?? null;
@@ -155,22 +186,13 @@ function quiz_score_answers($answers) {
             continue;
         }
 
-        foreach ($question["options"] as $option) {
-            if ($option["value"] !== $submitted) {
-                continue;
-            }
-            foreach (($option["impact"] ?? []) as $band => $delta) {
-                if (array_key_exists($band, $seed)) {
-                    $seed[$band] += $delta;
-                }
-            }
-            break;
+        $option = quiz_find_option($question, $submitted);
+        if ($option === null) {
+            continue;
         }
+
+        $seed = quiz_apply_impact($seed, $option);
     }
 
-    foreach ($seed as $band => $value) {
-        $seed[$band] = quiz_clamp($value);
-    }
-
-    return $seed;
+    return array_map("quiz_clamp", $seed);
 }

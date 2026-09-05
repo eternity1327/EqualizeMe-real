@@ -256,6 +256,48 @@ function at_confidence_score($session) {
 }
 
 
+/**
+ * Everything the caller needs to save a finished test.
+ *
+ * One definition, deliberately. This payload is returned from two places —
+ * when the last answer lands, and when a caller retries a test that is
+ * already over — and those two used to be written out separately. They
+ * drifted: the retry copy returned the profile but neither confidence nor
+ * precision, so a save that failed and was retried wrote a row with a NULL
+ * confidence score. Building it in one place makes that impossible rather
+ * than merely fixed.
+ */
+function at_completed_result($session) {
+    return [
+        "done" => true,
+        "profile" => (object)$session["finalized"],
+        "confidence" => at_confidence_score($session),
+        "precision" => (object)at_precision($session),
+        "history" => $session["history"],
+    ];
+}
+
+
+/**
+ * Add this answer to the transcript, before the bounds move.
+ *
+ * The recorded low and high are the ones the question was asked under, not
+ * the ones it produced, which is what makes the history replayable.
+ */
+function at_append_history(array $session, $param, $preferred) {
+    $session["history"][] = [
+        "param" => $param,
+        "round" => $session["round"] + 1,
+        "question" => $session["questionIndex"] + 1,
+        "sample" => at_sample_for_question($session["questionIndex"]),
+        "low" => $session["bounds"]["low"],
+        "high" => $session["bounds"]["high"],
+        "preferred" => $preferred,
+    ];
+    return $session;
+}
+
+
 function at_record_answer($preferred) {
     $session = at_session();
 
@@ -266,37 +308,16 @@ function at_record_answer($preferred) {
         return ["error" => 'preferred must be "A" or "B"'];
     }
     if ($session["paramIndex"] >= count(at_param_rounds())) {
-        // The test is over but the session is still here, which means the
-        // caller is retrying — almost always because saving the profile
-        // failed and they had another go.
-        //
-        // So this returns the complete result, not just the profile. The
-        // original returned profile alone, with no confidence and no
-        // precision, and the retry then wrote a row with a NULL confidence
-        // score. Returning everything makes the retry save exactly what
-        // the first attempt would have.
-        return [
-            "error" => "Test already complete",
-            "done" => true,
-            "profile" => (object)$session["finalized"],
-            "confidence" => at_confidence_score($session),
-            "precision" => (object)at_precision($session),
-            "history" => $session["history"],
-        ];
+        // The test is over but the session is still here, so the caller is
+        // retrying — almost always because saving the profile failed and
+        // they had another go. Hand back the whole result, so the retry
+        // saves exactly what the first attempt would have.
+        return ["error" => "Test already complete"] + at_completed_result($session);
     }
 
-    $rounds = at_param_rounds();
-    [$param, $roundsForParam] = $rounds[$session["paramIndex"]];
+    [$param, $roundsForParam] = at_param_rounds()[$session["paramIndex"]];
 
-    $session["history"][] = [
-        "param" => $param,
-        "round" => $session["round"] + 1,
-        "question" => $session["questionIndex"] + 1,
-        "sample" => at_sample_for_question($session["questionIndex"]),
-        "low" => $session["bounds"]["low"],
-        "high" => $session["bounds"]["high"],
-        "preferred" => $preferred,
-    ];
+    $session = at_append_history($session, $param, $preferred);
 
     at_narrow_bounds($session, $preferred);
 
@@ -310,13 +331,7 @@ function at_record_answer($preferred) {
     $_SESSION[AT_SESSION_KEY] = $session;
 
     if (at_is_complete($session)) {
-        return [
-            "done" => true,
-            "profile" => (object)$session["finalized"],
-            "confidence" => at_confidence_score($session),
-            "precision" => (object)at_precision($session),
-            "history" => $session["history"],
-        ];
+        return at_completed_result($session);
     }
 
     // Not finished, so the next pair rides back in the same response

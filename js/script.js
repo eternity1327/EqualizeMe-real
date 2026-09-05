@@ -64,25 +64,38 @@ const API = {
   iemCurve: "api/iem-curve.php",
 };
 
-async function apiPost(url, payload = {}) {
-  const send = async (token) => fetch(url, {
+// Send, and if the token was stale, get a fresh one and send once more.
+//
+// A 403 here means the CSRF token no longer matches the session — almost
+// always because the session rotated its id, which happens every 30
+// minutes. A listening test takes several minutes and a settings page can
+// sit open far longer, so without this a rotation part-way through would
+// break the next request for no reason the user could see.
+//
+// Retried exactly once. If a second, freshly-minted token is also refused
+// then the problem is not staleness, and retrying again would only turn a
+// clear failure into a hang.
+//
+// `send` receives the token and returns the fetch. Everything else about
+// the request — method, headers, body, whether the token rides in a header
+// or in the body — belongs to the caller, which is why this knows nothing
+// about any of it.
+async function sendWithCsrfRetry(send) {
+  const res = await send(await getCsrfToken());
+  if (res.status !== 403) {
+    return res;
+  }
+  invalidateCsrfToken();
+  return send(await getCsrfToken());
+}
+
+
+function apiPost(url, payload = {}) {
+  return sendWithCsrfRetry(token => fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, csrf_token: token || "" }),
-  });
-
-  let res = await send(await getCsrfToken());
-
-  // A 403 means the token was stale — most likely the session rotated its
-  // id, which happens every 30 minutes. A listening test takes several
-  // minutes, so without this retry a rotation part-way through would
-  // silently break the next answer.
-  if (res.status === 403) {
-    invalidateCsrfToken();
-    res = await send(await getCsrfToken());
-  }
-
-  return res;
+  }));
 }
 
 let _csrfToken = null;
@@ -760,20 +773,11 @@ async function loadSettings() {
 // Posts JSON with a CSRF token, retrying once on 403. Sessions rotate their
 // id every 30 minutes, so a token can go stale while a settings page sits
 // open — the retry turns that from a confusing failure into nothing at all.
+// The same POST as apiPost, with the body already parsed. Callers here all
+// want both the status and the payload, and were each writing the await
+// twice; this was a near-duplicate of apiPost until the retry moved out.
 async function postWithCsrf(url, payload) {
-  const send = async token => fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, csrf_token: token || "" }),
-  });
-
-  let res = await send(await getCsrfToken());
-
-  if (res.status === 403) {
-    invalidateCsrfToken();
-    res = await send(await getCsrfToken());
-  }
-
+  const res = await apiPost(url, payload);
   return { res, data: await res.json() };
 }
 
@@ -786,6 +790,61 @@ function tfaStatus(message, kind) {
 
 let twoFactorEnabled = false;
 
+// What the two-factor block should say, given the server's answer.
+//
+// Deliberately knows nothing about the page: it takes the status payload
+// and returns strings. Wording is the part that gets revised, and having it
+// separate means it can be checked without a browser, and changed without
+// going near the DOM code that displays it.
+function twoFactorCopy(data) {
+  const enabled = !!data.enabled;
+
+  if (!enabled) {
+    return {
+      state: "Off",
+      enabled: false,
+      note: "Ask for a code from an authenticator app as well as your password. "
+        + "Optional — your password alone still works until you turn this on.",
+      action: "Turn On",
+      actionHidden: false,
+    };
+  }
+
+  const left = data.recoveryCodesRemaining;
+  let note = `You'll be asked for a code from your authenticator app each time you `
+    + `log in. ${left} recovery ${left === 1 ? "code" : "codes"} left.`;
+
+  // When the policy makes it compulsory the server refuses to switch it
+  // off, so the button is not offered at all — and the note says why,
+  // rather than leaving a control that has silently vanished.
+  if (data.required) {
+    note += " Required on this site, so it can't be switched off.";
+  }
+
+  return {
+    state: "On",
+    enabled: true,
+    note,
+    action: "Turn Off",
+    actionHidden: !!data.required,
+  };
+}
+
+
+function renderTwoFactor(copy) {
+  const state = document.getElementById("tfa-state");
+  const note = document.getElementById("tfa-note");
+  const action = document.getElementById("tfa-action");
+  if (!state || !note || !action) return;
+
+  state.textContent = copy.state;
+  state.classList.toggle("on", copy.enabled);
+  note.textContent = copy.note;
+  action.textContent = copy.action;
+  action.hidden = copy.actionHidden;
+}
+
+
 async function loadTwoFactorState() {
   const box = document.getElementById("tfa-box");
   if (!box) return;
@@ -797,33 +856,7 @@ async function loadTwoFactorState() {
     const data = await res.json();
     twoFactorEnabled = !!data.enabled;
 
-    const state = document.getElementById("tfa-state");
-    const note = document.getElementById("tfa-note");
-    const action = document.getElementById("tfa-action");
-
-    state.textContent = twoFactorEnabled ? "On" : "Off";
-    state.classList.toggle("on", twoFactorEnabled);
-
-    if (twoFactorEnabled) {
-      const left = data.recoveryCodesRemaining;
-      note.textContent =
-        `You'll be asked for a code from your authenticator app each time you ` +
-        `log in. ${left} recovery ${left === 1 ? "code" : "codes"} left.`;
-      action.textContent = "Turn Off";
-      // When the policy makes it compulsory the server refuses to switch it
-      // off, so the button is not offered at all.
-      action.hidden = !!data.required;
-      if (data.required) {
-        note.textContent += " Required on this site, so it can't be switched off.";
-      }
-    } else {
-      note.textContent =
-        "Ask for a code from an authenticator app as well as your password. " +
-        "Optional — your password alone still works until you turn this on.";
-      action.textContent = "Turn On";
-      action.hidden = false;
-    }
-
+    renderTwoFactor(twoFactorCopy(data));
     box.hidden = false;
   } catch (err) {
     console.error(err);
@@ -881,31 +914,19 @@ async function confirmTwoFactorOff() {
   }
 }
 
+// PUT rather than POST, and the token rides in a header rather than the
+// body — which is why this cannot just call apiPost. The retry is the same
+// though, so it comes from the same place.
 async function saveSetting(key, checked) {
   try {
-    const token = await getCsrfToken();
-
-    const res = await fetch("api/settings.php", {
+    await sendWithCsrfRetry(token => fetch("api/settings.php", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "X-CSRF-Token": token || ""
+        "X-CSRF-Token": token || "",
       },
-      body: JSON.stringify({ [key]: checked })
-    });
-
-    if (res.status === 403) {
-      invalidateCsrfToken();
-      const retryToken = await getCsrfToken();
-      await fetch("api/settings.php", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": retryToken || ""
-        },
-        body: JSON.stringify({ [key]: checked })
-      });
-    }
+      body: JSON.stringify({ [key]: checked }),
+    }));
   } catch (err) {
     console.error(err);
   }

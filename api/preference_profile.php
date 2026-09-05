@@ -151,35 +151,54 @@ function pp_weighted_std($pairs, $mean) {
  * Each row needs the band keys, and optionally confidence_score and
  * age_days. Order does not matter.
  */
-function pp_aggregate($assessments) {
-    $usable = [];
-    foreach ($assessments as $row) {
-        if ($row !== null) {
-            $usable[] = $row;
+/**
+ * The [value, weight] pairs for one band, skipping rows that never
+ * measured it.
+ *
+ * A row missing a band is dropped from that band alone, not from the whole
+ * aggregate: an assessment that recorded bass but not treble should still
+ * count towards bass.
+ *
+ * $usable must be a list. array_filter() preserves the original keys, so
+ * the caller renumbers before this point -- otherwise $weights[$i] would
+ * line up against a different assessment than $row.
+ */
+function pp_band_pairs(array $usable, array $weights, $band) {
+    $pairs = [];
+    foreach ($usable as $i => $row) {
+        if (($row[$band] ?? null) === null) {
+            continue;
         }
+        $pairs[] = [(float)$row[$band], $weights[$i]];
     }
+    return $pairs;
+}
+
+
+function pp_aggregate($assessments) {
+    // array_values because array_filter keeps the original keys, and the
+    // weights below are indexed positionally against this list.
+    $usable = array_values(array_filter(
+        $assessments,
+        fn($row) => $row !== null
+    ));
+
     if (!$usable) {
         return null;
     }
 
-    $weights = [];
-    foreach ($usable as $row) {
-        $weights[] = pp_assessment_weight(
+    $weights = array_map(
+        fn($row) => pp_assessment_weight(
             $row["confidence_score"] ?? null,
             $row["age_days"] ?? null
-        );
-    }
+        ),
+        $usable
+    );
 
     $target = [];
     $spread = [];
     foreach (PP_BANDS as $band) {
-        $pairs = [];
-        foreach ($usable as $i => $row) {
-            if (($row[$band] ?? null) === null) {
-                continue;
-            }
-            $pairs[] = [(float)$row[$band], $weights[$i]];
-        }
+        $pairs = pp_band_pairs($usable, $weights, $band);
         $mean = pp_weighted_mean($pairs);
         $target[$band] = py_round($mean, PP_GAIN_DECIMALS);
         $spread[$band] = py_round(pp_weighted_std($pairs, $mean), PP_GAIN_DECIMALS);

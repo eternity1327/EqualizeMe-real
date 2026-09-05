@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 640" width="1040" height="640" font-family="Georgia, 'Times New Roman', serif">
+
+  <rect width="1040" height="640" fill="#ffffff"/>
+
+  <!-- ── title ─────────────────────────────────────────────────────── -->
+  <text x="520" y="44" text-anchor="middle" font-size="24" font-weight="bold" fill="#111827">
+    Conceptual Framework
+  </text>
+  <text x="520" y="70" text-anchor="middle" font-size="14" fill="#4b5563">
+    EqualizeME — a personalised in-ear monitor recommendation system
+  </text>
+
+  <!-- ── column headings ───────────────────────────────────────────── -->
+  <text x="175"  y="112" text-anchor="middle" font-size="14" font-weight="bold" letter-spacing="2" fill="#6b7280">INPUT</text>
+  <text x="520"  y="112" text-anchor="middle" font-size="14" font-weight="bold" letter-spacing="2" fill="#6b7280">PROCESS</text>
+  <text x="865"  y="112" text-anchor="middle" font-size="14" font-weight="bold" letter-spacing="2" fill="#6b7280">OUTPUT</text>
+
+  <!-- ── INPUT ─────────────────────────────────────────────────────── -->
+  <rect x="40" y="130" width="270" height="300" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <text x="60" y="164" font-size="13" font-weight="bold" fill="#111827">From the listener</text>
+  <text x="60" y="188" font-size="12.5" fill="#374151">• Pre-test questionnaire</text>
+  <text x="74" y="207" font-size="11.5" fill="#6b7280">habits, genres, current earphones</text>
+  <text x="60" y="231" font-size="12.5" fill="#374151">• Adaptive listening test</text>
+  <text x="74" y="250" font-size="11.5" fill="#6b7280">10 forced A/B choices on real audio</text>
+
+  <text x="60" y="290" font-size="13" font-weight="bold" fill="#111827">From measurement data</text>
+  <text x="60" y="314" font-size="12.5" fill="#374151">• 170 catalogued IEMs</text>
+  <text x="74" y="333" font-size="11.5" fill="#6b7280">frequency response curves, prices</text>
+
+  <text x="60" y="373" font-size="13" font-weight="bold" fill="#111827">From standards</text>
+  <text x="60" y="397" font-size="12.5" fill="#374151">• Safe-listening thresholds</text>
+  <text x="74" y="416" font-size="11.5" fill="#6b7280">WHO / ITU-T H.870</text>
+
+  <!-- ── PROCESS ───────────────────────────────────────────────────── -->
+  <rect x="385" y="130" width="270" height="300" rx="14" fill="#fff7ed" stroke="#f2a93b" stroke-width="1.5"/>
+
+  <text x="405" y="164" font-size="13" font-weight="bold" fill="#111827">1. Estimate</text>
+  <text x="405" y="186" font-size="11.5" fill="#6b7280">Binary search narrows bass, presence</text>
+  <text x="405" y="203" font-size="11.5" fill="#6b7280">and treble to ±0.4–0.8 dB</text>
+
+  <text x="405" y="238" font-size="13" font-weight="bold" fill="#111827">2. Aggregate</text>
+  <text x="405" y="260" font-size="11.5" fill="#6b7280">Every past test folded into one target,</text>
+  <text x="405" y="277" font-size="11.5" fill="#6b7280">weighted by confidence and recency</text>
+
+  <text x="405" y="312" font-size="13" font-weight="bold" fill="#111827">3. Match</text>
+  <text x="405" y="334" font-size="11.5" fill="#6b7280">Curves median-centred, then ranked by</text>
+  <text x="405" y="351" font-size="11.5" fill="#6b7280">distance from the target, then by price</text>
+
+  <text x="405" y="386" font-size="13" font-weight="bold" fill="#111827">4. Interpret</text>
+  <text x="405" y="408" font-size="11.5" fill="#6b7280">Numbers turned into plain language</text>
+
+  <!-- ── OUTPUT ────────────────────────────────────────────────────── -->
+  <rect x="730" y="130" width="270" height="300" rx="14" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <text x="750" y="164" font-size="13" font-weight="bold" fill="#111827">Preference profile</text>
+  <text x="750" y="186" font-size="11.5" fill="#6b7280">Three bands in dB, plus a target curve</text>
+
+  <text x="750" y="222" font-size="13" font-weight="bold" fill="#111827">Audio analysis</text>
+  <text x="750" y="244" font-size="11.5" fill="#6b7280">What that curve means, in words</text>
+
+  <text x="750" y="280" font-size="13" font-weight="bold" fill="#111827">Five recommendations</text>
+  <text x="750" y="302" font-size="11.5" fill="#6b7280">Match %, measured curve, price, link</text>
+
+  <text x="750" y="338" font-size="13" font-weight="bold" fill="#111827">Hearing awareness</text>
+  <text x="750" y="360" font-size="11.5" fill="#6b7280">Guidance only — not a diagnosis</text>
+
+  <!-- ── arrows between columns ────────────────────────────────────── -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+    </marker>
+    <marker id="arrowBack" markerWidth="10" markerHeight="10" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f2a93b"/>
+    </marker>
+  </defs>
+
+  <line x1="312" y1="280" x2="381" y2="280" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="657" y1="280" x2="726" y2="280" stroke="#6b7280" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ── feedback loop ─────────────────────────────────────────────── -->
+  <path d="M 865 434 L 865 476 L 175 476 L 175 434"
+        fill="none" stroke="#f2a93b" stroke-width="2"
+        stroke-dasharray="7 5" marker-end="url(#arrowBack)"/>
+  <text x="520" y="497" text-anchor="middle" font-size="12" fill="#b45309">
+    Each further test re-weights the target — the profile sharpens with use rather than being fixed at first measurement
+  </text>
+
+  <!-- ── foundation strip ──────────────────────────────────────────── -->
+  <rect x="40" y="524" width="960" height="76" rx="14" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="60" y="551" font-size="12.5" font-weight="bold" fill="#111827">Underpinning assumptions</text>
+  <text x="60" y="573" font-size="11.5" fill="#4b5563">
+    Preference is individual and cannot be read off a spec sheet · it is stable enough to measure, yet drifts, so repeated tests beat one
+  </text>
+  <text x="60" y="590" font-size="11.5" fill="#4b5563">
+    · equalisation is applied in the listener's own browser, so what is judged is what is actually heard · guidance on hearing is not clinical assessment
+  </text>
+
+</svg>

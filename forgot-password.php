@@ -18,7 +18,7 @@ $csrfToken = csrf_token();
     document.documentElement.setAttribute("data-theme", "dark");
   }
 </script>
-<link rel="stylesheet" href="css/style.css?v=20260904">
+<link rel="stylesheet" href="css/style.css?v=20260905">
 </head>
 <body>
 
@@ -52,7 +52,7 @@ $csrfToken = csrf_token();
   </div>
 </div>
 
-<script src="js/script.js?v=20260904"></script>
+<script src="js/script.js?v=20260905"></script>
 <script>
 const CSRF_TOKEN = <?php echo json_encode($csrfToken); ?>;
 
