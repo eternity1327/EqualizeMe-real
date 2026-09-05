@@ -38,6 +38,49 @@ function browserSampleName(filename) {
   return filename.replace(/\.wav$/i, '.mp3');
 }
 
+// Downloaded but not yet decoded clips, keyed by file name.
+//
+// Kept separate from bufferCache on purpose. Decoding needs an AudioContext,
+// and a browser will not let one start until the user has interacted with
+// the page — so anything that waits for a context cannot run during the
+// pre-quiz. Downloading has no such restriction. Splitting the two lets the
+// slow half, the network, happen early and leaves only the fast half for
+// the moment Play is pressed.
+const encodedCache = new Map();
+
+// One in-flight request per clip. Without this, warming a sample and then
+// pressing Play before it arrives would fetch the same 300 KB twice.
+const inFlight = new Map();
+
+function fetchEncoded(webName) {
+  if (encodedCache.has(webName)) {
+    return Promise.resolve(encodedCache.get(webName));
+  }
+  if (inFlight.has(webName)) {
+    return inFlight.get(webName);
+  }
+
+  const request = fetch(SAMPLES_BASE_URL + encodeURIComponent(webName))
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`Could not fetch ${webName} (${res.status})`);
+      }
+      return res.arrayBuffer();
+    })
+    .then(encoded => {
+      encodedCache.set(webName, encoded);
+      inFlight.delete(webName);
+      return encoded;
+    })
+    .catch(err => {
+      inFlight.delete(webName);
+      throw err;
+    });
+
+  inFlight.set(webName, request);
+  return request;
+}
+
 async function loadSample(filename) {
   const webName = browserSampleName(filename);
 
@@ -45,17 +88,54 @@ async function loadSample(filename) {
     return bufferCache.get(webName);
   }
 
+  const encoded = await fetchEncoded(webName);
   const ctx = await getAudioContext();
-  const res = await fetch(SAMPLES_BASE_URL + encodeURIComponent(webName));
-  if (!res.ok) {
-    throw new Error(`Could not fetch ${webName} (${res.status})`);
-  }
 
-  const encoded = await res.arrayBuffer();
-  const buffer = await ctx.decodeAudioData(encoded);
+  // decodeAudioData detaches the ArrayBuffer it is given, which would empty
+  // the cached copy and make a second decode fail. Hand it a copy.
+  const buffer = await ctx.decodeAudioData(encoded.slice(0));
+
   bufferCache.set(webName, buffer);
   return buffer;
 }
+
+/**
+ * Start downloading and decoding a sample without waiting for it.
+ *
+ * Each clip is about 300 KB, and on shared hosting the round trip is
+ * noticeable. Fetching only when Play is pressed put that wait directly in
+ * front of the listener, every time a new clip came up — which is the
+ * delay testers reported on the first play.
+ *
+ * loadSample() already caches by name and returns the cached buffer on a
+ * second call, so warming is just calling it early and throwing away the
+ * promise. If it fails there is nothing to do here: the real play will try
+ * again and report properly. The empty catch is to stop an unhandled
+ * rejection appearing in the console for a request nobody asked for.
+ */
+function warmSample(filename) {
+  if (!filename || !browserAudioSupported()) return;
+  // Download only. Decoding is left for playback, because it needs an
+  // AudioContext and the browser will not start one until the user has
+  // interacted with the page — so a warm during the pre-quiz would
+  // otherwise do nothing at all.
+  fetchEncoded(browserSampleName(filename)).catch(() => {});
+}
+
+
+/**
+ * The clip a given question uses.
+ *
+ * Mirrors at_sample_for_question() in api/adaptive_test.php, which maps
+ * question N to sampleN. Duplicating that rule here is deliberate and
+ * narrow: it is only ever used to fetch ahead, so if the two ever disagree
+ * the cost is a wasted download, not a wrong question. The pair the server
+ * sends still decides what is actually played.
+ */
+function sampleForQuestion(questionNumber) {
+  return 'sample' + questionNumber + '.wav';
+}
+
 
 function stopActiveSource() {
   if (activeSource) {
@@ -170,6 +250,12 @@ async function beginQuiz() {
 
     container.innerHTML = data.questions.map(buildQuizQuestion).join('');
     wireQuizHighlighting(container);
+
+    // The first listening clip downloads while the questions are being
+    // answered. This is the delay testers actually hit: answering the
+    // pre-quiz takes a while, the listening test then opens, and the first
+    // Play sat waiting on a 300 KB fetch that could already have happened.
+    warmSample(sampleForQuestion(1));
   } catch (err) {
     container.innerHTML =
       '<p class="subtext">Could not load the questions — skipping ahead to the listening test.</p>';
@@ -282,6 +368,15 @@ function renderPair(pair) {
     `<span class="dot"></span><span>Question ${pair.question} of ${pair.totalQuestions} — ` +
     `tuning ${paramLabels[pair.param]} (round ${pair.round} of ${pair.totalRoundsForParam})</span>`;
 
+  // Fetch this question's clip as soon as the question appears rather than
+  // when Play is pressed, and start the next one too. Reading the question
+  // takes a few seconds; the download can happen during them instead of
+  // afterwards.
+  warmSample(pair.sample);
+  if (pair.question < pair.totalQuestions) {
+    warmSample(sampleForQuestion(pair.question + 1));
+  }
+
   if (autoPlayEnabled) {
     document.getElementById('status').textContent = 'Auto-playing A, then B...';
     playSide('A').then(() => playSide('B'));
@@ -304,8 +399,12 @@ async function playLocally(side) {
   if (!browserAudioSupported() || !gains || !sample) return false;
 
   try {
-    setStatus(bufferCache.has(browserSampleName(sample))
-      ? 'Playing...' : 'Loading audio...');
+    // "Loading" only when the clip still has to come off the network.
+    // Once it has been downloaded, decoding takes a moment at most, and
+    // calling that loading made a warmed clip look slower than it was.
+    const webName = browserSampleName(sample);
+    const ready = bufferCache.has(webName) || encodedCache.has(webName);
+    setStatus(ready ? 'Playing...' : 'Loading audio...');
 
     await playThroughBrowser(sample, gains);
     markSidePlayed(side);

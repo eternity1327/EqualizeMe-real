@@ -44,7 +44,7 @@ $initialTab = ($_GET["tab"] ?? "") === "register" ? "register" : "login";
     document.documentElement.setAttribute("data-theme", "dark");
   }
 </script>
-<link rel="stylesheet" href="css/style.css?v=20260905">
+<link rel="stylesheet" href="css/style.css?v=20260906">
 </head>
 <body>
 
@@ -96,7 +96,7 @@ $initialTab = ($_GET["tab"] ?? "") === "register" ? "register" : "login";
   </div>
 </div>
 
-<script src="js/script.js?v=20260905"></script>
+<script src="js/script.js?v=20260906"></script>
 <script>
 // Where to send the user after they successfully log in or register —
 // computed server-side above from ?redirect= or the page they came from.
