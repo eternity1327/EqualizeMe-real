@@ -1373,3 +1373,144 @@ footer {
 .tfa-status.success { color: #2f7a55; }
 
 [data-theme="dark"] .tfa-status.success { color: #6ee7a8; }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   CONSENT + APPARATUS — the step before the listening test
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Scrollable rather than endless. Terms long enough to fill a screen
+   push the Continue button out of sight, and a button nobody can find
+   reads as a broken page rather than as something still to be read. */
+.consent-box {
+    max-height: 260px;
+    overflow-y: auto;
+    text-align: left;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    margin: 18px 0 16px;
+}
+
+.consent-box p {
+    color: var(--text-muted);
+    line-height: 1.65;
+    margin-bottom: 12px;
+    font-size: 0.92rem;
+}
+
+.consent-box p:last-child { margin-bottom: 0; }
+
+.consent-box strong { color: var(--text); }
+
+.consent-agree {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 22px;
+    cursor: pointer;
+    font-size: 0.92rem;
+}
+
+.consent-agree input { width: 17px; height: 17px; cursor: pointer; }
+
+#consent-apparatus { margin-top: 8px; text-align: left; }
+
+#apparatus-options {
+    display: grid;
+    gap: 10px;
+    margin: 14px 0 20px;
+}
+
+#consent-error {
+    color: var(--danger);
+    font-size: 0.9rem;
+    min-height: 1.2em;
+    margin-bottom: 10px;
+}
+
+
+/* ── editing the display name, on the profile card ─────────────── */
+
+.name-edit { margin-top: 6px; }
+
+.name-edit-btn {
+    background: none;
+    border: none;
+    color: var(--accent-2);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.name-edit-btn:hover { background: var(--pill-bg); }
+
+#name-edit-form[hidden] { display: none; }
+
+#name-input {
+    width: 100%;
+    max-width: 260px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--pill-bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+#name-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.name-edit-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.name-save, .name-cancel {
+    padding: 7px 18px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+}
+
+.name-save {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: transparent;
+    color: #161a23;
+}
+
+.name-save:disabled { opacity: .6; cursor: not-allowed; }
+
+.name-cancel { background: var(--pill-bg); color: var(--text); }
+
+.name-status {
+    margin-top: 8px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    min-height: 1.1em;
+}
+
+.name-status.error { color: var(--danger); }
+
+/* Visually hidden but still read aloud — the input needs a label even
+   though the surrounding text makes its purpose obvious on screen. */
+.sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}

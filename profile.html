@@ -7,7 +7,7 @@
     <title>Profile</title>
 
     <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
-    <link rel="stylesheet" href="css/style.css?v=20260906">
+    <link rel="stylesheet" href="css/style.css?v=20260907">
     <style>
       .profile-image-outer {
         cursor: pointer;
@@ -50,7 +50,7 @@
 
   </head>
 
-  <body>
+  <body data-requires-login>
 
     <nav class="navbar">
 
@@ -119,6 +119,26 @@
           User
         </h2>
 
+        <div class="name-edit">
+          <button type="button" id="name-edit-btn" class="name-edit-btn">
+            Edit name
+          </button>
+
+          <div id="name-edit-form" hidden>
+            <label for="name-input" class="sr-only">Display name</label>
+            <input type="text" id="name-input" maxlength="100"
+              autocomplete="name">
+            <div class="name-edit-actions">
+              <button type="button" id="name-save-btn"
+                class="name-save">Save</button>
+              <button type="button" id="name-cancel-btn"
+                class="name-cancel">Cancel</button>
+            </div>
+          </div>
+
+          <p id="name-status" class="name-status"></p>
+        </div>
+
         <div class="tuning-label">Preferred Tuning</div>
         <div class="tuning-stats" id="profile-sound-stats">
           <div class="tuning-stat">
@@ -140,7 +160,7 @@
 
     </section>
 
-    <script src="js/script.js?v=20260906"></script>
+    <script src="js/script.js?v=20260907"></script>
     <script>
       // No loadProfile() call here — script.js runs it from its
       // DOMContentLoaded handler. Calling it inline as well loaded the

@@ -14,6 +14,7 @@ require_once __DIR__ . "/session.php";
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/csrf.php";
 require_once __DIR__ . "/adaptive_test.php";
+require_once __DIR__ . "/apparatus.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -50,19 +51,25 @@ if (!empty($result["done"]) && isset($result["profile"])) {
         // it still in place this would throw on anyone's second test.
         $pdo->prepare(
             "INSERT INTO auditory_profiles
-                 (user_id, bass_gain, treble_gain, presence_gain, confidence_score)
-             VALUES (?, ?, ?, ?, ?)"
+                 (user_id, bass_gain, treble_gain, presence_gain,
+                  confidence_score, apparatus)
+             VALUES (?, ?, ?, ?, ?, ?)"
         )->execute([
             $_SESSION["user_id"],
             $profile["bassGain"],
             $profile["trebleGain"],
             $profile["presenceGain"],
             $result["confidence"] ?? null,
+            // Whatever they said they were wearing when the test began.
+            // Null if they were not asked or gave an answer we do not
+            // recognise — an honest blank beats a guessed default.
+            apparatus_for_this_test(),
         ]);
 
         // The test is over; leaving its state behind would let a refresh
         // save the same result twice.
         at_clear_session();
+        apparatus_forget();
 
         // On a retry this still says "Test already complete", which was
         // true a moment ago and is not any more — the save just succeeded.

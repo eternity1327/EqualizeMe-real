@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+
+    <meta charset="UTF-8">
+    <title>Not Logged In — EqualizeME</title>
+
+    <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
+    <link rel="stylesheet" href="css/style.css?v=20260907">
+
+    <style>
+      .gate {
+        max-width: 520px;
+        margin: 80px auto;
+        padding: 0 20px;
+        text-align: center;
+      }
+
+      .gate-panel {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 44px 38px;
+        box-shadow: 0 20px 50px -20px var(--shadow-color);
+      }
+
+      .gate-mark {
+        font-size: 40px;
+        line-height: 1;
+        margin-bottom: 14px;
+      }
+
+      .gate h1 {
+        font-size: 26px;
+        margin-bottom: 10px;
+      }
+
+      .gate p {
+        color: var(--text-muted);
+        line-height: 1.65;
+        margin-bottom: 10px;
+      }
+
+      .gate-target {
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .gate-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin-top: 26px;
+        flex-wrap: wrap;
+      }
+
+      .gate-actions a {
+        display: inline-block;
+        padding: 12px 26px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .gate-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #161a23;
+      }
+
+      .gate-secondary {
+        background: var(--pill-bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .gate-countdown {
+        margin-top: 20px;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+    </style>
+
+  </head>
+
+  <body>
+
+    <section class="gate">
+      <div class="gate-panel">
+
+        <div class="gate-mark">🔒</div>
+
+        <h1>Not properly logged in</h1>
+
+        <p>
+          You tried to open
+          <span class="gate-target" id="gate-target">a page</span>
+          without being signed in. Pages that show your listening profile
+          are only available to the account they belong to.
+        </p>
+
+        <p>
+          Sign in and you will be taken straight back there.
+        </p>
+
+        <div class="gate-actions">
+          <a class="gate-primary" id="gate-login" href="login.php">Log in</a>
+          <a class="gate-secondary" href="index.html">Back to the homepage</a>
+        </div>
+
+        <p class="gate-countdown" id="gate-countdown"></p>
+
+      </div>
+    </section>
+
+    <button id="themeToggle" class="theme-toggle"
+      aria-label="Toggle dark mode">🌙</button>
+
+    <script src="js/script.js?v=20260907"></script>
+    <script>
+      // Which page was refused, so the login can send them back to it.
+      //
+      // Whitelisted rather than trusted. ?from= arrives in the address bar
+      // and is fed to a redirect, which is exactly the shape of an open
+      // redirect: a link to our own login carrying somebody else's site in
+      // the query string, sending the user there after they sign in. Only
+      // names on this list are honoured; anything else falls back to the
+      // profile page.
+      (function () {
+        var ALLOWED = {
+          "profile.html": "My Profile",
+          "profile-history.html": "Profile History",
+          "recommendations.html": "Recommendations",
+          "settings.html": "Settings",
+          "test.html": "the Sound Test"
+        };
+
+        var params = new URLSearchParams(window.location.search);
+        var from = params.get("from") || "";
+        var target = Object.prototype.hasOwnProperty.call(ALLOWED, from)
+          ? from
+          : "profile.html";
+
+        document.getElementById("gate-target").textContent =
+          ALLOWED[target] || "a page";
+
+        document.getElementById("gate-login").href =
+          "login.php?redirect=" + encodeURIComponent(target);
+
+        // A gentle nudge rather than an instant bounce. Redirecting
+        // immediately would flash a page nobody could read, and the message
+        // is the point -- it is what tells someone why they ended up here.
+        var left = 6;
+        var note = document.getElementById("gate-countdown");
+        function tick() {
+          note.textContent = "Taking you to the login page in "
+            + left + (left === 1 ? " second..." : " seconds...");
+          if (left <= 0) {
+            window.location.replace(
+              "login.php?redirect=" + encodeURIComponent(target));
+            return;
+          }
+          left--;
+          window.setTimeout(tick, 1000);
+        }
+        tick();
+      })();
+    </script>
+
+  </body>
+</html>

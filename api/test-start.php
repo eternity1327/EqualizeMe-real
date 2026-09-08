@@ -16,6 +16,7 @@ require_once __DIR__ . "/session.php";
 require_once __DIR__ . "/csrf.php";
 require_once __DIR__ . "/pre_quiz.php";
 require_once __DIR__ . "/adaptive_test.php";
+require_once __DIR__ . "/apparatus.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -35,6 +36,12 @@ $seed = null;
 if (!empty($body["quiz"]) && is_array($body["quiz"])) {
     $seed = quiz_score_answers($body["quiz"]);
 }
+
+// Held for the duration of the test and written with the result. Not passed
+// into at_start_session(): the algorithm never reads it, and putting it in
+// that session structure would change what tests/compare_with_python.php
+// verifies for the sake of a value nothing computes with.
+apparatus_remember($body["apparatus"] ?? null);
 
 $pair = at_start_session($seed);
 

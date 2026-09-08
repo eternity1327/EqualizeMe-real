@@ -705,7 +705,10 @@ async function loadProfile() {
   try {
     const meRes = await fetch("api/auth/me.php");
     if (!meRes.ok) {
-      window.location.href = "login.php?redirect=profile.html";
+      // requireLogin() has already checked this and would have moved us to
+      // not-logged-in.html, so reaching here means the session ended in
+      // the moment between the two calls. Stop quietly; redirecting a
+      // second time from here would bypass that page and contradict it.
       return;
     }
     const me = await meRes.json();
@@ -748,6 +751,101 @@ async function loadProfile() {
     console.error(err);
   }
 }
+
+/* ─────────────────────── editing the display name ─────────────────────── */
+
+// Wired only on the profile page; every other page returns immediately.
+//
+// PUT with the token in a header rather than the body, matching
+// api/settings.php, because api/account.php reads it from the header. The
+// retry on a stale token comes from sendWithCsrfRetry like everything else.
+function wireNameEditing() {
+  const heading = document.getElementById("profile-name");
+  const editBtn = document.getElementById("name-edit-btn");
+  const form = document.getElementById("name-edit-form");
+  const input = document.getElementById("name-input");
+  const saveBtn = document.getElementById("name-save-btn");
+  const cancelBtn = document.getElementById("name-cancel-btn");
+  const status = document.getElementById("name-status");
+
+  if (!heading || !editBtn || !form || !input || !saveBtn || !cancelBtn) {
+    return;
+  }
+
+  const say = (message, isError = false) => {
+    status.textContent = message;
+    status.classList.toggle("error", isError);
+  };
+
+  const open = () => {
+    input.value = heading.textContent.trim();
+    form.hidden = false;
+    editBtn.hidden = true;
+    say("");
+    input.focus();
+    input.select();
+  };
+
+  const close = () => {
+    form.hidden = true;
+    editBtn.hidden = false;
+  };
+
+  const save = async () => {
+    const name = input.value.trim();
+    if (!name) {
+      say("Your name cannot be empty.", true);
+      return;
+    }
+    if (name === heading.textContent.trim()) {
+      close();
+      return;
+    }
+
+    saveBtn.disabled = true;
+    say("Saving...");
+
+    try {
+      const res = await sendWithCsrfRetry(token => fetch("api/account.php", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": token || "",
+        },
+        body: JSON.stringify({ name }),
+      }));
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        say(data.error || "Could not save your name.", true);
+        return;
+      }
+
+      // The server's version, not the typed one: it trims and collapses
+      // whitespace, so the two differ whenever that did anything.
+      heading.textContent = data.name;
+      close();
+      say("Name updated.");
+      window.setTimeout(() => say(""), 2500);
+    } catch (err) {
+      say("Could not reach the server.", true);
+      console.error(err);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  };
+
+  editBtn.addEventListener("click", open);
+  cancelBtn.addEventListener("click", () => { close(); say(""); });
+  saveBtn.addEventListener("click", save);
+
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") { event.preventDefault(); save(); }
+    if (event.key === "Escape") { close(); say(""); }
+  });
+}
+
 
 async function loadSettings() {
   const checkboxes = document.querySelectorAll(".setting-checkbox");
@@ -1023,10 +1121,65 @@ async function updateNavAuthState() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+/**
+ * Refuse to show a page that needs a session, and say so on a page of its
+ * own rather than inline.
+ *
+ * A page opts in by carrying data-requires-login on its <body>. Keeping the
+ * list on the pages rather than in an array here means adding a protected
+ * page is one attribute, and cannot be forgotten in a second place.
+ *
+ * This replaces four different behaviours that had grown up separately:
+ * My Profile redirected, Recommendations and Profile History printed a
+ * message and stayed, and Settings and the Sound Test checked nothing at
+ * all. No data ever leaked -- the API answers 401 regardless -- but the
+ * page could not decide what it was doing.
+ *
+ * Only a definite 401 redirects. If the request fails outright the browser
+ * is offline or the server is unreachable, and bouncing to another page
+ * that also needs the network would turn one failure into a loop.
+ *
+ * location.replace, not location.href: the refused page should not be left
+ * in history for the Back button to return to.
+ */
+async function requireLogin() {
+  if (!document.body || !document.body.hasAttribute("data-requires-login")) {
+    return true;
+  }
+
+  let res;
+  try {
+    res = await fetch("api/auth/me.php");
+  } catch (err) {
+    console.error("Could not check the session:", err);
+    return false;
+  }
+
+  if (res.ok) {
+    return true;
+  }
+  if (res.status !== 401) {
+    return false;
+  }
+
+  const here = window.location.pathname.split("/").pop() || "index.html";
+  window.location.replace("not-logged-in.html?from=" + encodeURIComponent(here));
+  return false;
+}
+
+
+document.addEventListener("DOMContentLoaded", async () => {
+  // The navigation runs first and on every page, signed in or not — it is
+  // what turns Login into Logout, so it has to work before the guard.
   updateNavAuthState();
+
+  if (!(await requireLogin())) {
+    return;
+  }
+
   loadRecommendations();
   loadProfile();
   loadSettings();
   loadTwoFactorState();
+  wireNameEditing();
 });
