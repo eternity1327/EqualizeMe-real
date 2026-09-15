@@ -247,8 +247,17 @@ async function handleRegister(event) {
       return false;
     }
 
+    // A brand new account goes to its profile, not to wherever it was
+    // headed. Someone who clicked "Start Test" and had to register first
+    // has never seen their own page; dropping them straight into the
+    // listening test means they meet the profile only afterwards, by
+    // which point there is a result sitting on a page with a default name
+    // and no picture.
+    //
+    // Signing IN is the opposite case and is left alone: a returning user
+    // asked for a particular page and should get it.
     setStatus(`Account created — welcome, ${data.name}!`, 'success');
-    window.location.href = REDIRECT_TARGET;
+    window.location.href = 'profile.html';
   } catch (err) {
     setStatus('Could not reach the server. Is it running?', 'error');
     btn.disabled = false;
