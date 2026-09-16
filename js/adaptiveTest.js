@@ -303,20 +303,6 @@ const APPARATUS_CHOICES = [
   ['other', 'Something else, or not sure'],
 ];
 
-async function termsAlreadyAccepted() {
-  try {
-    const res = await fetch('api/auth/me.php');
-    if (!res.ok) return false;
-    const me = await res.json();
-    return Boolean(me.termsAcceptedAt);
-  } catch (err) {
-    // Unknown, so ask. Showing the terms to someone who has already agreed
-    // costs them one click; skipping them for someone who has not is the
-    // failure that actually matters.
-    return false;
-  }
-}
-
 async function beginConsent() {
   document.getElementById('track-picker').style.display = 'none';
   document.getElementById('consent-screen').style.display = 'block';
@@ -328,25 +314,13 @@ async function beginConsent() {
         <span>${label}</span>
       </label>`).join('');
 
-  // Consent is per account, not per test. Asking before every test would
-  // train people to click past it, which is the opposite of consent meaning
-  // anything. The apparatus question is asked every time, because the
-  // answer genuinely can change.
-  const accepted = await termsAlreadyAccepted();
-  document.getElementById('consent-terms').style.display =
-    accepted ? 'none' : 'block';
+  // The terms step was removed from this screen on request. What remains
+  // is the apparatus question, which is asked every test because the answer
+  // genuinely can change between sittings.
 }
 
 async function acceptConsent() {
   const errorEl = document.getElementById('consent-error');
-  const termsShown =
-    document.getElementById('consent-terms').style.display !== 'none';
-  const box = document.getElementById('consent-checkbox');
-
-  if (termsShown && !box.checked) {
-    errorEl.textContent = 'Please tick the box to confirm you agree.';
-    return;
-  }
 
   const picked = document.querySelector('input[name="apparatus"]:checked');
   if (!picked) {
@@ -356,19 +330,6 @@ async function acceptConsent() {
 
   errorEl.textContent = '';
   selectedApparatus = picked.value;
-
-  if (termsShown) {
-    try {
-      const res = await apiPost('api/terms.php', { accept: true });
-      if (!res.ok) {
-        errorEl.textContent = 'Could not record your acceptance. Try again.';
-        return;
-      }
-    } catch (err) {
-      errorEl.textContent = 'Could not reach the server. Try again.';
-      return;
-    }
-  }
 
   document.getElementById('consent-screen').style.display = 'none';
   beginQuiz();

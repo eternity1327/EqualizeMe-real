@@ -377,36 +377,13 @@
         <div id="consent-screen" style="display:none;">
           <div class="readout"><span class="dot"></span><span>Before we
               begin</span></div>
-          <h1>Terms, and what you're listening through</h1>
+          <h1>What are you listening through?</h1>
 
-          <div id="consent-terms">
-            <div class="consent-box">
-              <p><strong>What this test is.</strong> EqualizeME measures which
-                sound you prefer by playing you pairs of clips and asking which
-                you like better. It is a preference test, not a hearing test,
-                and it is not a medical or diagnostic tool. Nothing it produces
-                should be used to judge whether your hearing is healthy.</p>
-
-              <p><strong>What we record.</strong> Your answers, the resulting
-                preference values, how confident the test was, and what kind of
-                device you say you used. This is tied to your account so your
-                profile can improve across repeat tests.</p>
-
-              <p><strong>Your hearing.</strong> Set a comfortable volume before
-                you start and leave it there. If anything is uncomfortable,
-                stop. Guidance shown with your results follows WHO and ITU-T
-                H.870 listening limits and is general advice, not advice about
-                you.</p>
-
-              <p><strong>Your data.</strong> Your results are yours. They are
-                not sold or shared, and deleting your account removes them.</p>
-            </div>
-
-            <label class="consent-agree">
-              <input type="checkbox" id="consent-checkbox">
-              <span>I have read and agree to the above.</span>
-            </label>
-          </div>
+          <!-- The terms and conditions step was removed from this screen on
+               request. api/terms.php and users.terms_accepted_at are left in
+               place, unused, so it can be restored by putting this markup
+               back rather than rebuilding the endpoint and the column. The
+               removed block is in git history. -->
 
           <div id="consent-apparatus">
             <p class="subtext"><strong>What are you listening through

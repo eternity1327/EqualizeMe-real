@@ -59,10 +59,22 @@ try {
     $stmt->execute([$name, $email, $hash]);
     $userId = $pdo->lastInsertId();
 
-    $pdo->prepare(
-        "INSERT INTO auditory_profiles (user_id, bass_gain, treble_gain, presence_gain)
-         VALUES (?, 0, 0, 0)"
-    )->execute([$userId]);
+    // No placeholder row in auditory_profiles. There used to be one -- zeros
+    // across all three bands, written here at registration -- from when that
+    // table held exactly one row per person and the application assumed it
+    // existed. The table became an append-only history of completed tests,
+    // and the placeholder became actively harmful:
+    //
+    //   pp_fetch_assessments() selects every row for a user, and a NULL
+    //   confidence_score is weighted 1.0. So a row standing for no test at
+    //   all was folded into the aggregate at roughly the weight of a real
+    //   one, pulling every target toward zero. With eight real tests it was
+    //   about a ninth of the total weight.
+    //
+    //   It also made "No profile yet -- take the sound test" unreachable,
+    //   because there was always at least one row to find.
+    //
+    // sql/remove_placeholder_profiles.sql clears the ones already written.
     $pdo->prepare("INSERT INTO settings (user_id) VALUES (?)")->execute([$userId]);
 
     // Sent outside the account-creation path deliberately. A mail failure

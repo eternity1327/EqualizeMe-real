@@ -39,8 +39,12 @@ function quiz_questions() {
             "options" => [
                 ["value" => "warm", "label" => "Warm and full — bass you can feel",
                  "impact" => ["bassGain" => 3, "trebleGain" => -1]],
+                // "Natural" is not the same as "scooped". Someone asking for
+                // a natural presentation wants the midrange present rather
+                // than pushed back, which is what separates this answer from
+                // the V-shape below.
                 ["value" => "balanced", "label" => "Balanced and natural",
-                 "impact" => []],
+                 "impact" => ["presenceGain" => 1]],
                 ["value" => "bright", "label" => "Bright and detailed — crisp highs",
                  "impact" => ["trebleGain" => 3]],
                 ["value" => "vshape", "label" => "Punchy bass AND sparkly highs",
@@ -53,8 +57,14 @@ function quiz_questions() {
             "options" => [
                 ["value" => "forward", "label" => "Up front and clear",
                  "impact" => ["presenceGain" => 2]],
+                // Deliberately zero, and written out rather than left empty.
+                // This question is a symmetric scale -- forward is +2, laid
+                // back is -2 -- so "natural" is its midpoint by definition.
+                // Giving it a value would push every listener who chose the
+                // middle option in a direction nothing in their answer
+                // supports.
                 ["value" => "natural", "label" => "Natural — part of the mix",
-                 "impact" => []],
+                 "impact" => ["presenceGain" => 0]],
                 ["value" => "laidback", "label" => "Laid back, behind the instruments",
                  "impact" => ["presenceGain" => -2]],
             ],
@@ -67,8 +77,12 @@ function quiz_questions() {
                  "impact" => ["trebleGain" => -2, "presenceGain" => -1]],
                 ["value" => "sometimes", "label" => "Occasionally, on some tracks",
                  "impact" => ["trebleGain" => -1]],
+                // Completes the scale rather than sitting at its end. The
+                // other two answers subtract treble; someone who never finds
+                // cymbals painful tolerates more of it than average, so the
+                // seed starts a little higher.
                 ["value" => "never", "label" => "Not really",
-                 "impact" => []],
+                 "impact" => ["trebleGain" => 1]],
             ],
         ],
         [
@@ -79,8 +93,11 @@ function quiz_questions() {
                  "impact" => ["bassGain" => 2]],
                 ["value" => "sometimes", "label" => "Sometimes",
                  "impact" => ["bassGain" => 1]],
+                // "There's plenty already" is a statement about having
+                // enough weight, so it belongs below the midpoint rather
+                // than at it -- the other answers ask for more.
                 ["value" => "never", "label" => "No, there's plenty",
-                 "impact" => []],
+                 "impact" => ["bassGain" => -1]],
             ],
         ],
         [
@@ -89,10 +106,19 @@ function quiz_questions() {
             "options" => [
                 ["value" => "noisy", "label" => "Commuting or somewhere noisy",
                  "impact" => ["bassGain" => 1, "presenceGain" => 1]],
+                // The mirror of the noisy answer. Background noise masks low
+                // frequencies first, which is why people turn bass up on a
+                // commute; a quiet room removes that need, so the seed
+                // starts slightly lower rather than merely not higher.
                 ["value" => "quiet", "label" => "A quiet room",
-                 "impact" => []],
+                 "impact" => ["bassGain" => -1, "presenceGain" => -1]],
+
+                // Zero on purpose, and written out rather than left empty.
+                // This answer is literally "both of the above", and the two
+                // above are +1 and -1 -- their midpoint is nought. Anything
+                // else here would be invented.
                 ["value" => "mixed", "label" => "A bit of both",
-                 "impact" => []],
+                 "impact" => ["bassGain" => 0, "presenceGain" => 0]],
             ],
         ],
     ];
