@@ -147,35 +147,336 @@ function stopActiveSource() {
   }
 }
 
-async function playThroughBrowser(filename, gains) {
-  const ctx = await getAudioContext();
-  const buffer = await loadSample(filename);
+/* ─────────── continuous playback with live A/B switching ─────────── */
+
+// The filter chain is built once per playback and then kept. Switching
+// sides only changes the gain on the filters it already owns.
+//
+// This replaces playing A from the start, then playing B from the start.
+// Restarting the clip means comparing a sound against a memory of a sound,
+// which is exactly the comparison people are worst at -- small differences
+// vanish in the gap. Switching in place, mid-phrase, keeps both versions in
+// the same moment of music and makes the same difference obvious.
+let liveFilters = [];      // the biquads currently in the signal path
+let liveSide = null;       // 'A' or 'B'
+let livePair = null;       // the pair being compared
+let waveFrame = null;      // requestAnimationFrame handle for the playhead
+
+// Gains are ramped rather than assigned. A bare `.value = x` steps the
+// coefficient instantly and clicks audibly, which would itself become a cue
+// -- the listener would hear the switch rather than the difference.
+const SWITCH_RAMP_SECONDS = 0.02;
+
+function setSideGains(gains) {
+  const ctx = audioCtx;
+  if (!ctx) return;
+  const at = ctx.currentTime + SWITCH_RAMP_SECONDS;
+  for (const filter of liveFilters) {
+    const target = Number(gains?.[filter._gainKey] ?? 0);
+    filter.gain.linearRampToValueAtTime(target, at);
+  }
+}
+
+/**
+ * Switch which version is playing, without interrupting it.
+ *
+ * If nothing is playing this only records the choice, so pressing A before
+ * Play behaves sensibly rather than doing nothing.
+ */
+function switchSide(side) {
+  liveSide = side;
+  if (livePair && isPlaying) {
+    setSideGains(livePair[side]);
+    // Only counts as heard if it was actually audible. Switching while
+    // paused sets which version plays next; it is not listening to it.
+    markSidePlayed(side);
+  }
+  updateSideButtons();
+}
+
+/* ─────────────────────────── the transport ─────────────────────────── */
+
+// A Web Audio buffer source cannot be paused -- once stopped it is spent,
+// and a new one has to be created. So position is tracked here rather than
+// asked of the node: `positionAtStart` is where the current source began,
+// `startedAt` is the context clock reading when it did, and the difference
+// gives the playhead. Pausing stops the node and keeps the number.
+let playBuffer = null;        // the decoded clip
+let positionAtStart = 0;      // seconds into the clip when this source began
+let startedAt = 0;            // ctx.currentTime at that moment
+let isPlaying = false;
+
+function playbackPosition() {
+  if (!playBuffer) return 0;
+  const raw = isPlaying && audioCtx
+    ? positionAtStart + (audioCtx.currentTime - startedAt)
+    : positionAtStart;
+  return Math.max(0, Math.min(playBuffer.duration, raw));
+}
+
+/**
+ * Build the signal path and start at `offset` seconds.
+ *
+ * Called by play, by seek and by rewind-while-playing -- anything that
+ * needs the audio running from a particular point. The filters are rebuilt
+ * each time because they belong to the source they are connected to.
+ */
+function startSourceAt(offset) {
+  const ctx = audioCtx;
+  if (!ctx || !playBuffer) return;
 
   stopActiveSource();
 
   const source = ctx.createBufferSource();
-  source.buffer = buffer;
+  source.buffer = playBuffer;
 
   let node = source;
+  liveFilters = [];
   for (const spec of EQ_FILTERS) {
     const filter = ctx.createBiquadFilter();
     filter.type = spec.type;
     filter.frequency.value = spec.frequency;
     filter.Q.value = spec.Q;
-    filter.gain.value = Number(gains?.[spec.gainKey] ?? 0);
+    filter.gain.value = Number(livePair?.[liveSide]?.[spec.gainKey] ?? 0);
+    filter._gainKey = spec.gainKey;
     node.connect(filter);
     node = filter;
+    liveFilters.push(filter);
   }
   node.connect(ctx.destination);
 
-  activeSource = source;
+  // Reaching the end is a stop, not a pause: the playhead stays at the end
+  // so Play would otherwise start a new source that instantly finishes.
+  // Rewind, or clicking the waveform, is what gets you moving again.
+  source.onended = () => {
+    if (activeSource !== source) return;   // superseded by a seek
+    activeSource = null;
+    isPlaying = false;
+    positionAtStart = playBuffer.duration;
+    updateSideButtons();
+  };
 
-  return new Promise(resolve => {
-    source.onended = () => {
-      if (activeSource === source) activeSource = null;
-      resolve();
-    };
-    source.start();
+  positionAtStart = Math.max(0, Math.min(playBuffer.duration, offset));
+  startedAt = ctx.currentTime;
+  source.start(0, positionAtStart);
+
+  activeSource = source;
+  isPlaying = true;
+}
+
+async function loadIntoTransport(filename, pair, side) {
+  const ctx = await getAudioContext();
+  playBuffer = await loadSample(filename);
+  livePair = pair;
+  liveSide = side;
+  positionAtStart = 0;
+  startedAt = ctx.currentTime;
+  isPlaying = false;
+  drawTrack();
+}
+
+async function transportPlay() {
+  if (isPlaying) return;
+  await getAudioContext();
+
+  // At the end, Play means play again rather than doing nothing.
+  const from = playBuffer && playbackPosition() >= playBuffer.duration - 0.01
+    ? 0
+    : playbackPosition();
+
+  startSourceAt(from);
+  markSidePlayed(liveSide);
+  startPlayheadLoop();
+  updateSideButtons();
+}
+
+function transportPause() {
+  if (!isPlaying) return;
+  positionAtStart = playbackPosition();   // freeze before the node dies
+  stopActiveSource();
+  isPlaying = false;
+  updateSideButtons();
+  drawTrack();
+}
+
+function transportRewind() {
+  if (isPlaying) {
+    startSourceAt(0);
+  } else {
+    positionAtStart = 0;
+    drawTrack();
+  }
+  updateSideButtons();
+}
+
+function transportSeek(seconds) {
+  if (!playBuffer) return;
+  if (isPlaying) {
+    startSourceAt(seconds);
+  } else {
+    positionAtStart = Math.max(0, Math.min(playBuffer.duration, seconds));
+    drawTrack();
+  }
+}
+
+function stopLivePlayback() {
+  stopActiveSource();
+  if (waveFrame !== null) {
+    cancelAnimationFrame(waveFrame);
+    waveFrame = null;
+  }
+  liveFilters = [];
+  playBuffer = null;
+  positionAtStart = 0;
+  isPlaying = false;
+  clearTrack();
+  updateSideButtons();
+}
+
+/* ──────────────────── the file, drawn as a whole ──────────────────── */
+
+// The shape of the entire clip, computed once and cached by file name.
+// Redoing it every frame would walk hundreds of thousands of samples sixty
+// times a second for a picture that never changes.
+const peakCache = new Map();
+const PEAK_COLUMNS = 320;
+
+function peaksFor(name, buffer) {
+  if (peakCache.has(name)) return peakCache.get(name);
+
+  const data = buffer.getChannelData(0);
+  const per = Math.floor(data.length / PEAK_COLUMNS) || 1;
+  const peaks = new Float32Array(PEAK_COLUMNS);
+
+  for (let col = 0; col < PEAK_COLUMNS; col++) {
+    let max = 0;
+    const start = col * per;
+    const end = Math.min(start + per, data.length);
+    for (let i = start; i < end; i++) {
+      const v = Math.abs(data[i]);
+      if (v > max) max = v;
+    }
+    peaks[col] = max;
+  }
+
+  peakCache.set(name, peaks);
+  return peaks;
+}
+
+function trackCanvas() {
+  return document.getElementById('waveform');
+}
+
+function clearTrack() {
+  const canvas = trackCanvas();
+  if (!canvas) return;
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  const el = document.getElementById('track-time');
+  if (el) el.textContent = '0:00 / 0:00';
+}
+
+function formatTime(seconds) {
+  const s = Math.max(0, Math.floor(seconds));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function drawTrack() {
+  const canvas = trackCanvas();
+  if (!canvas || !playBuffer || !currentPair) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(rect.width * dpr)) {
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+  }
+
+  const g = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const mid = h / 2;
+
+  const styles = getComputedStyle(document.documentElement);
+  const played = styles.getPropertyValue('--accent').trim() || '#f2a93b';
+  const ahead = styles.getPropertyValue('--border').trim() || '#d8dee6';
+  const ink = styles.getPropertyValue('--text-muted').trim() || '#64748b';
+
+  g.clearRect(0, 0, w, h);
+
+  const peaks = peaksFor(browserSampleName(currentPair.sample), playBuffer);
+  const pos = playbackPosition();
+  const progress = playBuffer.duration ? pos / playBuffer.duration : 0;
+
+  // Bars, not a line. A line is an oscilloscope; this is the file.
+  const barW = w / peaks.length;
+  for (let i = 0; i < peaks.length; i++) {
+    const x = i * barW;
+    const amp = Math.max(peaks[i] * mid * 0.92, dpr);
+    g.fillStyle = (i / peaks.length) <= progress ? played : ahead;
+    g.fillRect(x, mid - amp, Math.max(barW - dpr, 1), amp * 2);
+  }
+
+  // Playhead.
+  const px = Math.round(progress * w);
+  g.fillStyle = played;
+  g.fillRect(px - dpr, 0, dpr * 2, h);
+
+  // Second markers along the bottom, as many as will fit legibly.
+  const every = playBuffer.duration > 30 ? 5 : 1;
+  g.fillStyle = ink;
+  g.font = (10 * dpr) + 'px Arial';
+  g.textBaseline = 'bottom';
+  for (let t = every; t < playBuffer.duration; t += every) {
+    const x = (t / playBuffer.duration) * w;
+    g.globalAlpha = 0.35;
+    g.fillRect(x, h - 10 * dpr, dpr, 6 * dpr);
+    g.globalAlpha = 1;
+    g.fillText(formatTime(t), x + 3 * dpr, h - 1 * dpr);
+  }
+
+  const timeEl = document.getElementById('track-time');
+  if (timeEl) {
+    timeEl.textContent = formatTime(pos) + ' / ' + formatTime(playBuffer.duration);
+  }
+}
+
+function startPlayheadLoop() {
+  if (waveFrame !== null) cancelAnimationFrame(waveFrame);
+  const frame = () => {
+    drawTrack();
+    if (isPlaying) {
+      waveFrame = requestAnimationFrame(frame);
+    } else {
+      waveFrame = null;
+    }
+  };
+  frame();
+}
+
+/**
+ * Click or drag anywhere on the file to move the playhead there.
+ *
+ * Wired once, on the canvas, rather than per question -- the canvas
+ * outlives the pairs drawn on it.
+ */
+function wireTrackSeeking() {
+  const canvas = trackCanvas();
+  if (!canvas || canvas._seekWired) return;
+  canvas._seekWired = true;
+
+  const seekFromEvent = event => {
+    if (!playBuffer) return;
+    const rect = canvas.getBoundingClientRect();
+    const ratio = (event.clientX - rect.left) / rect.width;
+    transportSeek(Math.max(0, Math.min(1, ratio)) * playBuffer.duration);
+  };
+
+  canvas.addEventListener('pointerdown', event => {
+    canvas.setPointerCapture(event.pointerId);
+    seekFromEvent(event);
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (event.buttons === 1) seekFromEvent(event);
   });
 }
 
@@ -379,20 +680,29 @@ async function startTest(quizAnswers) {
   }
 }
 
+/**
+ * A side counts as heard once it has been selected during playback.
+ *
+ * It used to mean "that clip played to the end", which no longer happens:
+ * playback loops and the listener switches between sides rather than
+ * waiting for either to finish. The guarantee worth keeping is the one
+ * that mattered -- nobody chooses a side without having heard both -- and
+ * switching to a side while the audio is running is exactly that.
+ */
 function updateChoiceAvailability() {
-  const bothPlayed = hasPlayedA && hasPlayedB;
+  const bothHeard = hasPlayedA && hasPlayedB;
 
-  [['a', hasPlayedA], ['b', hasPlayedB]].forEach(([side, played]) => {
+  [['a', hasPlayedA], ['b', hasPlayedB]].forEach(([side, heard]) => {
     const card = document.getElementById(`option-${side}`);
     const hint = document.getElementById(`hint-${side}`);
     if (!card) return;
 
-    card.classList.toggle('selectable', bothPlayed);
+    card.classList.toggle('selectable', bothHeard);
 
     if (hint) {
-      hint.textContent = bothPlayed
+      hint.textContent = bothHeard
         ? 'Tap to choose this one'
-        : (played ? 'Now play the other one' : 'Play to unlock');
+        : (heard ? 'Now listen to the other one' : 'Listen to both to unlock');
     }
   });
 }
@@ -401,21 +711,41 @@ function renderPair(pair) {
   hasPlayedA = false;
   hasPlayedB = false;
   currentPair = pair;
-  stopActiveSource();
+
+  // Stop the previous question's clip and tear down its filter chain.
+  // Leaving it running would carry the last question's gains into this one.
+  stopLivePlayback();
+  livePair = pair;
+  liveSide = 'A';
 
   ['a', 'b'].forEach(side => {
     const card = document.getElementById(`option-${side}`);
     const hint = document.getElementById(`hint-${side}`);
-    const btn = document.getElementById(`play-${side}`);
     if (card) card.classList.remove('playing', 'selectable', 'chosen');
-    if (hint) hint.textContent = 'Play to unlock';
-    if (btn) btn.disabled = false;
+    if (hint) hint.textContent = 'Listen to both to unlock';
   });
 
-  document.getElementById('status').textContent = 'Play both, then pick which you prefer.';
+  document.getElementById('status').textContent =
+    'Press play, switch between A and B, then pick one.';
 
-  const trackNameEl = document.getElementById('track-name');
-  if (trackNameEl) trackNameEl.textContent = pair.sampleLabel ? `🎵 Track: ${pair.sampleLabel}` : '';
+  // The clip name arrives as "Song — Section", so it splits into a title
+  // and the part of the song this is. Naming the section matters: a
+  // difference that is obvious in a chorus can be inaudible in an intro,
+  // and the listener deserves to know which they are judging.
+  const label = pair.sampleLabel || '';
+  const [songTitle, songSection] = label.split('—').map(s => s.trim());
+
+  const titleEl = document.getElementById('track-title');
+  if (titleEl) titleEl.textContent = songTitle || label;
+
+  const sectionEl = document.getElementById('track-section');
+  if (sectionEl) {
+    sectionEl.textContent = songSection || '';
+    sectionEl.style.display = songSection ? '' : 'none';
+  }
+
+  const timeEl = document.getElementById('track-time');
+  if (timeEl) timeEl.textContent = '0:00 / 0:00';
 
   document.getElementById('progress').innerHTML =
     `<span class="dot"></span><span>Question ${pair.question} of ${pair.totalQuestions} — ` +
@@ -430,9 +760,13 @@ function renderPair(pair) {
     warmSample(sampleForQuestion(pair.question + 1));
   }
 
+  updateSideButtons();
+
   if (autoPlayEnabled) {
-    document.getElementById('status').textContent = 'Auto-playing A, then B...';
-    playSide('A').then(() => playSide('B'));
+    // Starts the comparison on A and leaves it running. It no longer plays
+    // A then B in sequence, because there is no longer a sequence -- both
+    // are one continuous playback the listener switches between.
+    togglePlayback();
   }
 }
 
@@ -445,28 +779,96 @@ function markSidePlayed(side) {
   if (side === 'B') hasPlayedB = true;
 }
 
-async function playLocally(side) {
-  const gains = currentPair ? currentPair[side] : null;
-  const sample = currentPair ? currentPair.sample : null;
+/**
+ * Reflect the playing state in the transport controls.
+ *
+ * Kept in one place because three things call it -- start, stop and switch
+ * -- and having each set the buttons itself is how they drift apart.
+ */
+function updateSideButtons() {
+  const playBtn = document.getElementById('play-toggle');
+  if (playBtn) {
+    playBtn.textContent = isPlaying ? '❚❚ Pause' : '▶ Play';
+    playBtn.classList.toggle('is-playing', isPlaying);
+  }
 
-  if (!browserAudioSupported() || !gains || !sample) return false;
+  // A and B stay usable while paused. Switching sides with the audio
+  // stopped is a legitimate thing to do -- it sets which version the next
+  // press of play will start with.
+  const loaded = Boolean(playBuffer);
+  ['A', 'B'].forEach(side => {
+    const btn = document.getElementById('side-' + side.toLowerCase());
+    if (!btn) return;
+    btn.classList.toggle('active', liveSide === side);
+    btn.disabled = false;
+  });
+
+  const rewindBtn = document.getElementById('rewind-btn');
+  if (rewindBtn) rewindBtn.disabled = !loaded;
+
+  ['a', 'b'].forEach(letter => {
+    const card = document.getElementById('option-' + letter);
+    if (card) {
+      card.classList.toggle('playing',
+        isPlaying && liveSide === letter.toUpperCase());
+    }
+  });
+
+  if (typeof updateChoiceAvailability === 'function') {
+    updateChoiceAvailability();
+  }
+}
+
+
+/**
+ * Play or pause. The page's main transport button calls this.
+ *
+ * Pause keeps the position, so pressing play again continues from where it
+ * was rather than starting over. Rewind is a separate control precisely so
+ * that "go back to the beginning" is a deliberate act.
+ */
+async function togglePlayback() {
+  if (isPlaying) {
+    transportPause();
+    setStatus('Paused. Play to continue, or rewind to start again.');
+    return;
+  }
+
+  const sample = currentPair ? currentPair.sample : null;
+  if (!browserAudioSupported() || !currentPair || !sample) {
+    reportPlaybackFailure();
+    return;
+  }
 
   try {
     // "Loading" only when the clip still has to come off the network.
-    // Once it has been downloaded, decoding takes a moment at most, and
-    // calling that loading made a warmed clip look slower than it was.
+    // Once downloaded, decoding takes a moment at most, and calling that
+    // loading made a warmed clip look slower than it was.
     const webName = browserSampleName(sample);
     const ready = bufferCache.has(webName) || encodedCache.has(webName);
-    setStatus(ready ? 'Playing...' : 'Loading audio...');
+    if (!ready) setStatus('Loading audio...');
 
-    await playThroughBrowser(sample, gains);
-    markSidePlayed(side);
-    setStatus('Play both, then pick which you prefer.');
-    return true;
+    if (!playBuffer) {
+      await loadIntoTransport(sample, currentPair, liveSide || 'A');
+      wireTrackSeeking();
+    }
+
+    await transportPlay();
+    setStatus('Switch between A and B as it plays, then pick one.');
   } catch (err) {
     console.error('Browser playback failed:', err);
-    return false;
+    reportPlaybackFailure();
   }
+}
+
+// The rewind control. Separate from play/pause on purpose: going back to
+// the start is a decision, and folding it into play would take the position
+// away from anyone who only meant to pause.
+function rewindPlayback() {
+  transportRewind();
+  setStatus(isPlaying
+    ? 'Back to the start.'
+    : 'Back to the start. Press play when ready.');
 }
 
 /**
@@ -487,29 +889,29 @@ function reportPlaybackFailure() {
   );
 }
 
+/**
+ * Kept as the entry point the page already calls.
+ *
+ * If the comparison is running this switches side in place; if it is not,
+ * it starts playback on that side. Either way the listener gets what they
+ * asked for from one control, rather than having to press play first.
+ */
 async function playSide(side) {
-  const btn = document.getElementById(side === 'A' ? 'play-a' : 'play-b');
-  const optionCard = document.getElementById(side === 'A' ? 'option-a' : 'option-b');
-  const otherCard = document.getElementById(side === 'A' ? 'option-b' : 'option-a');
-  const original = btn.textContent;
-
-  btn.textContent = 'Playing...';
-  btn.disabled = true;
-  otherCard.classList.remove('playing');
-  optionCard.classList.add('playing');
-
-  if (!await playLocally(side)) {
-    reportPlaybackFailure();
+  if (activeSource) {
+    switchSide(side);
+    return;
   }
-
-  optionCard.classList.remove('playing');
-  btn.textContent = original;
-  btn.disabled = false;
-
-  updateChoiceAvailability();
+  liveSide = side;
+  await togglePlayback();
 }
 
 async function chooseSide(side) {
+  // Silence first. Playback loops, so without this the previous question's
+  // clip keeps running underneath the next one being set up -- and if the
+  // answer fails to save, the listener is left with audio playing against a
+  // question they have already answered.
+  stopLivePlayback();
+
   document.getElementById('status').textContent = 'Saving your answer...';
 
   const res = await apiPost(API.testAnswer, { preferred: side });

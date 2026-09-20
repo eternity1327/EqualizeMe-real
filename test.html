@@ -292,6 +292,145 @@
         min-height: 20px;
       }
 
+      /* ---- Transport: one playback, switch A/B in place ---- */
+
+      .transport {
+        background: var(--pill-bg);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+
+      .track-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .track-id {
+        display: flex;
+        align-items: baseline;
+        gap: 9px;
+        min-width: 0;
+      }
+
+      .track-title {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Which part of the song this is. A difference obvious in a chorus
+         can be inaudible in an intro, so it is worth saying. */
+      .track-section {
+        flex: none;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 3px 10px;
+      }
+
+      .track-time {
+        flex: none;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Height fixed in CSS; the canvas resizes its own backing store to
+         match, so the drawing is not stretched on one screen and squashed
+         on another. */
+      .waveform {
+        display: block;
+        width: 100%;
+        height: 110px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        touch-action: none;   /* so dragging seeks instead of scrolling */
+      }
+
+      /* Prefixed with .test-panel on purpose. The base rule above is
+         `.test-panel button { width: 100% }` -- one class and one element,
+         which outranks a bare class. Without the prefix these widths lose,
+         the rewind button stretches across the whole row and the A/B
+         switch is pushed off the edge of the card. */
+      .test-panel .transport-btn {
+        flex: none;
+        width: 52px;
+        margin: 0 !important;
+        padding: 11px 0 !important;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 1rem !important;
+      }
+
+      .test-panel .transport-btn:disabled { opacity: 0.35; }
+
+      .transport-controls {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .test-panel .transport-play {
+        flex: 1;
+        width: auto;
+        margin: 0 !important;
+      }
+
+      .ab-switch {
+        flex: none;
+        display: flex;
+        gap: 6px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 5px;
+      }
+
+      .test-panel .ab-btn {
+        width: 56px;
+        padding: 10px 0 !important;
+        margin: 0 !important;
+        border-radius: 8px !important;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 1rem !important;
+        font-weight: 700 !important;
+      }
+
+      .test-panel .ab-btn.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #161a23;
+      }
+
+      .test-panel .ab-btn:disabled { opacity: 0.35; }
+
+      .transport-hint {
+        text-align: center;
+        margin-bottom: 20px !important;
+        font-size: 0.85rem;
+      }
+
+      /* Without the play buttons these are labels rather than controls, so
+         they sit lower and lighter than before. */
+      .pair .option { padding: 18px 16px; }
+
       #done-screen { display: none; }
       #test-screen { display: none; }
 
@@ -418,34 +557,54 @@
             <span>Starting test...</span>
           </div>
           <h1>Which do you prefer?</h1>
-          <p class="subtext">Play both, listen closely, then pick the one that
-            sounds better to you.</p>
-          <p class="subtext" id="track-name" style="margin-top:-24px;"></p>
+          <p class="subtext">The song keeps playing while you switch between A
+            and B, so you can hear the difference in the same moment of music.</p>
+          <!-- One transport, not two players. The file plays through once
+               and the A/B buttons change the filter in place. -->
+          <div class="transport">
+
+            <div class="track-header">
+              <div class="track-id">
+                <span class="track-title" id="track-title"></span>
+                <span class="track-section" id="track-section"></span>
+              </div>
+              <span class="track-time" id="track-time">0:00 / 0:00</span>
+            </div>
+
+            <!-- The whole file, drawn once. Click or drag to move the
+                 playhead. -->
+            <canvas id="waveform" class="waveform"
+              title="Click anywhere to jump to that point"></canvas>
+
+            <div class="transport-controls">
+              <button class="play-btn transport-btn" id="rewind-btn" disabled
+                onclick="rewindPlayback()" title="Back to the start">⏮</button>
+
+              <button class="play-btn transport-play" id="play-toggle"
+                onclick="togglePlayback()">▶ Play</button>
+
+              <div class="ab-switch">
+                <button class="ab-btn" id="side-a"
+                  onclick="playSide('A')">A</button>
+                <button class="ab-btn" id="side-b"
+                  onclick="playSide('B')">B</button>
+              </div>
+            </div>
+          </div>
+
+          <p class="subtext transport-hint">Switch back and forth a few times.
+            Pick whichever you would rather keep listening to.</p>
 
           <div class="pair">
             <div class="option" id="option-a">
               <div class="label">A</div>
               <div class="tag">Sample A</div>
-              <div class="meter">
-                <div class="bar"></div><div class="bar"></div><div
-                  class="bar"></div><div class="bar"></div><div
-                  class="bar"></div>
-              </div>
-              <button class="play-btn" id="play-a" onclick="playSide('A')">▶
-                Play A</button>
-              <div class="prefer-hint" id="hint-a">Play to unlock</div>
+              <div class="prefer-hint" id="hint-a">Listen to both to unlock</div>
             </div>
             <div class="option" id="option-b">
               <div class="label">B</div>
               <div class="tag">Sample B</div>
-              <div class="meter">
-                <div class="bar"></div><div class="bar"></div><div
-                  class="bar"></div><div class="bar"></div><div
-                  class="bar"></div>
-              </div>
-              <button class="play-btn" id="play-b" onclick="playSide('B')">▶
-                Play B</button>
-              <div class="prefer-hint" id="hint-b">Play to unlock</div>
+              <div class="prefer-hint" id="hint-b">Listen to both to unlock</div>
             </div>
           </div>
 
@@ -467,8 +626,8 @@
       </div>
     </div>
 
-    <script src="js/script.js?v=20260907"></script>
-    <script src="js/adaptiveTest.js?v=20260907"></script>
+    <script src="js/script.js?v=20260920"></script>
+    <script src="js/adaptiveTest.js?v=20260920"></script>
     <script>
       // ===== Loading overlay: hides once the test signals it's ready =====
       (function () {
@@ -498,16 +657,18 @@
       // Wraps the existing chooseSide(...) calls (defined in adaptiveTest.js)
       // so the whole card becomes clickable once it has been played.
       (function () {
+        // No per-card play button any more. The cards are labels you choose
+        // between; playing and switching happen in the transport above them,
+        // so there is nothing inside a card to click except the card itself.
         const cards = [
-          { el: document.getElementById('option-a'), playBtn: document.getElementById('play-a'), hint: document.getElementById('hint-a'), side: 'A' },
-          { el: document.getElementById('option-b'), playBtn: document.getElementById('play-b'), hint: document.getElementById('hint-b'), side: 'B' }
+          { el: document.getElementById('option-a'), hint: document.getElementById('hint-a'), side: 'A' },
+          { el: document.getElementById('option-b'), hint: document.getElementById('hint-b'), side: 'B' }
         ];
 
         cards.forEach(card => {
-          if (!card.el || !card.playBtn) return;
+          if (!card.el) return;
 
           const onCardClick = (e) => {
-            if (e.target.closest('.play-btn')) return; // let Play still work
             if (!card.el.classList.contains('selectable')) return; // not unlocked yet
             if (typeof chooseSide === 'function') {
               chooseSide(card.side);
