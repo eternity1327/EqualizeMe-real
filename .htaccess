@@ -79,3 +79,9 @@ Options -Indexes
 <FilesMatch "^(totp_selftest|smtp_test)\.php$">
     Require all denied
 </FilesMatch>
+
+# Same for anything under tests/. These are never uploaded, but a rule
+# that only works because a directory happens to be absent is not a rule.
+<FilesMatch "_selftest\.php$">
+    Require all denied
+</FilesMatch>

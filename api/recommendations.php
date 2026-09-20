@@ -21,6 +21,7 @@ require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/preference_profile.php";
 require_once __DIR__ . "/hearing_preservation.php";
 require_once __DIR__ . "/recommend.php";
+require_once __DIR__ . "/graph_interpretation.php";
 require_once __DIR__ . "/errors.php";
 start_secure_session();
 header("Content-Type: application/json");
@@ -63,6 +64,12 @@ try {
 
     $result = rec_recommend($catalogue, $target);
 
+    // Explanation, added after the ranking is finished. Same rule as
+    // hearing_preservation below: a layer whose job is to describe the
+    // result must not be in a position to change it, so it runs on the
+    // five that were already chosen.
+    $recommendations = gi_annotate($result["recommendations"], $target);
+
     echo json_encode([
         "user_id" => $userId,
         // Kept under this key because the curve drawing and the IEM cards
@@ -81,7 +88,7 @@ try {
             "assessment_count" => $aggregated["assessment_count"],
             "dominant_share" => $aggregated["dominant_share"],
         ],
-        "recommendations" => $result["recommendations"],
+        "recommendations" => $recommendations,
         // Assembled after the ranking, so it cannot influence it even by
         // accident. Reads the target; changes nothing.
         "hearing_preservation" => hp_build($aggregated),

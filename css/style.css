@@ -626,6 +626,70 @@ body {
 }
 
 
+/* The written interpretation — what the bars above mean in words.
+   Boxed rather than left as loose text so it reads as a conclusion drawn
+   from the figures beside it, not as more marketing copy. */
+.iem-interpretation {
+
+    margin: 14px 0 4px;
+    padding: 12px 14px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: left;
+
+}
+
+
+.interp-summary {
+
+    margin: 0 0 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.45;
+    color: var(--text);
+
+}
+
+
+.interp-bands {
+
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+}
+
+
+.interp-line {
+
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+    padding-left: 11px;
+    border-left: 3px solid var(--border);
+
+}
+
+
+/* Colour carries the same judgement as the words, for anyone scanning
+   rather than reading. It is never the only signal — the sentence says
+   it too — so a reader who cannot distinguish these loses nothing. */
+.interp-line.interp-on_target { border-left-color: var(--accent-2); }
+.interp-line.interp-close { border-left-color: var(--accent); }
+.interp-line.interp-off { border-left-color: var(--border); }
+
+.interp-line.interp-far {
+
+    border-left-color: var(--text-muted);
+    opacity: 0.85;
+
+}
+
+
 .iem-description {
 
     margin: 10px 0 0;

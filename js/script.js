@@ -167,6 +167,32 @@ function buildBandMatch(bandMatch) {
   return `<div class="band-match">${rows}</div>`;
 }
 
+/**
+ * The written explanation of how this earphone differs from the target.
+ *
+ * Every sentence here was composed by api/graph_interpretation.php from a
+ * fixed table of phrases, so none of it is user-supplied — but it is
+ * escaped anyway. The day somebody puts a band label in the database is
+ * the day that stops being true, and an escape that was never needed costs
+ * nothing.
+ */
+function buildInterpretation(interpretation) {
+  if (!interpretation || !interpretation.summary) return "";
+
+  const bands = Array.isArray(interpretation.bands) ? interpretation.bands : [];
+
+  const lines = bands.map(band => `
+      <li class="interp-line interp-${escapeHtml(band.closeness)}">
+        ${escapeHtml(band.sentence)}
+      </li>`).join("");
+
+  return `
+      <div class="iem-interpretation">
+        <p class="interp-summary">${escapeHtml(interpretation.summary)}</p>
+        <ul class="interp-bands">${lines}</ul>
+      </div>`;
+}
+
 // Only http and https survive. Everything here — image sources, retailer
 // links — arrives from the IEM catalogue, which is imported from squig.link
 // rather than written by us. A "javascript:..." address in one of those
@@ -236,6 +262,7 @@ function buildIemCard(item) {
         <p class="iem-match">Match: ${escapeHtml(item.match_score)}%</p>
         <p class="price">${formatPrice(item.price)}</p>
         ${buildBandMatch(item.band_match)}
+        ${buildInterpretation(item.interpretation)}
         <div class="iem-curve-wrap" hidden>
           <canvas class="iem-curve-chart"></canvas>
           <p class="iem-description"></p>
