@@ -1,0 +1,245 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" width="1280" height="760" font-family="Segoe UI, Arial, sans-serif">
+
+  <!--
+    EqualizeME — ERD, crow's foot notation (compact).
+
+    Same eight tables as the full version, but only the columns that carry
+    meaning: keys, and the values the application actually reasons about.
+    Timestamps and housekeeping columns are left out on purpose — they are
+    in every table and tell a reader nothing about the design.
+  -->
+
+  <defs>
+    <style>
+      .hd   { fill: #f0a43a; }
+      .bx   { fill: #ffffff; stroke: #c9ced8; stroke-width: 1.5; }
+      .nm   { fill: #1b1f28; font-size: 15px; font-weight: 700; }
+      .c    { fill: #2c3240; font-size: 12.5px; }
+      .ck   { fill: #1b1f28; font-size: 12.5px; font-weight: 700; }
+      .ct   { fill: #949bab; font-size: 11px; }
+      .sep  { stroke: #eef0f4; stroke-width: 1; }
+      .r    { stroke: #5a6474; stroke-width: 1.8; fill: none; }
+      .rl   { fill: #6b7383; font-size: 11.5px; font-style: italic; }
+      /* Derived, not stored. Dashed so it cannot be mistaken for a
+         foreign key: the match is computed on each request and is never
+         written to any table. */
+      .rd   { stroke: #b07a28; stroke-width: 1.8; fill: none;
+              stroke-dasharray: 7 5; }
+      .rdl  { fill: #b07a28; font-size: 11.5px; font-style: italic; }
+      .t    { fill: #1b1f28; font-size: 23px; font-weight: 700; }
+      .st   { fill: #6b7383; font-size: 13px; }
+      .lg   { fill: #4a5261; font-size: 12.5px; }
+      .lgh  { fill: #1b1f28; font-size: 13px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="760" fill="#f7f8fa"/>
+
+  <text class="t"  x="40" y="42">EqualizeME — Entity Relationship Diagram</text>
+  <text class="st" x="40" y="66">Crow's foot notation. Key columns only.</text>
+
+
+  <!-- ─────────── users ─────────── -->
+  <rect class="bx" x="470" y="90" width="300" height="172" rx="8"/>
+  <path class="hd" d="M470 98 a8 8 0 0 1 8 -8 h284 a8 8 0 0 1 8 8 v22 h-300 z"/>
+  <text class="nm" x="484" y="112">users</text>
+  <line class="sep" x1="470" y1="120" x2="770" y2="120"/>
+  <text class="ck" x="484" y="140">PK  id</text>
+  <text class="ck" x="484" y="162">UQ  email</text>
+  <text class="c"  x="484" y="184">name</text>
+  <text class="c"  x="484" y="206">password_hash</text>
+  <text class="c"  x="484" y="228">totp_secret</text>
+  <text class="c"  x="484" y="250">terms_accepted_at</text>
+  <text class="ct" x="756" y="140" text-anchor="end">INT</text>
+  <text class="ct" x="756" y="162" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="756" y="184" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="756" y="206" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="756" y="228" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="756" y="250" text-anchor="end">DATETIME</text>
+
+
+  <!-- ─────────── settings ─────────── -->
+  <rect class="bx" x="960" y="90" width="230" height="150" rx="8"/>
+  <path class="hd" d="M960 98 a8 8 0 0 1 8 -8 h214 a8 8 0 0 1 8 8 v22 h-230 z"/>
+  <text class="nm" x="974" y="112">settings</text>
+  <line class="sep" x1="960" y1="120" x2="1190" y2="120"/>
+  <text class="ck" x="974" y="140">PK  id</text>
+  <text class="ck" x="974" y="162">FK  user_id</text>
+  <text class="c"  x="974" y="184">notifications</text>
+  <text class="c"  x="974" y="206">dark_mode</text>
+  <text class="c"  x="974" y="228">auto_play</text>
+  <text class="ct" x="1176" y="140" text-anchor="end">INT</text>
+  <text class="ct" x="1176" y="162" text-anchor="end">INT</text>
+  <text class="ct" x="1176" y="184" text-anchor="end">TINYINT</text>
+  <text class="ct" x="1176" y="206" text-anchor="end">TINYINT</text>
+  <text class="ct" x="1176" y="228" text-anchor="end">TINYINT</text>
+
+  <!-- users 1 —— 1 settings -->
+  <path class="r" d="M770 160 H960"/>
+  <line class="r" x1="792" y1="147" x2="792" y2="173"/>
+  <line class="r" x1="805" y1="147" x2="805" y2="173"/>
+  <line class="r" x1="925" y1="147" x2="925" y2="173"/>
+  <line class="r" x1="938" y1="147" x2="938" y2="173"/>
+  <text class="rl" x="828" y="153">one to one</text>
+
+
+  <!-- ─────────── auditory_profiles ─────────── -->
+  <rect class="bx" x="960" y="280" width="230" height="216" rx="8"/>
+  <path class="hd" d="M960 288 a8 8 0 0 1 8 -8 h214 a8 8 0 0 1 8 8 v22 h-230 z"/>
+  <text class="nm" x="974" y="302">auditory_profiles</text>
+  <line class="sep" x1="960" y1="310" x2="1190" y2="310"/>
+  <text class="ck" x="974" y="330">PK  id</text>
+  <text class="ck" x="974" y="352">FK  user_id</text>
+  <text class="c"  x="974" y="374">bass_gain</text>
+  <text class="c"  x="974" y="396">treble_gain</text>
+  <text class="c"  x="974" y="418">presence_gain</text>
+  <text class="c"  x="974" y="440">confidence_score</text>
+  <text class="c"  x="974" y="462">apparatus</text>
+  <text class="c"  x="974" y="484">created_at</text>
+  <text class="ct" x="1176" y="330" text-anchor="end">INT</text>
+  <text class="ct" x="1176" y="352" text-anchor="end">INT</text>
+  <text class="ct" x="1176" y="374" text-anchor="end">FLOAT</text>
+  <text class="ct" x="1176" y="396" text-anchor="end">FLOAT</text>
+  <text class="ct" x="1176" y="418" text-anchor="end">FLOAT</text>
+  <text class="ct" x="1176" y="440" text-anchor="end">FLOAT</text>
+  <text class="ct" x="1176" y="462" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="1176" y="484" text-anchor="end">TIMESTAMP</text>
+
+  <!-- users 1 —— 0..N auditory_profiles -->
+  <path class="r" d="M770 230 H870 V360 H960"/>
+  <line class="r" x1="792" y1="217" x2="792" y2="243"/>
+  <line class="r" x1="805" y1="217" x2="805" y2="243"/>
+  <circle class="r" cx="924" cy="360" r="6.5" fill="#f7f8fa"/>
+  <path class="r" d="M960 360 L938 347 M960 360 L938 360 M960 360 L938 373"/>
+  <text class="rl" x="880" y="330">one to many</text>
+
+
+  <!-- auditory_profiles >—— matched against ——< iems
+       Derived, not stored. recommendations.php scores every IEM against
+       the listener's target on each request and discards the result once
+       the response is sent. There is no foreign key and no join table,
+       which is why this line is dashed rather than solid. -->
+  <path class="rd" d="M960 430 H860 V400 H620 V480"/>
+  <circle class="rd" cx="924" cy="430" r="6.5" fill="#f7f8fa"/>
+  <path class="rd" d="M960 430 L938 417 M960 430 L938 430 M960 430 L938 443"/>
+  <circle class="rd" cx="620" cy="444" r="6.5" fill="#f7f8fa"/>
+  <path class="rd" d="M620 480 L607 458 M620 480 L620 458 M620 480 L633 458"/>
+  <text class="rdl" x="648" y="370">matched against (many to many)</text>
+  <text class="rdl" x="648" y="386">computed per request, not stored</text>
+
+
+  <!-- ─────────── password_resets ─────────── -->
+  <rect class="bx" x="60" y="90" width="230" height="150" rx="8"/>
+  <path class="hd" d="M60 98 a8 8 0 0 1 8 -8 h214 a8 8 0 0 1 8 8 v22 h-230 z"/>
+  <text class="nm" x="74" y="112">password_resets</text>
+  <line class="sep" x1="60" y1="120" x2="290" y2="120"/>
+  <text class="ck" x="74" y="140">PK  id</text>
+  <text class="ck" x="74" y="162">FK  user_id</text>
+  <text class="c"  x="74" y="184">token_hash</text>
+  <text class="c"  x="74" y="206">expires_at</text>
+  <text class="c"  x="74" y="228">used_at</text>
+  <text class="ct" x="276" y="140" text-anchor="end">INT</text>
+  <text class="ct" x="276" y="162" text-anchor="end">INT</text>
+  <text class="ct" x="276" y="184" text-anchor="end">CHAR(64)</text>
+  <text class="ct" x="276" y="206" text-anchor="end">DATETIME</text>
+  <text class="ct" x="276" y="228" text-anchor="end">DATETIME</text>
+
+  <path class="r" d="M290 150 H470"/>
+  <circle class="r" cx="326" cy="150" r="6.5" fill="#f7f8fa"/>
+  <path class="r" d="M290 150 L312 137 M290 150 L312 150 M290 150 L312 163"/>
+  <line class="r" x1="435" y1="137" x2="435" y2="163"/>
+  <line class="r" x1="448" y1="137" x2="448" y2="163"/>
+  <text class="rl" x="348" y="143">many to one</text>
+
+
+  <!-- ─────────── email_verifications ─────────── -->
+  <rect class="bx" x="60" y="300" width="230" height="150" rx="8"/>
+  <path class="hd" d="M60 308 a8 8 0 0 1 8 -8 h214 a8 8 0 0 1 8 8 v22 h-230 z"/>
+  <text class="nm" x="74" y="322">email_verifications</text>
+  <line class="sep" x1="60" y1="330" x2="290" y2="330"/>
+  <text class="ck" x="74" y="350">PK  id</text>
+  <text class="ck" x="74" y="372">FK  user_id</text>
+  <text class="c"  x="74" y="394">token_hash</text>
+  <text class="c"  x="74" y="416">expires_at</text>
+  <text class="c"  x="74" y="438">used_at</text>
+  <text class="ct" x="276" y="350" text-anchor="end">INT</text>
+  <text class="ct" x="276" y="372" text-anchor="end">INT</text>
+  <text class="ct" x="276" y="394" text-anchor="end">CHAR(64)</text>
+  <text class="ct" x="276" y="416" text-anchor="end">DATETIME</text>
+  <text class="ct" x="276" y="438" text-anchor="end">DATETIME</text>
+
+  <path class="r" d="M290 370 H380 V200 H470"/>
+  <circle class="r" cx="326" cy="370" r="6.5" fill="#f7f8fa"/>
+  <path class="r" d="M290 370 L312 357 M290 370 L312 370 M290 370 L312 383"/>
+  <line class="r" x1="435" y1="187" x2="435" y2="213"/>
+  <line class="r" x1="448" y1="187" x2="448" y2="213"/>
+
+
+  <!-- ─────────── recovery_codes ─────────── -->
+  <rect class="bx" x="60" y="510" width="230" height="128" rx="8"/>
+  <path class="hd" d="M60 518 a8 8 0 0 1 8 -8 h214 a8 8 0 0 1 8 8 v22 h-230 z"/>
+  <text class="nm" x="74" y="532">recovery_codes</text>
+  <line class="sep" x1="60" y1="540" x2="290" y2="540"/>
+  <text class="ck" x="74" y="560">PK  id</text>
+  <text class="ck" x="74" y="582">FK  user_id</text>
+  <text class="c"  x="74" y="604">code_hash</text>
+  <text class="c"  x="74" y="626">used_at</text>
+  <text class="ct" x="276" y="560" text-anchor="end">INT</text>
+  <text class="ct" x="276" y="582" text-anchor="end">INT</text>
+  <text class="ct" x="276" y="604" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="276" y="626" text-anchor="end">DATETIME</text>
+
+  <path class="r" d="M290 570 H410 V240 H470"/>
+  <circle class="r" cx="326" cy="570" r="6.5" fill="#f7f8fa"/>
+  <path class="r" d="M290 570 L312 557 M290 570 L312 570 M290 570 L312 583"/>
+  <line class="r" x1="435" y1="227" x2="435" y2="253"/>
+  <line class="r" x1="448" y1="227" x2="448" y2="253"/>
+
+
+  <!-- ─────────── iems ─────────── -->
+  <rect class="bx" x="470" y="480" width="300" height="238" rx="8"/>
+  <path class="hd" d="M470 488 a8 8 0 0 1 8 -8 h284 a8 8 0 0 1 8 8 v22 h-300 z"/>
+  <text class="nm" x="484" y="502">iems</text>
+  <line class="sep" x1="470" y1="510" x2="770" y2="510"/>
+  <text class="ck" x="484" y="530">PK  id</text>
+  <text class="ck" x="484" y="552">FK  retailer_id</text>
+  <text class="ck" x="484" y="574">UQ  brand</text>
+  <text class="ck" x="484" y="596">UQ  name</text>
+  <text class="c"  x="484" y="618">sound_signature</text>
+  <text class="c"  x="484" y="640">bass_gain</text>
+  <text class="c"  x="484" y="662">treble_gain</text>
+  <text class="c"  x="484" y="684">presence_gain</text>
+  <text class="c"  x="484" y="706">price</text>
+  <text class="ct" x="756" y="530" text-anchor="end">INT</text>
+  <text class="ct" x="756" y="552" text-anchor="end">INT</text>
+  <text class="ct" x="756" y="574" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="756" y="596" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="756" y="618" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="756" y="640" text-anchor="end">FLOAT</text>
+  <text class="ct" x="756" y="662" text-anchor="end">FLOAT</text>
+  <text class="ct" x="756" y="684" text-anchor="end">FLOAT</text>
+  <text class="ct" x="756" y="706" text-anchor="end">DECIMAL</text>
+
+
+  <!-- ─────────── retailers ─────────── -->
+  <rect class="bx" x="960" y="550" width="230" height="96" rx="8"/>
+  <path class="hd" d="M960 558 a8 8 0 0 1 8 -8 h214 a8 8 0 0 1 8 8 v22 h-230 z"/>
+  <text class="nm" x="974" y="572">retailers</text>
+  <line class="sep" x1="960" y1="580" x2="1190" y2="580"/>
+  <text class="ck" x="974" y="600">PK  retailer_id</text>
+  <text class="c"  x="974" y="622">name</text>
+  <text class="c"  x="974" y="644">product_url</text>
+  <text class="ct" x="1176" y="600" text-anchor="end">INT</text>
+  <text class="ct" x="1176" y="622" text-anchor="end">VARCHAR</text>
+  <text class="ct" x="1176" y="644" text-anchor="end">VARCHAR</text>
+
+  <!-- iems 0..N —— 0..1 retailers -->
+  <path class="r" d="M770 600 H960"/>
+  <circle class="r" cx="806" cy="600" r="6.5" fill="#f7f8fa"/>
+  <path class="r" d="M770 600 L792 587 M770 600 L792 600 M770 600 L792 613"/>
+  <circle class="r" cx="924" cy="600" r="6.5" fill="#f7f8fa"/>
+  <line class="r" x1="941" y1="587" x2="941" y2="613"/>
+  <text class="rl" x="845" y="593">sold by</text>
+
+
+</svg>

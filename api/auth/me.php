@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . "/../session.php";
 require_once __DIR__ . "/../db.php";
+require_once __DIR__ . "/../roles.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -13,7 +14,7 @@ if (!isset($_SESSION["user_id"])) {
 try {
     $pdo = get_pdo();
     $stmt = $pdo->prepare(
-        "SELECT id, name, email, terms_accepted_at FROM users WHERE id = ?"
+        "SELECT id, name, email, role, terms_accepted_at FROM users WHERE id = ?"
     );
     $stmt->execute([$_SESSION["user_id"]]);
     $user = $stmt->fetch();
@@ -33,6 +34,14 @@ try {
         // gate needs the answer before the test can start, and a second
         // request would only add a round trip to say the same thing.
         "termsAcceptedAt" => $user["terms_accepted_at"],
+
+        // A hint for the interface, not a permission. It decides whether
+        // the Admin link is drawn; it decides nothing about what the
+        // account may do. Every admin endpoint calls require_admin() for
+        // itself and would refuse an ordinary account even if this flag
+        // were forged in the browser.
+        "role" => $user["role"],
+        "isAdmin" => $user["role"] === ROLE_ADMIN,
     ]);
 } catch (PDOException $e) {
     error_log("auth/me.php: " . $e->getMessage());

@@ -35,6 +35,13 @@ const RECOVERY_VERIFY_WINDOW_SECONDS = 900;
 const UPLOAD_PICTURE_MAX_ATTEMPTS = 10;
 const UPLOAD_PICTURE_WINDOW_SECONDS = 600;
 
+// Songs are several megabytes each and land on a free hosting plan with a
+// disk quota. The limit is not about abuse -- only administrators reach
+// this endpoint -- but about a stuck retry loop or a mistaken multi-select
+// quietly filling the disk before anyone notices.
+const UPLOAD_SONG_MAX_ATTEMPTS = 12;
+const UPLOAD_SONG_WINDOW_SECONDS = 900;
+
 const RATE_LIMIT_RETENTION_SECONDS = 3600;
 
 const RATE_LIMIT_KEY_LENGTH = 32;

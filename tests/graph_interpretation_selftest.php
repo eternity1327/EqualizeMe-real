@@ -100,7 +100,7 @@ check("a shortfall keeps its minus sign",
 $band = gi_compare_band("presence_gain", 0.0, 6.5);
 check("a large excess reads as well beyond",
     $band["sentence"],
-    "Upper midrange (~2-5 kHz) is well beyond what you asked for (+6.5 dB).");
+    "Upper midrange (~2-6 kHz) is well beyond what you asked for (+6.5 dB).");
 
 
 /* ── the summary ──────────────────────────────────────────────────────── */

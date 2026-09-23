@@ -48,7 +48,11 @@ function pp_band_labels() {
 function pp_band_ranges() {
     return [
         "bass_gain" => "below ~250 Hz",
-        "presence_gain" => "~2-5 kHz",
+        // 2-6 kHz, matching PRESENCE_BAND in backend/measurement_parser.py.
+        // This read "~2-5 kHz" and the measurement did not: the label and
+        // the number it describes have to name the same band, or the page
+        // is explaining a figure it did not compute.
+        "presence_gain" => "~2-6 kHz",
         "treble_gain" => "above ~6 kHz",
     ];
 }

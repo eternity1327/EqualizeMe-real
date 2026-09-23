@@ -17,6 +17,7 @@ require_once __DIR__ . "/csrf.php";
 require_once __DIR__ . "/pre_quiz.php";
 require_once __DIR__ . "/adaptive_test.php";
 require_once __DIR__ . "/apparatus.php";
+require_once __DIR__ . "/audio_samples.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -51,4 +52,7 @@ if ($pair === null) {
     exit;
 }
 
-echo json_encode($pair);
+// The algorithm picks which sample; the database says where it is and what
+// it is called. Added here rather than inside at_next_pair() so that file
+// keeps matching the Python it was ported from.
+echo json_encode(as_decorate_pair_safely($pair));

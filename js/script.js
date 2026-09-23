@@ -1133,16 +1133,28 @@ async function updateNavAuthState() {
   const registerLink = document.getElementById("nav-register");
   const logoutLink = document.getElementById("nav-logout");
   const historyLink = document.getElementById("nav-history");
-  if (!loginLink && !registerLink && !logoutLink && !historyLink) return;
+  const adminLink = document.getElementById("nav-admin");
+  if (!loginLink && !registerLink && !logoutLink && !historyLink && !adminLink) {
+    return;
+  }
 
   try {
     const res = await fetch("api/auth/me.php");
     const loggedIn = res.ok;
+    const me = loggedIn ? await res.json() : null;
 
     if (loginLink) loginLink.style.display = loggedIn ? "none" : "";
     if (registerLink) registerLink.style.display = loggedIn ? "none" : "";
     if (logoutLink) logoutLink.style.display = loggedIn ? "" : "none";
     if (historyLink) historyLink.style.display = loggedIn ? "" : "none";
+
+    // Shown to administrators only — but hiding a link is tidiness, not
+    // security. api/admin/* checks the role on every request and answers
+    // 404 to anyone else, so typing the address gets an ordinary account
+    // nowhere.
+    if (adminLink) {
+      adminLink.style.display = me && me.isAdmin ? "" : "none";
+    }
   } catch (err) {
     console.error(err);
   }

@@ -13,6 +13,11 @@ let currentPair = null;
 
 const EQ_FILTERS = EQ_BANDS;
 
+// Used only when the server does not send a path -- an old cached copy of
+// this script talking to a new endpoint, or the reverse. The real path comes
+// from the audio_samples table; this is the shape it had before that table
+// existed, kept so a mismatch degrades to the original files rather than to
+// silence.
 const SAMPLES_BASE_URL = 'data/audio/samples/';
 
 let audioCtx = null;
@@ -34,11 +39,25 @@ async function getAudioContext() {
   return audioCtx;
 }
 
-function browserSampleName(filename) {
-  return filename.replace(/\.wav$/i, '.mp3');
+/**
+ * The URL to fetch for a pair.
+ *
+ * The server sends samplePath, read from the audio_samples table. The
+ * identifier in pair.sample is no longer a filename — it names the slot,
+ * not the file — so it is only used to rebuild the old path when no
+ * samplePath arrives.
+ */
+function samplePathFor(pair) {
+  if (pair && typeof pair.samplePath === 'string' && pair.samplePath) {
+    return pair.samplePath;
+  }
+  if (pair && typeof pair.sample === 'string') {
+    return SAMPLES_BASE_URL + pair.sample.replace(/\.wav$/i, '.mp3');
+  }
+  return null;
 }
 
-// Downloaded but not yet decoded clips, keyed by file name.
+// Downloaded but not yet decoded tracks, keyed by path.
 //
 // Kept separate from bufferCache on purpose. Decoding needs an AudioContext,
 // and a browser will not let one start until the user has interacted with
@@ -48,63 +67,98 @@ function browserSampleName(filename) {
 // the moment Play is pressed.
 const encodedCache = new Map();
 
-// One in-flight request per clip. Without this, warming a sample and then
-// pressing Play before it arrives would fetch the same 300 KB twice.
+// One in-flight request per track. Without this, warming a track and then
+// pressing Play before it arrives would download the same file twice — a
+// few hundred kilobytes wasted when these were clips, several megabytes now
+// that they are whole songs.
 const inFlight = new Map();
 
-function fetchEncoded(webName) {
-  if (encodedCache.has(webName)) {
-    return Promise.resolve(encodedCache.get(webName));
+function fetchEncoded(path) {
+  if (encodedCache.has(path)) {
+    return Promise.resolve(encodedCache.get(path));
   }
-  if (inFlight.has(webName)) {
-    return inFlight.get(webName);
+  if (inFlight.has(path)) {
+    return inFlight.get(path);
   }
 
-  const request = fetch(SAMPLES_BASE_URL + encodeURIComponent(webName))
+  // The path is used whole rather than encoded: it arrives from the server
+  // as a relative URL with its own slashes, and encoding it would turn
+  // those into %2F and ask for a file whose name contains the folder.
+  const request = fetch(path)
     .then(res => {
       if (!res.ok) {
-        throw new Error(`Could not fetch ${webName} (${res.status})`);
+        throw new Error(`Could not fetch ${path} (${res.status})`);
       }
       return res.arrayBuffer();
     })
     .then(encoded => {
-      encodedCache.set(webName, encoded);
-      inFlight.delete(webName);
+      encodedCache.set(path, encoded);
+      inFlight.delete(path);
       return encoded;
     })
     .catch(err => {
-      inFlight.delete(webName);
+      inFlight.delete(path);
       throw err;
     });
 
-  inFlight.set(webName, request);
+  inFlight.set(path, request);
   return request;
 }
 
-async function loadSample(filename) {
-  const webName = browserSampleName(filename);
+// How many decoded songs to keep in memory at once.
+//
+// Two, because that is all the flow ever needs: the question on screen and
+// the one being warmed for next. The cap exists because a decoded buffer is
+// float32 PCM, not compressed audio -- a four-minute stereo track at 48 kHz
+// occupies about 92 MB decoded, against roughly 4 MB as an MP3. Caching all
+// ten would ask the browser for nearly a gigabyte and fail on a phone.
+//
+// encodedCache is left uncapped on purpose: it holds the compressed bytes,
+// which are small, and keeping them means revisiting a song costs a decode
+// rather than a download.
+const MAX_DECODED_BUFFERS = 2;
 
-  if (bufferCache.has(webName)) {
-    return bufferCache.get(webName);
+/**
+ * Drop the oldest decoded buffers until the cache is within its cap.
+ *
+ * Map preserves insertion order, so the first key is the least recently
+ * added. Deleting it is enough — the browser reclaims the memory once
+ * nothing references the buffer, and a stopped source holds no reference.
+ */
+function trimBufferCache(keep) {
+  for (const name of bufferCache.keys()) {
+    if (bufferCache.size <= MAX_DECODED_BUFFERS) {
+      return;
+    }
+    if (name !== keep) {
+      bufferCache.delete(name);
+    }
+  }
+}
+
+async function loadSample(path) {
+  if (bufferCache.has(path)) {
+    return bufferCache.get(path);
   }
 
-  const encoded = await fetchEncoded(webName);
+  const encoded = await fetchEncoded(path);
   const ctx = await getAudioContext();
 
   // decodeAudioData detaches the ArrayBuffer it is given, which would empty
   // the cached copy and make a second decode fail. Hand it a copy.
   const buffer = await ctx.decodeAudioData(encoded.slice(0));
 
-  bufferCache.set(webName, buffer);
+  bufferCache.set(path, buffer);
+  trimBufferCache(path);
   return buffer;
 }
 
 /**
  * Start downloading and decoding a sample without waiting for it.
  *
- * Each clip is about 300 KB, and on shared hosting the round trip is
+ * A full track is a few megabytes, and on shared hosting the round trip is
  * noticeable. Fetching only when Play is pressed put that wait directly in
- * front of the listener, every time a new clip came up — which is the
+ * front of the listener, every time a new song came up — which is the
  * delay testers reported on the first play.
  *
  * loadSample() already caches by name and returns the cached buffer on a
@@ -113,27 +167,13 @@ async function loadSample(filename) {
  * again and report properly. The empty catch is to stop an unhandled
  * rejection appearing in the console for a request nobody asked for.
  */
-function warmSample(filename) {
-  if (!filename || !browserAudioSupported()) return;
+function warmSample(path) {
+  if (!path || !browserAudioSupported()) return;
   // Download only. Decoding is left for playback, because it needs an
   // AudioContext and the browser will not start one until the user has
   // interacted with the page — so a warm during the pre-quiz would
   // otherwise do nothing at all.
-  fetchEncoded(browserSampleName(filename)).catch(() => {});
-}
-
-
-/**
- * The clip a given question uses.
- *
- * Mirrors at_sample_for_question() in api/adaptive_test.php, which maps
- * question N to sampleN. Duplicating that rule here is deliberate and
- * narrow: it is only ever used to fetch ahead, so if the two ever disagree
- * the cost is a wasted download, not a wrong question. The pair the server
- * sends still decides what is actually played.
- */
-function sampleForQuestion(questionNumber) {
-  return 'sample' + questionNumber + '.wav';
+  fetchEncoded(path).catch(() => {});
 }
 
 
@@ -160,6 +200,8 @@ function stopActiveSource() {
 let liveFilters = [];      // the biquads currently in the signal path
 let liveSide = null;       // 'A' or 'B'
 let livePair = null;       // the pair being compared
+let livePath = null;       // the track in the transport, for loudness lookup
+let makeupNode = null;     // the loudness correction, last in the chain
 let waveFrame = null;      // requestAnimationFrame handle for the playhead
 
 // Gains are ramped rather than assigned. A bare `.value = x` steps the
@@ -174,6 +216,21 @@ function setSideGains(gains) {
   for (const filter of liveFilters) {
     const target = Number(gains?.[filter._gainKey] ?? 0);
     filter.gain.linearRampToValueAtTime(target, at);
+  }
+
+  // The loudness correction moves with the EQ, on the same ramp. Changing
+  // the filters without it would let the level jump on every switch, which
+  // is the bias this whole mechanism exists to remove.
+  //
+  // Read from the cache rather than awaited: prepareLoudness() measured
+  // both versions when the track loaded, so the value is already here. If
+  // it somehow is not, the correction stays where it is rather than
+  // stalling the switch.
+  if (makeupNode) {
+    const cached = loudnessCache.get(loudnessKey(livePath, gains));
+    if (typeof cached === 'number') {
+      makeupNode.gain.linearRampToValueAtTime(cached, at);
+    }
   }
 }
 
@@ -214,6 +271,191 @@ function playbackPosition() {
   return Math.max(0, Math.min(playBuffer.duration, raw));
 }
 
+/* ──────────────────────────── loudness matching ─────────────────────────
+ *
+ * Why this exists.
+ *
+ * Boosting a band does not only change the tone, it adds energy — a +6 dB
+ * bass shelf makes that version measurably louder. Listeners reliably
+ * prefer the louder of two otherwise similar sounds, and they do not know
+ * that is what they are doing. Left uncorrected, part of every answer in
+ * this test would be "B was louder" rather than "B sounded better", and the
+ * profile would drift towards whichever direction happens to add energy.
+ *
+ * So each version is measured and given a compensating gain. What the
+ * listener compares is then the shape of the sound alone.
+ *
+ * The same correction handles the other loudness problem for free: songs
+ * are mastered at different levels, and without this one track would arrive
+ * noticeably louder than the last and send people reaching for the volume
+ * control mid-test.
+ */
+
+// Roughly -20 dBFS. Quiet enough that a boosted version has headroom left
+// before clipping, loud enough to be comfortable at a normal system volume.
+const TARGET_RMS = 0.1;
+
+// Measuring the whole song would be wasteful and, on a track with a quiet
+// intro or a long outro, misleading. A window from the middle is where the
+// music is densest and is what the listener will actually be judging.
+const LOUDNESS_WINDOW_SECONDS = 12;
+
+// Never trust a measurement enough to multiply by an extreme number. A
+// near-silent window would otherwise ask for a gain of eighty and blast
+// whatever follows it.
+const MIN_MAKEUP_GAIN = 0.05;
+const MAX_MAKEUP_GAIN = 4;
+
+// Leaves a sliver of headroom below full scale, so a corrected peak lands
+// just under rather than exactly at the clipping point.
+const PEAK_CEILING = 0.99;
+
+// Keyed by path plus the gains applied, because the answer depends on both.
+const loudnessCache = new Map();
+
+function loudnessKey(path, gains) {
+  return path + '|' + EQ_FILTERS
+    .map(spec => Number(gains?.[spec.gainKey] ?? 0).toFixed(2))
+    .join(',');
+}
+
+/**
+ * The slice of the track that gets measured.
+ *
+ * Centred, because the middle of a song is representative in a way the
+ * first twelve seconds often are not. A track shorter than the window is
+ * measured whole.
+ */
+function loudnessWindow(buffer) {
+  const windowLength = Math.min(
+    buffer.length,
+    Math.floor(LOUDNESS_WINDOW_SECONDS * buffer.sampleRate)
+  );
+  const start = Math.floor((buffer.length - windowLength) / 2);
+  return { start, length: windowLength };
+}
+
+/**
+ * Render that window through the given EQ and report how loud it came out.
+ *
+ * Rendered offline rather than estimated from the filter settings. The
+ * energy a shelf adds depends on how much of the signal sits in that band,
+ * which is a property of the music and not of the filter — a bass boost on
+ * a sparse acoustic track adds far less than the same boost on a kick-heavy
+ * one. Actually rendering it is the only way to know.
+ *
+ * Offline rendering runs far faster than real time, so a twelve-second
+ * window costs a fraction of a second even on a phone.
+ */
+async function measureLoudness(buffer, gains) {
+  const { start, length } = loudnessWindow(buffer);
+  const channels = buffer.numberOfChannels;
+
+  const offline = new OfflineAudioContext(channels, length, buffer.sampleRate);
+
+  const windowBuffer = offline.createBuffer(channels, length, buffer.sampleRate);
+  for (let ch = 0; ch < channels; ch++) {
+    windowBuffer.copyToChannel(
+      buffer.getChannelData(ch).subarray(start, start + length), ch);
+  }
+
+  const source = offline.createBufferSource();
+  source.buffer = windowBuffer;
+
+  // The same chain as playback, in the same order. If these ever diverge
+  // the correction would be measuring something the listener never hears.
+  let node = source;
+  for (const spec of EQ_FILTERS) {
+    const filter = offline.createBiquadFilter();
+    filter.type = spec.type;
+    filter.frequency.value = spec.frequency;
+    filter.Q.value = spec.Q;
+    filter.gain.value = Number(gains?.[spec.gainKey] ?? 0);
+    node.connect(filter);
+    node = filter;
+  }
+  node.connect(offline.destination);
+  source.start();
+
+  const rendered = await offline.startRendering();
+
+  let sumSquares = 0;
+  let peak = 0;
+  let samples = 0;
+  for (let ch = 0; ch < rendered.numberOfChannels; ch++) {
+    const data = rendered.getChannelData(ch);
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i];
+      sumSquares += v * v;
+      const a = Math.abs(v);
+      if (a > peak) peak = a;
+    }
+    samples += data.length;
+  }
+
+  return {
+    rms: samples ? Math.sqrt(sumSquares / samples) : 0,
+    peak,
+  };
+}
+
+/**
+ * The gain to apply so this version lands at the target loudness.
+ *
+ * Two limits, and the tighter one wins. The first keeps the correction
+ * sane. The second keeps it from clipping: bringing a quiet-but-peaky
+ * recording up to the target RMS can push its peaks past full scale, which
+ * would distort — and distortion is not a tonal difference, it is a defect,
+ * and the listener would hear it as one.
+ */
+function makeupGainFrom(measurement) {
+  if (!measurement || measurement.rms <= 0) {
+    return 1;
+  }
+
+  let gain = TARGET_RMS / measurement.rms;
+  gain = Math.min(MAX_MAKEUP_GAIN, Math.max(MIN_MAKEUP_GAIN, gain));
+
+  if (measurement.peak > 0) {
+    gain = Math.min(gain, PEAK_CEILING / measurement.peak);
+  }
+  return gain;
+}
+
+async function makeupGainFor(path, buffer, gains) {
+  const key = loudnessKey(path, gains);
+  if (loudnessCache.has(key)) {
+    return loudnessCache.get(key);
+  }
+
+  let gain = 1;
+  try {
+    gain = makeupGainFrom(await measureLoudness(buffer, gains));
+  } catch (err) {
+    // A failed measurement means no correction, not no audio. Unmatched
+    // levels make the test less rigorous; a thrown error makes it unusable.
+    console.warn('Loudness measurement failed; playing uncorrected.', err);
+  }
+
+  loudnessCache.set(key, gain);
+  return gain;
+}
+
+/**
+ * Measure both versions of the pair now, so switching later is instant.
+ *
+ * Done at load rather than on the first switch, because a gain that arrives
+ * a moment after the switch would be heard as the level moving — which is
+ * the exact artefact this is here to remove.
+ */
+async function prepareLoudness(path, pair) {
+  if (!pair) return;
+  await Promise.all([
+    makeupGainFor(path, playBuffer, pair.A),
+    makeupGainFor(path, playBuffer, pair.B),
+  ]);
+}
+
 /**
  * Build the signal path and start at `offset` seconds.
  *
@@ -243,7 +485,18 @@ function startSourceAt(offset) {
     node = filter;
     liveFilters.push(filter);
   }
-  node.connect(ctx.destination);
+
+  // Last in the chain, after the EQ, so it corrects what the EQ produced.
+  // Its starting value is whatever was measured for this side; 1 only if
+  // the measurement is somehow missing, which means uncorrected playback
+  // rather than silence.
+  makeupNode = ctx.createGain();
+  const measured = loudnessCache.get(
+    loudnessKey(livePath, livePair?.[liveSide]));
+  makeupNode.gain.value = typeof measured === 'number' ? measured : 1;
+
+  node.connect(makeupNode);
+  makeupNode.connect(ctx.destination);
 
   // Reaching the end is a stop, not a pause: the playhead stays at the end
   // so Play would otherwise start a new source that instantly finishes.
@@ -264,14 +517,21 @@ function startSourceAt(offset) {
   isPlaying = true;
 }
 
-async function loadIntoTransport(filename, pair, side) {
+async function loadIntoTransport(path, pair, side) {
   const ctx = await getAudioContext();
-  playBuffer = await loadSample(filename);
+  playBuffer = await loadSample(path);
   livePair = pair;
+  livePath = path;
   liveSide = side;
   positionAtStart = 0;
   startedAt = ctx.currentTime;
   isPlaying = false;
+
+  // Both versions are measured before anything plays. Waiting costs a
+  // fraction of a second once, and buys a switch that changes the tone
+  // without changing the level.
+  await prepareLoudness(path, pair);
+
   drawTrack();
 }
 
@@ -326,6 +586,8 @@ function stopLivePlayback() {
     waveFrame = null;
   }
   liveFilters = [];
+  makeupNode = null;
+  livePath = null;
   playBuffer = null;
   positionAtStart = 0;
   isPlaying = false;
@@ -403,7 +665,7 @@ function drawTrack() {
 
   g.clearRect(0, 0, w, h);
 
-  const peaks = peaksFor(browserSampleName(currentPair.sample), playBuffer);
+  const peaks = peaksFor(samplePathFor(currentPair), playBuffer);
   const pos = playbackPosition();
   const progress = playBuffer.duration ? pos / playBuffer.duration : 0;
 
@@ -552,11 +814,15 @@ async function beginQuiz() {
     container.innerHTML = data.questions.map(buildQuizQuestion).join('');
     wireQuizHighlighting(container);
 
-    // The first listening clip downloads while the questions are being
-    // answered. This is the delay testers actually hit: answering the
-    // pre-quiz takes a while, the listening test then opens, and the first
-    // Play sat waiting on a 300 KB fetch that could already have happened.
-    warmSample(sampleForQuestion(1));
+    // The first track downloads while the questions are being answered.
+    // This is the delay testers actually hit: answering the pre-quiz takes
+    // a while, the listening test then opens, and the first Play sat
+    // waiting on a fetch that could already have happened.
+    //
+    // The path is sent with the questions rather than worked out here. The
+    // filename lives in the audio_samples table now, so there is no formula
+    // left in the browser to derive it from.
+    warmSample(data.firstSamplePath);
   } catch (err) {
     container.innerHTML =
       '<p class="subtext">Could not load the questions — skipping ahead to the listening test.</p>';
@@ -751,14 +1017,16 @@ function renderPair(pair) {
     `<span class="dot"></span><span>Question ${pair.question} of ${pair.totalQuestions} — ` +
     `tuning ${paramLabels[pair.param]} (round ${pair.round} of ${pair.totalRoundsForParam})</span>`;
 
-  // Fetch this question's clip as soon as the question appears rather than
+  // Fetch this question's track as soon as the question appears rather than
   // when Play is pressed, and start the next one too. Reading the question
   // takes a few seconds; the download can happen during them instead of
   // afterwards.
-  warmSample(pair.sample);
-  if (pair.question < pair.totalQuestions) {
-    warmSample(sampleForQuestion(pair.question + 1));
-  }
+  //
+  // nextSamplePath comes from the server. The browser used to work it out by
+  // adding one to the question number and building a filename; with the
+  // filenames in the database there is nothing to add one to.
+  warmSample(samplePathFor(pair));
+  warmSample(pair.nextSamplePath);
 
   updateSideButtons();
 
@@ -834,22 +1102,21 @@ async function togglePlayback() {
     return;
   }
 
-  const sample = currentPair ? currentPair.sample : null;
-  if (!browserAudioSupported() || !currentPair || !sample) {
+  const path = samplePathFor(currentPair);
+  if (!browserAudioSupported() || !currentPair || !path) {
     reportPlaybackFailure();
     return;
   }
 
   try {
-    // "Loading" only when the clip still has to come off the network.
+    // "Loading" only when the track still has to come off the network.
     // Once downloaded, decoding takes a moment at most, and calling that
-    // loading made a warmed clip look slower than it was.
-    const webName = browserSampleName(sample);
-    const ready = bufferCache.has(webName) || encodedCache.has(webName);
+    // loading made a warmed track look slower than it was.
+    const ready = bufferCache.has(path) || encodedCache.has(path);
     if (!ready) setStatus('Loading audio...');
 
     if (!playBuffer) {
-      await loadIntoTransport(sample, currentPair, liveSide || 'A');
+      await loadIntoTransport(path, currentPair, liveSide || 'A');
       wireTrackSeeking();
     }
 

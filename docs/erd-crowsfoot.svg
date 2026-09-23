@@ -1,0 +1,399 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 1080" width="1500" height="1080" font-family="Segoe UI, Arial, sans-serif">
+
+  <!--
+    EqualizeME — Entity Relationship Diagram (crow's foot notation)
+
+    Derived from the live schema, not from an earlier design. Every column
+    listed below appears in a query in api/ or in one of the migrations in
+    sql/.
+
+    Reading the connectors:
+      ||   exactly one
+      |o   zero or one
+      -<   many  (the crow's foot)
+      o<   zero or more
+  -->
+
+  <defs>
+    <style>
+      .ent-head   { fill: #f0a43a; }
+      .ent-body   { fill: #ffffff; stroke: #c9ced8; stroke-width: 1.5; }
+      .ent-name   { fill: #1b1f28; font-size: 17px; font-weight: 700;
+                    letter-spacing: 0.4px; }
+      .col        { fill: #2c3240; font-size: 13.5px; }
+      .col-key    { fill: #1b1f28; font-size: 13.5px; font-weight: 700; }
+      .col-type   { fill: #8b93a3; font-size: 12px; }
+      .rowline    { stroke: #eef0f4; stroke-width: 1; }
+      .rel        { stroke: #5a6474; stroke-width: 2; fill: none; }
+      .crow       { stroke: #5a6474; stroke-width: 2; fill: none; }
+      .rel-label  { fill: #5a6474; font-size: 12px; font-style: italic; }
+      .title      { fill: #1b1f28; font-size: 26px; font-weight: 700; }
+      .subtitle   { fill: #6b7383; font-size: 14px; }
+      .legend     { fill: #4a5261; font-size: 13px; }
+      .legend-h   { fill: #1b1f28; font-size: 14px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="1080" fill="#f7f8fa"/>
+
+  <text class="title" x="48" y="54">EqualizeME — Entity Relationship Diagram</text>
+  <text class="subtitle" x="48" y="80">Crow's foot notation. PK = primary key, FK = foreign key, UQ = unique.</text>
+
+
+  <!-- ══════════════════ USERS ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="560" y="120" width="330" height="278" rx="8"/>
+    <path class="ent-head" d="M560 128 a8 8 0 0 1 8-8 h314 a8 8 0 0 1 8 8 v26 h-330 z"/>
+    <text class="ent-name" x="576" y="146">users</text>
+
+    <line class="rowline" x1="560" y1="154" x2="890" y2="154"/>
+    <text class="col-key"  x="576" y="174">PK  id</text>
+    <text class="col-type" x="820" y="174" text-anchor="end">INT</text>
+
+    <text class="col" x="576" y="196">name</text>
+    <text class="col-type" x="880" y="196" text-anchor="end">VARCHAR</text>
+
+    <text class="col-key" x="576" y="218">UQ  email</text>
+    <text class="col-type" x="880" y="218" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="576" y="240">password_hash</text>
+    <text class="col-type" x="880" y="240" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="576" y="262">email_verified_at</text>
+    <text class="col-type" x="880" y="262" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="576" y="284">totp_secret</text>
+    <text class="col-type" x="880" y="284" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="576" y="306">totp_confirmed_at</text>
+    <text class="col-type" x="880" y="306" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="576" y="328">totp_last_step</text>
+    <text class="col-type" x="880" y="328" text-anchor="end">BIGINT</text>
+
+    <text class="col" x="576" y="350">terms_accepted_at</text>
+    <text class="col-type" x="880" y="350" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="576" y="372">profile_picture</text>
+    <text class="col-type" x="880" y="372" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="576" y="392">created_at</text>
+    <text class="col-type" x="880" y="392" text-anchor="end">TIMESTAMP</text>
+  </g>
+
+
+  <!-- ══════════════════ SETTINGS ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="1130" y="120" width="300" height="140" rx="8"/>
+    <path class="ent-head" d="M1130 128 a8 8 0 0 1 8-8 h284 a8 8 0 0 1 8 8 v26 h-300 z"/>
+    <text class="ent-name" x="1146" y="146">settings</text>
+
+    <line class="rowline" x1="1130" y1="154" x2="1430" y2="154"/>
+    <text class="col-key"  x="1146" y="174">PK  id</text>
+    <text class="col-type" x="1420" y="174" text-anchor="end">INT</text>
+
+    <text class="col-key" x="1146" y="196">FK  user_id</text>
+    <text class="col-type" x="1420" y="196" text-anchor="end">INT</text>
+
+    <text class="col" x="1146" y="218">notifications</text>
+    <text class="col-type" x="1420" y="218" text-anchor="end">TINYINT</text>
+
+    <text class="col" x="1146" y="240">dark_mode</text>
+    <text class="col-type" x="1420" y="240" text-anchor="end">TINYINT</text>
+
+    <text class="col" x="1146" y="254">auto_play</text>
+    <text class="col-type" x="1420" y="254" text-anchor="end">TINYINT</text>
+  </g>
+
+  <!-- users 1 —— 1 settings -->
+  <g>
+    <path class="rel" d="M890 190 H1130"/>
+    <!-- exactly one, at the users end -->
+    <line class="crow" x1="912" y1="176" x2="912" y2="204"/>
+    <line class="crow" x1="926" y1="176" x2="926" y2="204"/>
+    <!-- exactly one, at the settings end -->
+    <line class="crow" x1="1094" y1="176" x2="1094" y2="204"/>
+    <line class="crow" x1="1108" y1="176" x2="1108" y2="204"/>
+    <text class="rel-label" x="960" y="182">has exactly one</text>
+  </g>
+
+
+  <!-- ══════════════════ AUDITORY_PROFILES ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="1130" y="330" width="300" height="208" rx="8"/>
+    <path class="ent-head" d="M1130 338 a8 8 0 0 1 8-8 h284 a8 8 0 0 1 8 8 v26 h-300 z"/>
+    <text class="ent-name" x="1146" y="356">auditory_profiles</text>
+
+    <line class="rowline" x1="1130" y1="364" x2="1430" y2="364"/>
+    <text class="col-key"  x="1146" y="384">PK  id</text>
+    <text class="col-type" x="1420" y="384" text-anchor="end">INT</text>
+
+    <text class="col-key" x="1146" y="406">FK  user_id</text>
+    <text class="col-type" x="1420" y="406" text-anchor="end">INT</text>
+
+    <text class="col" x="1146" y="428">bass_gain</text>
+    <text class="col-type" x="1420" y="428" text-anchor="end">FLOAT</text>
+
+    <text class="col" x="1146" y="450">treble_gain</text>
+    <text class="col-type" x="1420" y="450" text-anchor="end">FLOAT</text>
+
+    <text class="col" x="1146" y="472">presence_gain</text>
+    <text class="col-type" x="1420" y="472" text-anchor="end">FLOAT</text>
+
+    <text class="col" x="1146" y="494">confidence_score</text>
+    <text class="col-type" x="1420" y="494" text-anchor="end">FLOAT</text>
+
+    <text class="col" x="1146" y="516">apparatus</text>
+    <text class="col-type" x="1420" y="516" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="1146" y="532">created_at</text>
+    <text class="col-type" x="1420" y="532" text-anchor="end">TIMESTAMP</text>
+  </g>
+
+  <!-- users 1 —— 0..N auditory_profiles -->
+  <g>
+    <path class="rel" d="M890 300 H1010 V420 H1130"/>
+    <!-- exactly one, at the users end -->
+    <line class="crow" x1="912" y1="286" x2="912" y2="314"/>
+    <line class="crow" x1="926" y1="286" x2="926" y2="314"/>
+    <!-- zero or more, at the profiles end -->
+    <circle class="crow" cx="1094" cy="420" r="7" fill="#f7f8fa"/>
+    <path class="crow" d="M1130 420 L1108 406 M1130 420 L1108 420 M1130 420 L1108 434"/>
+    <text class="rel-label" x="1020" y="352">records</text>
+    <text class="rel-label" x="1020" y="370">zero or more</text>
+  </g>
+
+
+  <!-- ══════════════════ PASSWORD_RESETS ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="70" y="120" width="290" height="162" rx="8"/>
+    <path class="ent-head" d="M70 128 a8 8 0 0 1 8-8 h274 a8 8 0 0 1 8 8 v26 h-290 z"/>
+    <text class="ent-name" x="86" y="146">password_resets</text>
+
+    <line class="rowline" x1="70" y1="154" x2="360" y2="154"/>
+    <text class="col-key"  x="86" y="174">PK  id</text>
+    <text class="col-type" x="350" y="174" text-anchor="end">INT</text>
+
+    <text class="col-key" x="86" y="196">FK  user_id</text>
+    <text class="col-type" x="350" y="196" text-anchor="end">INT</text>
+
+    <text class="col" x="86" y="218">token_hash</text>
+    <text class="col-type" x="350" y="218" text-anchor="end">CHAR(64)</text>
+
+    <text class="col" x="86" y="240">expires_at</text>
+    <text class="col-type" x="350" y="240" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="86" y="262">used_at</text>
+    <text class="col-type" x="350" y="262" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="86" y="276">created_at</text>
+    <text class="col-type" x="350" y="276" text-anchor="end">TIMESTAMP</text>
+  </g>
+
+  <g>
+    <path class="rel" d="M360 190 H560"/>
+    <circle class="crow" cx="396" cy="190" r="7" fill="#f7f8fa"/>
+    <path class="crow" d="M360 190 L382 176 M360 190 L382 190 M360 190 L382 204"/>
+    <line class="crow" x1="524" y1="176" x2="524" y2="204"/>
+    <line class="crow" x1="538" y1="176" x2="538" y2="204"/>
+    <text class="rel-label" x="418" y="182">requests</text>
+  </g>
+
+
+  <!-- ══════════════════ EMAIL_VERIFICATIONS ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="70" y="330" width="290" height="162" rx="8"/>
+    <path class="ent-head" d="M70 338 a8 8 0 0 1 8-8 h274 a8 8 0 0 1 8 8 v26 h-290 z"/>
+    <text class="ent-name" x="86" y="356">email_verifications</text>
+
+    <line class="rowline" x1="70" y1="364" x2="360" y2="364"/>
+    <text class="col-key"  x="86" y="384">PK  id</text>
+    <text class="col-type" x="350" y="384" text-anchor="end">INT</text>
+
+    <text class="col-key" x="86" y="406">FK  user_id</text>
+    <text class="col-type" x="350" y="406" text-anchor="end">INT</text>
+
+    <text class="col" x="86" y="428">token_hash</text>
+    <text class="col-type" x="350" y="428" text-anchor="end">CHAR(64)</text>
+
+    <text class="col" x="86" y="450">expires_at</text>
+    <text class="col-type" x="350" y="450" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="86" y="472">used_at</text>
+    <text class="col-type" x="350" y="472" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="86" y="486">created_at</text>
+    <text class="col-type" x="350" y="486" text-anchor="end">TIMESTAMP</text>
+  </g>
+
+  <g>
+    <path class="rel" d="M360 400 H460 V260 H560"/>
+    <circle class="crow" cx="396" cy="400" r="7" fill="#f7f8fa"/>
+    <path class="crow" d="M360 400 L382 386 M360 400 L382 400 M360 400 L382 414"/>
+    <line class="crow" x1="524" y1="246" x2="524" y2="274"/>
+    <line class="crow" x1="538" y1="246" x2="538" y2="274"/>
+    <text class="rel-label" x="470" y="330">confirms</text>
+  </g>
+
+
+  <!-- ══════════════════ RECOVERY_CODES ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="70" y="540" width="290" height="140" rx="8"/>
+    <path class="ent-head" d="M70 548 a8 8 0 0 1 8-8 h274 a8 8 0 0 1 8 8 v26 h-290 z"/>
+    <text class="ent-name" x="86" y="566">recovery_codes</text>
+
+    <line class="rowline" x1="70" y1="574" x2="360" y2="574"/>
+    <text class="col-key"  x="86" y="594">PK  id</text>
+    <text class="col-type" x="350" y="594" text-anchor="end">INT</text>
+
+    <text class="col-key" x="86" y="616">FK  user_id</text>
+    <text class="col-type" x="350" y="616" text-anchor="end">INT</text>
+
+    <text class="col" x="86" y="638">code_hash</text>
+    <text class="col-type" x="350" y="638" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="86" y="660">used_at</text>
+    <text class="col-type" x="350" y="660" text-anchor="end">DATETIME</text>
+
+    <text class="col" x="86" y="674">created_at</text>
+    <text class="col-type" x="350" y="674" text-anchor="end">TIMESTAMP</text>
+  </g>
+
+  <g>
+    <path class="rel" d="M360 600 H480 V330 H560"/>
+    <circle class="crow" cx="396" cy="600" r="7" fill="#f7f8fa"/>
+    <path class="crow" d="M360 600 L382 586 M360 600 L382 600 M360 600 L382 614"/>
+    <line class="crow" x1="524" y1="316" x2="524" y2="344"/>
+    <line class="crow" x1="538" y1="316" x2="538" y2="344"/>
+    <text class="rel-label" x="490" y="480">holds</text>
+  </g>
+
+
+  <!-- ══════════════════ IEMS ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="560" y="620" width="330" height="340" rx="8"/>
+    <path class="ent-head" d="M560 628 a8 8 0 0 1 8-8 h314 a8 8 0 0 1 8 8 v26 h-330 z"/>
+    <text class="ent-name" x="576" y="646">iems</text>
+
+    <line class="rowline" x1="560" y1="654" x2="890" y2="654"/>
+    <text class="col-key"  x="576" y="674">PK  id</text>
+    <text class="col-type" x="880" y="674" text-anchor="end">INT</text>
+
+    <text class="col-key" x="576" y="696">FK  retailer_id</text>
+    <text class="col-type" x="880" y="696" text-anchor="end">INT</text>
+
+    <text class="col-key" x="576" y="718">UQ  brand</text>
+    <text class="col-type" x="880" y="718" text-anchor="end">VARCHAR</text>
+
+    <text class="col-key" x="576" y="740">UQ  name</text>
+    <text class="col-type" x="880" y="740" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="576" y="762">sound_signature</text>
+    <text class="col-type" x="880" y="762" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="576" y="784">bass_gain</text>
+    <text class="col-type" x="880" y="784" text-anchor="end">FLOAT</text>
+
+    <text class="col" x="576" y="806">treble_gain</text>
+    <text class="col-type" x="880" y="806" text-anchor="end">FLOAT</text>
+
+    <text class="col" x="576" y="828">presence_gain</text>
+    <text class="col-type" x="880" y="828" text-anchor="end">FLOAT</text>
+
+    <text class="col" x="576" y="850">fr_curve_json</text>
+    <text class="col-type" x="880" y="850" text-anchor="end">LONGTEXT</text>
+
+    <text class="col" x="576" y="872">description</text>
+    <text class="col-type" x="880" y="872" text-anchor="end">TEXT</text>
+
+    <text class="col" x="576" y="894">price</text>
+    <text class="col-type" x="880" y="894" text-anchor="end">DECIMAL</text>
+
+    <text class="col" x="576" y="916">image_url</text>
+    <text class="col-type" x="880" y="916" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="576" y="938">shop_link</text>
+    <text class="col-type" x="880" y="938" text-anchor="end">VARCHAR</text>
+  </g>
+
+
+  <!-- ══════════════════ RETAILERS ══════════════════ -->
+  <g>
+    <rect class="ent-body" x="1130" y="620" width="300" height="118" rx="8"/>
+    <path class="ent-head" d="M1130 628 a8 8 0 0 1 8-8 h284 a8 8 0 0 1 8 8 v26 h-300 z"/>
+    <text class="ent-name" x="1146" y="646">retailers</text>
+
+    <line class="rowline" x1="1130" y1="654" x2="1430" y2="654"/>
+    <text class="col-key"  x="1146" y="674">PK  retailer_id</text>
+    <text class="col-type" x="1420" y="674" text-anchor="end">INT</text>
+
+    <text class="col" x="1146" y="696">name</text>
+    <text class="col-type" x="1420" y="696" text-anchor="end">VARCHAR</text>
+
+    <text class="col" x="1146" y="718">product_url</text>
+    <text class="col-type" x="1420" y="718" text-anchor="end">VARCHAR</text>
+  </g>
+
+  <!-- retailers 0..1 —— 0..N iems  (the join is a LEFT JOIN: retailer_id may be null) -->
+  <g>
+    <path class="rel" d="M890 700 H1130"/>
+    <!-- zero or more, at the iems end -->
+    <circle class="crow" cx="926" cy="700" r="7" fill="#f7f8fa"/>
+    <path class="crow" d="M890 700 L912 686 M890 700 L912 700 M890 700 L912 714"/>
+    <!-- zero or one, at the retailers end -->
+    <circle class="crow" cx="1094" cy="700" r="7" fill="#f7f8fa"/>
+    <line class="crow" x1="1112" y1="686" x2="1112" y2="714"/>
+    <text class="rel-label" x="952" y="692">sold by (optional)</text>
+  </g>
+
+
+  <!-- ══════════════════ LEGEND ══════════════════ -->
+  <g>
+    <rect x="70" y="740" width="420" height="230" rx="8" fill="#ffffff"
+      stroke="#c9ced8" stroke-width="1.5"/>
+    <text class="legend-h" x="92" y="772">Crow's foot notation</text>
+
+    <!-- exactly one -->
+    <line class="crow" x1="100" y1="800" x2="160" y2="800"/>
+    <line class="crow" x1="132" y1="790" x2="132" y2="810"/>
+    <line class="crow" x1="144" y1="790" x2="144" y2="810"/>
+    <text class="legend" x="178" y="805">exactly one</text>
+
+    <!-- zero or one -->
+    <line class="crow" x1="100" y1="840" x2="160" y2="840"/>
+    <circle class="crow" cx="132" cy="840" r="7" fill="#ffffff"/>
+    <line class="crow" x1="148" y1="830" x2="148" y2="850"/>
+    <text class="legend" x="178" y="845">zero or one</text>
+
+    <!-- one or more -->
+    <line class="crow" x1="100" y1="880" x2="160" y2="880"/>
+    <line class="crow" x1="126" y1="870" x2="126" y2="890"/>
+    <path class="crow" d="M160 880 L138 868 M160 880 L138 880 M160 880 L138 892"/>
+    <text class="legend" x="178" y="885">one or more</text>
+
+    <!-- zero or more -->
+    <line class="crow" x1="100" y1="920" x2="160" y2="920"/>
+    <circle class="crow" cx="120" cy="920" r="7" fill="#ffffff"/>
+    <path class="crow" d="M160 920 L138 908 M160 920 L138 920 M160 920 L138 932"/>
+    <text class="legend" x="178" y="925">zero or more</text>
+
+    <text class="col-type" x="92" y="955">The crow's foot always points at the "many" side.</text>
+  </g>
+
+
+  <!-- ══════════════════ NOTES ══════════════════ -->
+  <g>
+    <rect x="950" y="790" width="480" height="180" rx="8" fill="#fff8ec"
+      stroke="#f0a43a" stroke-width="1.5"/>
+    <text class="legend-h" x="972" y="820">Two relationships worth explaining</text>
+
+    <text class="legend" x="972" y="850">users → auditory_profiles is one-to-many, not one-to-one.</text>
+    <text class="legend" x="972" y="870">The table is an append-only history: each completed listening</text>
+    <text class="legend" x="972" y="890">test adds a row, and the profile shown is a weighted average</text>
+    <text class="legend" x="972" y="910">of them all. Rows are never overwritten.</text>
+
+    <text class="legend" x="972" y="942">iems → retailers is optional. Catalogue entries imported from</text>
+    <text class="legend" x="972" y="962">measurements have no retailer, so retailer_id may be null.</text>
+  </g>
+
+</svg>

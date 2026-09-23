@@ -15,6 +15,7 @@ require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/csrf.php";
 require_once __DIR__ . "/adaptive_test.php";
 require_once __DIR__ . "/apparatus.php";
+require_once __DIR__ . "/audio_samples.php";
 start_secure_session();
 header("Content-Type: application/json");
 
@@ -88,4 +89,6 @@ if (!empty($result["done"]) && isset($result["profile"])) {
     }
 }
 
-echo json_encode($result);
+// Adds samplePath and sampleLabel when this response carries a next pair.
+// A finished result has no "sample" and passes through unchanged.
+echo json_encode(as_decorate_pair_safely($result));

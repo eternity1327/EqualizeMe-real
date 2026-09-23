@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Admin — EqualizeME</title>
+
+    <script>if(localStorage.getItem("theme")==="dark"){document.documentElement.setAttribute("data-theme","dark");}</script>
+    <link rel="stylesheet" href="css/style.css?v=20260920">
+
+    <style>
+      .admin-intro {
+        color: var(--text-muted);
+        line-height: 1.6;
+        max-width: 720px;
+        margin: 0 auto 28px;
+        text-align: center;
+      }
+
+      .slot-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        max-width: 860px;
+        margin: 0 auto;
+      }
+
+      .slot {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px 20px;
+      }
+
+      .slot-head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+
+      .slot-number {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent-2);
+        background: var(--pill-bg);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 3px 11px;
+      }
+
+      .slot-file {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        word-break: break-all;
+      }
+
+      /* A row whose file is missing or whose path is malformed. The test
+         still runs -- audio_samples.php falls back -- but it is not
+         playing what this row says, and that should be visible here. */
+      .slot.broken { border-color: #d9534f; }
+
+      .slot-warning {
+        font-size: 0.82rem;
+        color: #d9534f;
+        margin-bottom: 12px;
+      }
+
+      .slot-fields {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .field label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 5px;
+      }
+
+      .field input[type="text"] {
+        width: 100%;
+        font-family: inherit;
+        font-size: 0.9rem;
+        padding: 9px 11px;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: var(--pill-bg);
+        color: var(--text);
+      }
+
+      .slot-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .slot-actions button {
+        font-family: inherit;
+        font-size: 0.86rem;
+        font-weight: 600;
+        padding: 9px 18px;
+        border-radius: 9px;
+        border: none;
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #161a23;
+      }
+
+      .slot-actions button.secondary {
+        background: var(--pill-bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .slot-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      .slot-status {
+        font-size: 0.82rem;
+        color: var(--text-muted);
+        min-height: 18px;
+      }
+
+      .slot-status.ok { color: var(--accent-2); }
+      .slot-status.bad { color: #d9534f; }
+
+      .slot audio { width: 100%; margin-top: 12px; }
+
+      .slot-upload { display: none; }
+
+      .admin-error {
+        max-width: 860px;
+        margin: 0 auto 20px;
+        color: #d9534f;
+        text-align: center;
+      }
+
+      @media (max-width: 620px) {
+        .slot-fields { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+
+  <!-- data-requires-login gets a signed-out visitor to the login page. It
+       does not check the role: that is done below, against the server,
+       because a page cannot be trusted to police itself. -->
+  <body data-requires-login>
+
+    <nav class="navbar">
+
+      <a href="index.html" class="logo">
+        <img src="images/logo.png" alt="EqualizeME logo" class="logo-light">
+        <img src="images/logo-dark.png" alt="EqualizeME logo" class="logo-dark">
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="test.html">Sound Test</a></li>
+        <li><a href="recommendations.html">Recommendations</a></li>
+        <li><a href="settings.html">Settings</a></li>
+      </ul>
+
+      <div class="nav-right">
+        <div class="profile-menu">
+          <button class="profile-avatar" id="profileAvatarBtn"
+            aria-haspopup="true" aria-expanded="false">👤</button>
+          <div class="dropdown" id="profileDropdown">
+            <a href="profile.html" id="nav-profile">Profile</a>
+            <a href="profile-history.html" id="nav-history" style="display:none;">History</a>
+            <a href="admin.html" id="nav-admin" style="display:none;">Admin</a>
+            <a href="login.php" id="nav-login">Login</a>
+            <a href="login.php?tab=register" id="nav-register">Register</a>
+            <a href="logout.php" id="nav-logout" class="dropdown-logout"
+              style="display:none;">Logout</a>
+          </div>
+        </div>
+      </div>
+
+      <button id="themeToggle" class="theme-toggle"
+        aria-label="Toggle dark mode">🌙</button>
+
+    </nav>
+
+    <section class="section" id="admin-section" hidden>
+
+      <h1 class="section-title">Listening test songs</h1>
+
+      <p class="admin-intro">
+        Ten slots, one per question. Upload a track and give it a title;
+        leave the section blank when the file is a whole song. Changes take
+        effect on the next test — nobody mid-test is interrupted.
+      </p>
+
+      <div class="admin-error" id="admin-error"></div>
+
+      <div class="slot-list" id="slot-list"></div>
+
+    </section>
+
+    <script src="js/script.js?v=20260920"></script>
+    <script src="js/admin.js?v=20260920"></script>
+  </body>
+</html>
