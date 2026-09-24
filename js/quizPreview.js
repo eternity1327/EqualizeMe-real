@@ -49,11 +49,15 @@ const PREVIEW_KEYWORDS = {
   pop: "pop",
 };
 
-// The clip every voicing demo plays. Short and already on the server, so
-// the preview starts almost immediately -- a full track would spend the
-// first few seconds buffering, which is most of the time anyone spends
-// listening to one of these.
+// The voicing demos play whatever the genre question last played, so the
+// listener hears the four tunings on music they just told us they like.
+// This is only the fallback for when they have not answered that question
+// yet -- short, already on the server, and starts almost immediately.
 const PREVIEW_CLIP = "data/audio/samples/sample1.mp3";
+
+// Set by the genre preview, read by the voicing previews.
+let previewTrackUrl = null;
+let previewTrackLabel = null;
 
 const PREVIEW_VOICINGS = {
   warm: { bassGain: 5, presenceGain: 0, trebleGain: -2 },
@@ -102,7 +106,14 @@ function previewVoicing(value) {
     vshape: "Punchy bass and sparkly highs",
   }[value] || "Preview";
 
-  previewPlay(PREVIEW_CLIP, gains, label, "same clip, different tuning");
+  // Whatever the genre question played, if it played anything. Hearing the
+  // four tunings on music the listener just chose beats hearing them on a
+  // clip we picked, and it stops the questionnaire jumping between two
+  // unrelated songs as you work down it.
+  const url = previewTrackUrl || PREVIEW_CLIP;
+  const subtitle = previewTrackLabel || "same clip, different tuning";
+
+  previewPlay(url, gains, label, subtitle);
 }
 
 
@@ -124,8 +135,17 @@ async function previewGenre(value) {
     return;
   }
 
+  const url = AUDIUS_HOST + "/v1/tracks/"
+    + encodeURIComponent(track.id) + "/stream";
+
+  // Remembered so the voicing question can demonstrate its four tunings on
+  // this track instead of on a clip of our choosing.
+  previewTrackUrl = url;
+  previewTrackLabel = (track.title || "Untitled")
+    + " — " + ((track.user && track.user.name) || "Audius");
+
   previewPlay(
-    AUDIUS_HOST + "/v1/tracks/" + encodeURIComponent(track.id) + "/stream",
+    url,
     null,                                   // genre previews play unprocessed
     track.title || "Untitled",
     (track.user && track.user.name) || "Audius"
@@ -189,6 +209,21 @@ function previewPlay(url, gains, title, subtitle) {
   }
 
   window.clearTimeout(previewTimer);
+
+  // Already playing this track? Change the tuning and leave the music
+  // alone. This is the same reasoning as the A/B switch in the listening
+  // test: restarting means comparing a sound against a memory of a sound,
+  // which is the comparison people are worst at. Switching in place, mid
+  // phrase, makes the difference between "warm" and "bright" obvious.
+  // Resolved before comparing: the element reports .src as an absolute URL
+  // while PREVIEW_CLIP is a relative path, so comparing them raw would
+  // never match for the local clip and it would restart on every click.
+  if (songEl.src === new URL(url, window.location.href).href && !songEl.paused) {
+    songSetGains(gains);
+    previewShow(title, subtitle);
+    previewTimer = window.setTimeout(previewStop, PREVIEW_SECONDS * 1000);
+    return;
+  }
 
   songSetGains(gains);
   songEl.src = url;

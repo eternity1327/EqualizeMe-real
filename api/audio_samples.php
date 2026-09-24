@@ -85,15 +85,61 @@ function as_fallback_path($sampleKey) {
  */
 function as_fetch_catalogue($pdo) {
     $rows = $pdo->query(
-        "SELECT sample_key, file_path, title, section
+        "SELECT id, sample_key, file_path, title, section
          FROM audio_samples
          WHERE is_active = 1"
     )->fetchAll();
 
     $catalogue = [];
     foreach ($rows as $row) {
+        $row["markers"] = [];
         $catalogue[$row["sample_key"]] = $row;
     }
+
+    return as_attach_markers($pdo, $catalogue);
+}
+
+
+/**
+ * Hang each slot's named timestamps off its catalogue entry.
+ *
+ * One query for the lot, joined in PHP. The alternative -- a query per slot
+ * -- would be ten round trips to decorate a response that already has all
+ * the ids it needs.
+ *
+ * A failure here is not fatal. Markers are a convenience for finding the
+ * chorus; a test with none still runs exactly as it did before they
+ * existed, so a missing table (the migration not yet applied) leaves the
+ * catalogue untouched rather than breaking the test.
+ */
+function as_attach_markers($pdo, $catalogue) {
+    if (!$catalogue) {
+        return $catalogue;
+    }
+
+    try {
+        $rows = $pdo->query(
+            "SELECT audio_sample_id, label, start_seconds
+             FROM audio_markers
+             ORDER BY audio_sample_id, start_seconds"
+        )->fetchAll();
+    } catch (PDOException $e) {
+        error_log("audio_samples: markers unavailable: " . $e->getMessage());
+        return $catalogue;
+    }
+
+    $byId = [];
+    foreach ($rows as $row) {
+        $byId[(int)$row["audio_sample_id"]][] = [
+            "label" => $row["label"],
+            "start" => (float)$row["start_seconds"],
+        ];
+    }
+
+    foreach ($catalogue as $key => $entry) {
+        $catalogue[$key]["markers"] = $byId[(int)$entry["id"]] ?? [];
+    }
+
     return $catalogue;
 }
 
@@ -170,6 +216,11 @@ function as_decorate_pair($pair, $catalogue) {
     $row = $catalogue[$key] ?? null;
 
     $pair["samplePath"] = as_path_for($key, $catalogue);
+
+    // Named points inside the track — Intro, Chorus, Drop — drawn as flags
+    // on the waveform and clickable to jump there. Always an array, so the
+    // browser has nothing to check before iterating.
+    $pair["markers"] = $row !== null ? ($row["markers"] ?? []) : [];
 
     // The path for the question after this one, so the browser can start
     // downloading it now. It used to work this out itself by incrementing a

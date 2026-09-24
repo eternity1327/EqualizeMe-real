@@ -67,6 +67,8 @@ function songs_list() {
                  AS UNSIGNED)"
         )->fetchAll();
 
+        $markers = songs_fetch_markers($pdo);
+
         $songs = [];
         foreach ($rows as $row) {
             $songs[] = [
@@ -76,6 +78,11 @@ function songs_list() {
                 "title" => $row["title"],
                 "section" => $row["section"],
                 "isActive" => (bool)$row["is_active"],
+                // One editable line per slot: "Intro 0:00, Chorus 1:12".
+                // A grid of add/remove rows would be the obvious design and
+                // a worse one — these are typed in while scrubbing through
+                // a song, and typing beats clicking for that.
+                "markers" => songs_markers_to_text($markers[(int)$row["id"]] ?? []),
                 // Reported rather than corrected. An administrator who
                 // typed a bad path should see that it is bad here, on the
                 // page where they can fix it, instead of discovering it as
@@ -88,6 +95,129 @@ function songs_list() {
         echo json_encode(["songs" => $songs]);
     } catch (PDOException $e) {
         fail_json(500, "Could not load the song list.", $e, "admin/songs.php");
+    }
+}
+
+
+/* ────────────────────────────── markers ───────────────────────────────── */
+
+const MARKER_LABEL_MAX = 40;
+
+// A song longer than this is not a song. The cap stops a typo like "Chorus
+// 9999" producing a marker far past the end of the track, where it would be
+// drawn off the edge of the waveform and be unreachable.
+const MARKER_MAX_SECONDS = 3600;
+
+
+function songs_fetch_markers($pdo) {
+    try {
+        $rows = $pdo->query(
+            "SELECT audio_sample_id, label, start_seconds
+             FROM audio_markers
+             ORDER BY audio_sample_id, start_seconds"
+        )->fetchAll();
+    } catch (PDOException $e) {
+        // The migration may not have been run yet. An admin page that
+        // cannot show markers is still a working admin page.
+        error_log("admin/songs.php: markers unavailable: " . $e->getMessage());
+        return [];
+    }
+
+    $byId = [];
+    foreach ($rows as $row) {
+        $byId[(int)$row["audio_sample_id"]][] = $row;
+    }
+    return $byId;
+}
+
+
+function songs_markers_to_text($rows) {
+    $parts = [];
+    foreach ($rows as $row) {
+        $seconds = (float)$row["start_seconds"];
+        $minutes = (int)floor($seconds / 60);
+        $rest = $seconds - $minutes * 60;
+
+        // Whole seconds print as 1:12, fractions as 1:12.4. Showing .00 on
+        // every marker would be noise on a field meant to be read at a
+        // glance.
+        $stamp = $rest == (int)$rest
+            ? sprintf("%d:%02d", $minutes, (int)$rest)
+            : sprintf("%d:%04.1f", $minutes, $rest);
+
+        $parts[] = $row["label"] . " " . $stamp;
+    }
+    return implode(", ", $parts);
+}
+
+
+/**
+ * Parse "Intro 0:00, Chorus 1:12.5" into rows.
+ *
+ * Returns [markers, errors]. A line that cannot be read is reported rather
+ * than dropped: silently discarding a marker the admin typed would leave
+ * them staring at a waveform wondering which of the four they got wrong.
+ *
+ * The label is whatever precedes the timestamp, so "Second chorus 2:40"
+ * works without quoting anything.
+ */
+function songs_parse_markers($text) {
+    $markers = [];
+    $errors = [];
+
+    foreach (explode(",", (string)$text) as $piece) {
+        $piece = trim($piece);
+        if ($piece === "") {
+            continue;
+        }
+
+        if (!preg_match('/^(.*?)\s+(\d+):([0-5]?\d(?:\.\d+)?)$/u', $piece, $m)) {
+            $errors[] = $piece;
+            continue;
+        }
+
+        $label = songs_clean_text($m[1], MARKER_LABEL_MAX);
+        if ($label === "") {
+            $errors[] = $piece;
+            continue;
+        }
+
+        $seconds = ((int)$m[2]) * 60 + (float)$m[3];
+        if ($seconds > MARKER_MAX_SECONDS) {
+            $errors[] = $piece;
+            continue;
+        }
+
+        $markers[] = ["label" => $label, "start" => round($seconds, 2)];
+    }
+
+    return [$markers, $errors];
+}
+
+
+/**
+ * Replace a slot's markers wholesale.
+ *
+ * Delete-then-insert rather than reconciling, because the field is a single
+ * line of text with no stable identity per marker — there is no way to tell
+ * an edited marker from a deleted one and a new one. Wrapped in the caller's
+ * transaction so a failure half way cannot leave a slot with no markers at
+ * all.
+ */
+function songs_replace_markers($pdo, $sampleId, $markers) {
+    $pdo->prepare("DELETE FROM audio_markers WHERE audio_sample_id = ?")
+        ->execute([$sampleId]);
+
+    if (!$markers) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        "INSERT INTO audio_markers (audio_sample_id, label, start_seconds)
+         VALUES (?, ?, ?)"
+    );
+    foreach ($markers as $marker) {
+        $insert->execute([$sampleId, $marker["label"], $marker["start"]]);
     }
 }
 
@@ -154,24 +284,46 @@ function songs_update() {
 
     $isActive = !empty($body["isActive"]) ? 1 : 0;
 
+    // Rejected before anything is written. Saving the title and silently
+    // dropping a mistyped marker would be the worst of both — the admin
+    // sees "Saved" and the marker is simply gone.
+    [$markers, $markerErrors] = songs_parse_markers($body["markers"] ?? "");
+    if ($markerErrors) {
+        http_response_code(400);
+        echo json_encode([
+            "error" => "Could not read " . implode("; ", $markerErrors)
+                . ". Use a label then a time, like: Intro 0:00, Chorus 1:12",
+        ]);
+        return;
+    }
+
     try {
         $pdo = get_pdo();
 
-        // WHERE on sample_key and nothing else. The slots are fixed, so an
-        // UPDATE that matches no row means the caller invented a key —
-        // which is a bad request, not a row to create.
-        $stmt = $pdo->prepare(
-            "UPDATE audio_samples
-                SET file_path = ?, title = ?, section = ?, is_active = ?
-              WHERE sample_key = ?"
-        );
-        $stmt->execute([$filePath, $title, $section, $isActive, $key]);
-
-        if ($stmt->rowCount() === 0 && !songs_key_exists($pdo, $key)) {
+        $sampleId = songs_id_for_key($pdo, $key);
+        if ($sampleId === null) {
             http_response_code(404);
             echo json_encode(["error" => "No slot called " . $key . "."]);
             return;
         }
+
+        // The row and its markers move together. Without the transaction a
+        // failure between them leaves a slot pointing at a new track with
+        // the previous track's markers on it, which is worse than either
+        // change failing outright.
+        $pdo->beginTransaction();
+
+        // WHERE on sample_key and nothing else. The slots are fixed, so
+        // there is never a row to create here.
+        $pdo->prepare(
+            "UPDATE audio_samples
+                SET file_path = ?, title = ?, section = ?, is_active = ?
+              WHERE sample_key = ?"
+        )->execute([$filePath, $title, $section, $isActive, $key]);
+
+        songs_replace_markers($pdo, $sampleId, $markers);
+
+        $pdo->commit();
 
         echo json_encode([
             "status" => "ok",
@@ -180,23 +332,31 @@ function songs_update() {
             "section" => $section,
             "filePath" => $filePath,
             "isActive" => (bool)$isActive,
+            "markerCount" => count($markers),
         ]);
     } catch (PDOException $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         fail_json(500, "Could not save the song.", $e, "admin/songs.php");
     }
 }
 
 
 /**
- * Separates "no such slot" from "saved, but nothing changed".
+ * The row id for a slot key, or null if there is no such slot.
  *
- * rowCount() returns zero for both, and they deserve different answers:
- * the first is an error, the second is a successful no-op.
+ * Looked up before the update rather than inferred from rowCount()
+ * afterwards. rowCount() returns zero both for "no such slot" and for
+ * "saved, but nothing actually changed", and those deserve different
+ * answers — the first is an error, the second is a successful no-op. The
+ * id is needed for the markers anyway.
  */
-function songs_key_exists($pdo, $key) {
-    $stmt = $pdo->prepare("SELECT 1 FROM audio_samples WHERE sample_key = ?");
+function songs_id_for_key($pdo, $key) {
+    $stmt = $pdo->prepare("SELECT id FROM audio_samples WHERE sample_key = ?");
     $stmt->execute([$key]);
-    return (bool)$stmt->fetchColumn();
+    $id = $stmt->fetchColumn();
+    return $id === false ? null : (int)$id;
 }
 
 

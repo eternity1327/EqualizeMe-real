@@ -696,10 +696,102 @@ function drawTrack() {
     g.fillText(formatTime(t), x + 3 * dpr, h - 1 * dpr);
   }
 
+  drawMarkers(g, w, h, dpr, played, ink);
+
   const timeEl = document.getElementById('track-time');
   if (timeEl) {
     timeEl.textContent = formatTime(pos) + ' / ' + formatTime(playBuffer.duration);
   }
+}
+
+/* ────────────────────────── section markers ───────────────────────────── */
+
+// The flag sits at the top of the waveform, out of the way of the second
+// ticks along the bottom.
+const MARKER_FLAG_HEIGHT = 17;
+const MARKER_PADDING = 5;
+
+/**
+ * Where each marker sits, in canvas pixels.
+ *
+ * Shared by the drawing and the hit testing, so a flag is always clickable
+ * exactly where it appears. Computing it twice is how those two drift apart
+ * and a marker ends up responding a few pixels to the left of itself.
+ */
+function markerBoxes(canvasWidth, dpr, measure) {
+  if (!currentPair || !playBuffer || !playBuffer.duration) return [];
+
+  const markers = Array.isArray(currentPair.markers) ? currentPair.markers : [];
+
+  return markers.map(marker => {
+    const start = Math.max(0, Math.min(playBuffer.duration, Number(marker.start) || 0));
+    const x = (start / playBuffer.duration) * canvasWidth;
+    const textWidth = measure(marker.label || '');
+    const boxWidth = textWidth + MARKER_PADDING * 2 * dpr;
+
+    // Nudged back inside at the right-hand edge, so a marker near the end
+    // of the song does not have half its label cut off by the canvas.
+    const left = Math.min(x, canvasWidth - boxWidth);
+
+    return {
+      label: marker.label || '',
+      start,
+      x,
+      left: Math.max(0, left),
+      width: boxWidth,
+      height: MARKER_FLAG_HEIGHT * dpr,
+    };
+  });
+}
+
+function drawMarkers(g, w, h, dpr, accent, ink) {
+  g.font = (10 * dpr) + 'px Arial';
+  const boxes = markerBoxes(w, dpr, text => g.measureText(text).width);
+  if (!boxes.length) return;
+
+  g.textBaseline = 'middle';
+
+  for (const box of boxes) {
+    // A full-height line first: the flag says what this is, the line says
+    // precisely where. Without it a label two pixels wide at the edge of
+    // its box looks like it marks the wrong moment.
+    g.globalAlpha = 0.45;
+    g.fillStyle = accent;
+    g.fillRect(box.x - dpr / 2, 0, dpr, h);
+    g.globalAlpha = 1;
+
+    g.fillStyle = accent;
+    g.fillRect(box.left, 0, box.width, box.height);
+
+    g.fillStyle = '#161a23';
+    g.fillText(box.label, box.left + MARKER_PADDING * dpr, box.height / 2);
+  }
+}
+
+/**
+ * The marker under a click, if any.
+ *
+ * Checked before the seek, because a flag and the waveform beneath it
+ * occupy the same pixels and the flag should win — clicking the word
+ * "Chorus" should go to the chorus, not to whatever point on the timeline
+ * the word happens to be drawn over.
+ */
+function markerAt(canvas, clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  const x = (clientX - rect.left) * (canvas.width / rect.width);
+  const y = (clientY - rect.top) * (canvas.height / rect.height);
+
+  const g = canvas.getContext('2d');
+  g.font = (10 * dpr) + 'px Arial';
+
+  for (const box of markerBoxes(canvas.width, dpr, t => g.measureText(t).width)) {
+    if (y <= box.height && x >= box.left && x <= box.left + box.width) {
+      return box;
+    }
+  }
+  return null;
 }
 
 function startPlayheadLoop() {
@@ -734,11 +826,31 @@ function wireTrackSeeking() {
   };
 
   canvas.addEventListener('pointerdown', event => {
+    if (!playBuffer) return;
+
+    // A marker takes the click if the press landed on one. Note it does
+    // NOT capture the pointer: capturing would turn a tap on a flag into
+    // the start of a drag, and dragging away from it would scrub the
+    // waveform — which is the opposite of what tapping a label means.
+    const marker = markerAt(canvas, event.clientX, event.clientY);
+    if (marker) {
+      transportSeek(marker.start);
+      setStatus('Jumped to ' + marker.label + '.');
+      return;
+    }
+
     canvas.setPointerCapture(event.pointerId);
     seekFromEvent(event);
   });
   canvas.addEventListener('pointermove', event => {
-    if (event.buttons === 1) seekFromEvent(event);
+    if (event.buttons === 1) {
+      seekFromEvent(event);
+      return;
+    }
+    // A pointer cursor over a flag, the default arrow elsewhere, so the
+    // markers look clickable before anyone tries.
+    canvas.style.cursor =
+      markerAt(canvas, event.clientX, event.clientY) ? 'pointer' : '';
   });
 }
 

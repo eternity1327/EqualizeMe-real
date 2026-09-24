@@ -902,16 +902,16 @@
          than a stale file: songSearch.js gained songSetGains() under an
          unchanged marker once, and the console reported it as undefined
          while the server was serving the correct copy all along. -->
-    <script src="js/script.js?v=20260924b"></script>
-    <script src="js/adaptiveTest.js?v=20260924b"></script>
+    <script src="js/script.js?v=20260924c"></script>
+    <script src="js/adaptiveTest.js?v=20260924c"></script>
     <!-- Loaded last and depended on by nothing. It reads EQ_BANDS and
          escapeHtml() from script.js, and showDoneScreen() calls into it
          only if it is present. -->
-    <script src="js/songSearch.js?v=20260924b"></script>
+    <script src="js/songSearch.js?v=20260924c"></script>
     <!-- Depends on songSearch.js for the shared audio graph, so it loads
          after it. Also optional: wireQuizHighlighting() checks that
          quizPreview() exists before calling it. -->
-    <script src="js/quizPreview.js?v=20260924b"></script>
+    <script src="js/quizPreview.js?v=20260924d"></script>
     <script>
       // ===== Loading overlay: hides once the test signals it's ready =====
       (function () {

@@ -128,6 +128,14 @@ function buildSlot(song) {
         </div>
       </div>
 
+      <div class="field slot-markers-field">
+        <label>Markers — label then time, separated by commas</label>
+        <input type="text" class="slot-markers" value="${escapeHtml(song.markers || "")}"
+          placeholder="Intro 0:00, Verse 0:34, Chorus 1:12">
+        <p class="field-hint">These appear as flags on the waveform during
+          the test. Clicking one jumps the playhead there.</p>
+      </div>
+
       <div class="slot-actions">
         <button class="slot-save">Save</button>
         <button class="slot-choose secondary">Replace audio</button>
@@ -177,6 +185,7 @@ function wireSlot(song) {
 async function saveSlot(el, song, say) {
   const title = el.querySelector(".slot-title").value;
   const section = el.querySelector(".slot-section").value;
+  const markers = el.querySelector(".slot-markers").value;
 
   say("Saving...");
 
@@ -188,6 +197,7 @@ async function saveSlot(el, song, say) {
         sampleKey: song.sampleKey,
         title,
         section,
+        markers,
         filePath: el.dataset.newPath || song.filePath,
         isActive: true,
       }),
