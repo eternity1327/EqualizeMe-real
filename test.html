@@ -434,6 +434,250 @@
       #done-screen { display: none; }
       #test-screen { display: none; }
 
+      /* ── The pre-quiz preview panel ───────────────────────────────── */
+      /*
+         Fixed to the corner rather than inline with the options, for two
+         reasons: the questions are a scrolling list and an inline player
+         would move as you answer, and a panel that stays put reads as one
+         thing that changes rather than four things that appear.
+      */
+      .quiz-preview {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 40;
+
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 330px;
+        padding: 12px 14px;
+
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        box-shadow: 0 14px 34px -12px var(--shadow-color);
+
+        /* Slides out of the way rather than vanishing, and is unclickable
+           while hidden so the stop button cannot be hit by accident. */
+        opacity: 0;
+        transform: translateY(14px);
+        pointer-events: none;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+      }
+
+      .quiz-preview.is-open {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+
+      .qp-bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 22px;
+        flex: none;
+      }
+
+      .qp-bars span {
+        width: 4px;
+        height: 30%;
+        border-radius: 2px;
+        background: var(--accent);
+        animation: qp-levels 0.9s ease-in-out infinite;
+      }
+
+      .qp-bars span:nth-child(2) { animation-delay: 0.12s; }
+      .qp-bars span:nth-child(3) { animation-delay: 0.24s; }
+      .qp-bars span:nth-child(4) { animation-delay: 0.06s; }
+
+      @keyframes qp-levels {
+        0%, 100% { height: 30%; }
+        50% { height: 100%; }
+      }
+
+      .qp-text { min-width: 0; }
+
+      .qp-title {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: var(--text);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .qp-sub {
+        font-size: 0.76rem;
+        color: var(--text-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .qp-stop {
+        flex: none;
+        margin-left: auto;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        background: var(--pill-bg);
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        line-height: 1;
+      }
+
+      .qp-stop:hover { color: var(--text); }
+
+      @media (max-width: 560px) {
+        .quiz-preview { right: 12px; left: 12px; bottom: 12px; max-width: none; }
+      }
+
+      /* ── Hear your profile on any song ────────────────────────────── */
+
+      #song-search {
+        margin: 28px 0 24px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        text-align: left;
+      }
+
+      .song-heading {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0 0 6px;
+        color: var(--text);
+      }
+
+      .song-intro { margin-bottom: 16px !important; font-size: 0.9rem; }
+
+      .song-form {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .song-form input {
+        flex: 1;
+        font-family: inherit;
+        font-size: 0.92rem;
+        padding: 11px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--pill-bg);
+        color: var(--text);
+      }
+
+      .test-panel .song-go {
+        flex: none;
+        width: auto;
+        margin: 0 !important;
+        padding: 11px 22px !important;
+      }
+
+      .song-status {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        min-height: 18px;
+        margin-bottom: 8px;
+        line-height: 1.5;
+      }
+
+      .song-status.bad { color: var(--danger); }
+
+      /* Capped and scrollable: eight results should not push the
+         Recommendations button off the bottom of the screen. */
+      .song-results {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 260px;
+        overflow-y: auto;
+      }
+
+      .test-panel .song-result {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 2px 12px;
+        width: 100%;
+        text-align: left;
+        margin: 0 !important;
+        padding: 10px 14px !important;
+        background: var(--pill-bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-weight: 400 !important;
+      }
+
+      .test-panel .song-result:hover { border-color: var(--accent); }
+
+      .song-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .song-artist {
+        grid-column: 1;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+
+      .song-length {
+        grid-row: 1 / span 2;
+        grid-column: 2;
+        align-self: center;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .song-player { margin-top: 16px; }
+
+      .song-now-playing {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text);
+        min-height: 20px;
+        margin-bottom: 10px;
+      }
+
+      .song-controls {
+        display: flex;
+        gap: 10px;
+      }
+
+      .test-panel .song-transport {
+        flex: 1;
+        width: auto;
+        margin: 0 !important;
+      }
+
+      /* The A/B of this section: profile applied, or flat. Styled as a
+         toggle rather than two buttons so it is obvious that one state is
+         always active. */
+      .test-panel .song-eq {
+        flex: none;
+        width: auto;
+        margin: 0 !important;
+        padding: 11px 20px !important;
+        background: var(--pill-bg);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+      }
+
+      .test-panel .song-eq.is-on {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        border-color: transparent;
+        color: #161a23;
+      }
+
       #done-screen .profile-line {
         text-align: left;
         font-size: 0.9rem;
@@ -510,34 +754,21 @@
           <p class="subtext">Use headphones or IEMs if you can, and keep your
             volume consistent throughout.</p>
 
-          <button class="play-btn" id="start-test-btn" onclick="beginConsent()">Get
+          <button class="play-btn" id="start-test-btn" onclick="beginQuiz()">Get
             Started</button>
         </div>
 
-        <div id="consent-screen" style="display:none;">
-          <div class="readout"><span class="dot"></span><span>Before we
-              begin</span></div>
-          <h1>What are you listening through?</h1>
+        <!-- The whole "before we begin" screen was removed on request: first
+             the terms block, then the apparatus question with it. Get Started
+             now opens the six written questions directly.
 
-          <!-- The terms and conditions step was removed from this screen on
-               request. api/terms.php and users.terms_accepted_at are left in
-               place, unused, so it can be restored by putting this markup
-               back rather than rebuilding the endpoint and the column. The
-               removed block is in git history. -->
-
-          <div id="consent-apparatus">
-            <!-- The heading above already asks the question. This line only
-                 says why it is being asked. -->
-            <p class="subtext">This is recorded with your result so repeat
-              tests can be compared fairly. It does not change the test
-              itself.</p>
-            <div id="apparatus-options"></div>
-          </div>
-
-          <div id="consent-error"></div>
-          <button class="play-btn" id="consent-continue-btn"
-            onclick="acceptConsent()">Continue</button>
-        </div>
+             Nothing was deleted behind it. api/terms.php,
+             users.terms_accepted_at, api/apparatus.php and
+             auditory_profiles.apparatus are all still in place and still
+             work; they simply have nothing feeding them, so apparatus is
+             recorded as NULL. Restoring the step is putting this markup
+             back, not rebuilding the endpoints. The removed block is in git
+             history. -->
 
         <div id="quiz-screen">
           <div class="readout"><span class="dot"></span><span>Step 1 of 2 —
@@ -620,16 +851,67 @@
           <p class="subtext">This is the EQ curve we learned from your
             answers.</p>
           <div class="profile-line" id="profile-output"></div>
+
+          <!-- Deliberately after the profile, not inside the test.
+               The ten questions use curated tracks because a measuring
+               instrument needs controlled material — one listener's result
+               is only comparable to another's if both heard the same thing.
+               Once the profile exists that no longer applies, and hearing
+               it on music the listener chose is the clearest demonstration
+               of what it actually means.
+
+               Hidden until a profile exists, and hidden for good if
+               js/songSearch.js fails to load. Nothing above depends on it. -->
+          <div id="song-search" hidden>
+            <h2 class="song-heading">Hear it on any song</h2>
+            <p class="subtext song-intro">Search the Audius catalogue of
+              independent music and play anything with your profile applied.
+              Switch to flat to hear the difference.</p>
+
+            <form class="song-form" onsubmit="songSearch(event)">
+              <input type="text" id="song-query" placeholder="A song, artist, genre or mood"
+                autocomplete="off">
+              <button type="submit" class="play-btn song-go">Search</button>
+            </form>
+
+            <div class="song-status" id="song-status"></div>
+            <div class="song-results" id="song-results"></div>
+
+            <div class="song-player">
+              <div class="song-now-playing" id="song-now-playing"></div>
+              <div class="song-controls">
+                <button class="play-btn song-transport" id="song-play-toggle"
+                  onclick="songTogglePlay()" disabled>▶ Play</button>
+                <button class="song-eq is-on" id="song-eq-toggle"
+                  onclick="songToggleEq()">Your profile</button>
+              </div>
+            </div>
+          </div>
+
           <button class="play-btn"
-            onclick="window.location.href='recommendations.html'">See
+            onclick="songStop(); window.location.href='recommendations.html';">See
             Recommendations</button>
         </div>
 
       </div>
     </div>
 
-    <script src="js/script.js?v=20260920"></script>
-    <script src="js/adaptiveTest.js?v=20260920"></script>
+    <!-- Bump the ?v= on EVERY file that changed, every time. A file edited
+         after it has already been served under a given marker will be read
+         from cache, and the failure looks like a missing function rather
+         than a stale file: songSearch.js gained songSetGains() under an
+         unchanged marker once, and the console reported it as undefined
+         while the server was serving the correct copy all along. -->
+    <script src="js/script.js?v=20260924b"></script>
+    <script src="js/adaptiveTest.js?v=20260924b"></script>
+    <!-- Loaded last and depended on by nothing. It reads EQ_BANDS and
+         escapeHtml() from script.js, and showDoneScreen() calls into it
+         only if it is present. -->
+    <script src="js/songSearch.js?v=20260924b"></script>
+    <!-- Depends on songSearch.js for the shared audio graph, so it loads
+         after it. Also optional: wireQuizHighlighting() checks that
+         quizPreview() exists before calling it. -->
+    <script src="js/quizPreview.js?v=20260924b"></script>
     <script>
       // ===== Loading overlay: hides once the test signals it's ready =====
       (function () {

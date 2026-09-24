@@ -793,6 +793,17 @@ function wireQuizHighlighting(container) {
       group.querySelectorAll('.quiz-option').forEach(option => {
         option.classList.toggle('picked', option.querySelector('input').checked);
       });
+
+      // Play what the chosen answer sounds like, where that means
+      // anything. Guarded because js/quizPreview.js is optional -- the
+      // questionnaire works perfectly well in silence, and a missing file
+      // should not take the test down with it.
+      if (typeof quizPreview !== 'function') return;
+
+      const picked = group.querySelector('input:checked');
+      if (picked) {
+        quizPreview(group.dataset.questionId, picked.value);
+      }
     });
   });
 }
@@ -852,56 +863,30 @@ async function submitQuiz() {
   }
   errorEl.textContent = '';
 
+  // Leaving the questionnaire with a preview still playing would put it
+  // underneath the listening test, which is the one place on this site
+  // where stray audio actually corrupts the result.
+  if (typeof previewStop === 'function') previewStop();
+
   document.getElementById('quiz-screen').style.display = 'none';
   await beginTest(answers);
 }
 
-/* ───────────────────────── consent and apparatus ──────────────────────── */
+/* ───────────────────────────── apparatus ──────────────────────────────── */
 
-// Chosen at the start of each test and sent with the first request. Not
-// remembered between tests on purpose: people change headphones, and a
-// value carried over would quietly mislabel the next sitting.
+// What the listener said they were wearing, sent with the first request of
+// a test and stored alongside the result.
+//
+// Always null now. The screen that asked was removed on request, and this
+// is deliberately left in place rather than torn out: startTest() sends it,
+// api/test-start.php remembers it, and auditory_profiles.apparatus stores
+// it, so the whole path still works and simply records "not stated". Ripping
+// it out would mean editing four files and a table to achieve exactly the
+// same stored value.
+//
+// To bring the question back, restore the markup in test.html and set this
+// from it. Nothing else has to change.
 let selectedApparatus = null;
-
-const APPARATUS_CHOICES = [
-  ['iem', 'In-ear monitors (wired)'],
-  ['earbuds', 'Wireless earbuds'],
-  ['headphones', 'Over-ear or on-ear headphones'],
-  ['other', 'Something else, or not sure'],
-];
-
-async function beginConsent() {
-  document.getElementById('track-picker').style.display = 'none';
-  document.getElementById('consent-screen').style.display = 'block';
-
-  document.getElementById('apparatus-options').innerHTML =
-    APPARATUS_CHOICES.map(([value, label]) => `
-      <label class="quiz-option">
-        <input type="radio" name="apparatus" value="${value}">
-        <span>${label}</span>
-      </label>`).join('');
-
-  // The terms step was removed from this screen on request. What remains
-  // is the apparatus question, which is asked every test because the answer
-  // genuinely can change between sittings.
-}
-
-async function acceptConsent() {
-  const errorEl = document.getElementById('consent-error');
-
-  const picked = document.querySelector('input[name="apparatus"]:checked');
-  if (!picked) {
-    errorEl.textContent = 'Please say what you are listening through.';
-    return;
-  }
-
-  errorEl.textContent = '';
-  selectedApparatus = picked.value;
-
-  document.getElementById('consent-screen').style.display = 'none';
-  beginQuiz();
-}
-
 
 async function beginTest(quizAnswers) {
   document.getElementById('track-picker').style.display = 'none';
@@ -1221,6 +1206,13 @@ function showDoneScreen(profile, confidence, precision) {
   }
 
   document.getElementById('profile-output').textContent = lines.join('\n');
+
+  // Reveals the song search and gives it the gains to apply. Guarded
+  // because js/songSearch.js is optional — if it failed to load, or the
+  // page does not include it, the results screen is unaffected.
+  if (typeof songSetProfile === 'function') {
+    songSetProfile(profile);
+  }
 
   notifyTestComplete();
 }

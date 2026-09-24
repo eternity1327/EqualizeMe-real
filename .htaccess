@@ -47,7 +47,29 @@
     # img-src has to allow https: generally — IEM artwork is hosted by the
     # retailers, not by us. data: is there for the QR code, which is drawn
     # into a canvas and read back as a data URI.
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    #
+    # connect-src and media-src differ on purpose, and the difference is
+    # the whole security argument for this feature.
+    #
+    # connect-src stays narrow: 'self' plus the Audius discovery API, which
+    # is what the song search talks to. This is the directive that decides
+    # where an injected script could SEND data, so it is the one worth
+    # defending. A stolen session or a scraped profile has to leave over a
+    # connection, and this list is short enough to audit.
+    #
+    # media-src allows https: generally, which sounds worse than it is.
+    # Audius is decentralised: a stream request redirects to whichever
+    # content node holds the file, on domains run by independent operators
+    # (audius-creator-12.theblueprint.xyz was the one we hit first). There
+    # is no fixed list to allow. media-src only governs where audio may be
+    # LOADED from — it grants no ability to send anything anywhere, and the
+    # worst an injection could do with it is play a sound.
+    #
+    # Note this also requires the audio element to carry
+    # crossOrigin="anonymous". Without it the Web Audio graph treats the
+    # stream as tainted and outputs silence rather than refusing outright,
+    # which is a confusing failure to debug.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.audius.co; media-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
     # Only meaningful over HTTPS, and deliberately not set here. Turning on
     # HSTS while developing over http://localhost pins the browser to a
@@ -79,6 +101,40 @@ Options -Indexes
 <FilesMatch "^(totp_selftest|smtp_test)\.php$">
     Require all denied
 </FilesMatch>
+
+
+# ── Do not cache the pages ───────────────────────────────────────────────
+#
+# Two separate problems, one rule.
+#
+# The one that keeps biting us: a browser holds onto an .html page and goes
+# on showing an old build after the file has been replaced on the server.
+# It looks exactly like a failed upload, and we have chased it three times
+# now -- each time the fix was a junk query string, which is a workaround a
+# user will never think of. A panel opening the site on their own laptop
+# would hit the same thing.
+#
+# The one that matters more: pages behind the login guard. Without
+# no-store, pressing Back after logging out redisplays the previous user's
+# profile from the cache, with no request to the server and therefore no
+# chance for the session check to refuse it. The data on screen is real and
+# the viewer is not signed in.
+#
+# no-store rather than no-cache, because no-cache still permits storage and
+# only requires revalidation -- and the back/forward cache is allowed to
+# skip that.
+#
+# Deliberately limited to .html and .php. The stylesheet, the scripts and
+# the audio SHOULD be cached: they carry ?v= markers when they change, and
+# a four-megabyte track re-downloaded on every page view would be far worse
+# than a stale page.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html|php)$">
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </FilesMatch>
+</IfModule>
 
 # Same for anything under tests/. These are never uploaded, but a rule
 # that only works because a directory happens to be absent is not a rule.

@@ -23,10 +23,23 @@ if (!rate_limit_check(
     exit;
 }
 
+/**
+ * Is this token still good?
+ *
+ * Expiry is decided by the database, not here. expires_at is written by
+ * MySQL's NOW(); comparing it with PHP's time() asks two different clocks
+ * in two possibly different timezones whether the same instant has passed.
+ * Where they disagree -- which shared hosting makes easy, since nothing in
+ * this project sets date.timezone -- a link is "expired" the moment it is
+ * created, and no amount of requesting a new one helps.
+ *
+ * So the query returns is_expired, evaluated in SQL against the same clock
+ * that set the column, and this function only reads the answer.
+ */
 function reset_is_usable($reset) {
     return $reset
         && $reset["used_at"] === null
-        && strtotime($reset["expires_at"]) >= time();
+        && (int)$reset["is_expired"] === 0;
 }
 
 $body = json_decode(file_get_contents("php://input"), true);
@@ -52,7 +65,9 @@ try {
     $tokenHash = hash("sha256", $token);
 
     $stmt = $pdo->prepare(
-        "SELECT pr.id, pr.user_id, pr.expires_at, pr.used_at, u.email, u.name
+        "SELECT pr.id, pr.user_id, pr.expires_at, pr.used_at,
+                (pr.expires_at < NOW()) AS is_expired,
+                u.email, u.name
          FROM password_resets pr
          JOIN users u ON u.id = pr.user_id
          WHERE pr.token_hash = ?"
